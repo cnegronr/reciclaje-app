@@ -1,0 +1,23 @@
+{
+  "name": "reciclaje-cdk",
+  "version": "1.0.0",
+  "description": "AWS CDK Infrastructure Stack for Reciclaje Litoral (S3, EC2 Graviton, VPC, Elastic IP)",
+  "bin": {
+    "reciclaje-cdk": "bin/reciclaje-cdk.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "aws-cdk": "^2.130.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.130.0",
+    "constructs": "^10.3.0",
+    "source-map-support": "^0.5.21"
+  }
+}
