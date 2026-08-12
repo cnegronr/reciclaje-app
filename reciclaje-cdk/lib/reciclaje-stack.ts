@@ -3,6 +3,9 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
+import * as fs from 'fs';
+import * as path from 'path';
+import * as os from 'os';
 
 export class ReciclajeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -51,15 +54,16 @@ export class ReciclajeStack extends cdk.Stack {
     ec2SecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(443), 'Permitir trafico Web HTTPS');
     ec2SecurityGroup.addIngressRule(ec2.Peer.anyIpv4(), ec2.Port.tcp(22), 'Permitir acceso SSH');
 
-    // 4. Rol de IAM para la Instancia EC2 con Permisos hacia el Bucket S3
+    // 4. Rol de IAM para la Instancia EC2 con Permisos hacia S3 y SSM Session Manager
     const ec2Role = new iam.Role(this, 'ReciclajeEc2Role', {
       assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
-      description: 'Rol de EC2 con acceso de lectura/escritura al bucket de fotos S3',
+      description: 'Rol de EC2 con acceso a S3 y SSM Session Manager',
     });
 
     fotosBucket.grantReadWrite(ec2Role);
+    ec2Role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
 
-    // 5. Script de Inicialización (UserData): Instala Docker, Docker Compose y levanta el stack
+    // 5. Script de Inicialización (UserData): Instala Docker, Docker Compose y prepara el directorio
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       'sudo dnf update -y',
@@ -70,6 +74,34 @@ export class ReciclajeStack extends cdk.Stack {
       'cd /home/ec2-user/app',
       'echo "Servidor de Reciclaje Litoral listo para desplegar con docker compose up -d --build"'
     );
+
+    // Detectar e inyectar automáticamente la clave pública local (~/.ssh/id_ed25519.pub o ~/.ssh/id_rsa.pub)
+    let localPublicKey = '';
+    try {
+      const ed25519Path = path.join(os.homedir(), '.ssh', 'id_ed25519.pub');
+      const rsaPath = path.join(os.homedir(), '.ssh', 'id_rsa.pub');
+
+      if (fs.existsSync(ed25519Path)) {
+        localPublicKey = fs.readFileSync(ed25519Path, 'utf8').trim();
+      } else if (fs.existsSync(rsaPath)) {
+        localPublicKey = fs.readFileSync(rsaPath, 'utf8').trim();
+      }
+    } catch (e) {
+      console.warn('No se pudo leer la clave publica local en ~/.ssh/', e);
+    }
+
+    if (localPublicKey) {
+      userData.addCommands(
+        'mkdir -p /home/ec2-user/.ssh',
+        'chmod 700 /home/ec2-user/.ssh',
+        `echo "${localPublicKey}" >> /home/ec2-user/.ssh/authorized_keys`,
+        'chmod 600 /home/ec2-user/.ssh/authorized_keys',
+        'chown -R ec2-user:ec2-user /home/ec2-user/.ssh'
+      );
+    }
+
+    // Obtener opcionalmente el KeyPair name desde contexto de CDK: cdk deploy -c keyName=mi-llave-ssh
+    const keyName = this.node.tryGetContext('keyName');
 
     // 6. Instancia EC2 Graviton (t4g.small: 2 vCPU ARM64, 2 GB RAM - ~$6-$8 USD/mes)
     const ec2Instance = new ec2.Instance(this, 'ReciclajeEc2Instance', {
@@ -82,6 +114,7 @@ export class ReciclajeStack extends cdk.Stack {
       role: ec2Role,
       userData: userData,
       vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      ...(keyName ? { keyName } : {}),
     });
 
     // 7. Dirección IP Elástica (Elastic IP) fija
@@ -89,7 +122,7 @@ export class ReciclajeStack extends cdk.Stack {
       instanceId: ec2Instance.instanceId,
     });
 
-    // Output Outputs de la Infraestructura
+    // Outputs de la Infraestructura
     new cdk.CfnOutput(this, 'BucketNameOutput', {
       value: fotosBucket.bucketName,
       description: 'Nombre del Bucket S3 para Fotos de Inspección',
