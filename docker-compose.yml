@@ -1,0 +1,57 @@
+name: reciclaje-app
+
+services:
+  # 1. Base de Datos PostgreSQL
+  postgres:
+    image: postgres:16-alpine
+    container_name: reciclaje_postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-reciclaje_db}
+      POSTGRES_USER: ${POSTGRES_USER:-reciclaje_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reciclaje_pass_2026}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reciclaje_user} -d ${POSTGRES_DB:-reciclaje_db} || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # 2. Microservicio Backend (Spring Boot)
+  backend:
+    build:
+      context: ./reciclaje-backend
+      dockerfile: Dockerfile
+    container_name: reciclaje_backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-reciclaje_db}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-reciclaje_user}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-reciclaje_pass_2026}
+      JWT_SECRET: ${JWT_SECRET:-ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-reciclaje-litoral-fotos-prod}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    ports:
+      - "8080:8080"
+
+  # 3. Frontend Web App (Nginx + React SPA)
+  frontend:
+    build:
+      context: ./reciclaje-web-poc
+      dockerfile: Dockerfile
+    container_name: reciclaje_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  postgres_data:
