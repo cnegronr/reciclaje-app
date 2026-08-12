@@ -1,0 +1,31 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: reciclaje-backend
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/reciclaje_db}
+    username: ${SPRING_DATASOURCE_USERNAME:reciclaje_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:reciclaje_pass_2026}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+# Configuración de Seguridad & JWT
+jwt:
+  secret: ${JWT_SECRET:ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!}
+  expiration-ms: 604800000 # 7 días (1 semana)
+
+# Configuración de AWS S3 desde variables de entorno
+aws:
+  s3:
+    bucket-name: ${AWS_S3_BUCKET:reciclaje-litoral-fotos-prod}
+    region: ${AWS_REGION:us-east-1}
