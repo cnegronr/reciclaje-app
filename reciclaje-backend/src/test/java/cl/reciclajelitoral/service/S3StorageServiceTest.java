@@ -9,6 +9,12 @@ import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectResponse;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.util.Base64;
+
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -43,7 +49,7 @@ class S3StorageServiceTest {
     }
 
     @Test
-    @DisplayName("Debe procesar contenido Base64 en modo simulado cuando no hay credenciales AWS")
+    @DisplayName("Debe procesar contenido Base64 en modo simulado retornando el Data URL directamente sin Access Denied")
     void subirFotoAS3Base64Simulado() {
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "");
         ReflectionTestUtils.setField(s3StorageService, "secretAccessKey", "");
@@ -51,12 +57,11 @@ class S3StorageServiceTest {
 
         assertFalse(s3StorageService.tieneCredencialesValidas());
 
-        String base64Image = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP==";
+        String base64Image = crearImagenBase64DePrueba(1600, 1200);
         String resultado = s3StorageService.subirFotoAS3(base64Image, "inicial_antes");
 
         assertNotNull(resultado);
-        assertTrue(resultado.contains("s3.us-east-1.amazonaws.com"));
-        assertTrue(resultado.contains("inspecciones/inicial_antes_"));
+        assertEquals(base64Image, resultado);
     }
 
     @Test
@@ -71,11 +76,11 @@ class S3StorageServiceTest {
         when(mockS3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
                 .thenReturn(PutObjectResponse.builder().build());
 
-        String base64Image = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
+        String base64Image = crearImagenBase64DePrueba(800, 600);
         String resultado = serviceSpy.subirFotoAS3(base64Image, "test_exitoso");
 
         assertNotNull(resultado);
-        assertTrue(resultado.contains("inspecciones/test_exitoso_"));
+        assertTrue(resultado.contains("reciclaje-litoral-fotos-prod"));
         verify(mockS3Client).putObject(any(PutObjectRequest.class), any(RequestBody.class));
         verify(mockS3Client).close();
     }
@@ -90,30 +95,94 @@ class S3StorageServiceTest {
         String resultado = s3StorageService.subirFotoAS3(invalidBase64, "error_test");
 
         assertNotNull(resultado);
-        assertTrue(resultado.contains("inspecciones/error_test_"));
+        assertEquals(invalidBase64, resultado);
     }
 
     @Test
-    @DisplayName("Debe intentar crear cliente S3 con credenciales estaticas")
-    void subirFotoAS3CredencialesEstaticas() {
+    @DisplayName("Debe generar Presigned URL exitosamente con S3Presigner")
+    void generarPresignedUrlExitoso() {
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "AKIAIOSFODNN7EXAMPLE");
         ReflectionTestUtils.setField(s3StorageService, "secretAccessKey", "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY");
-        ReflectionTestUtils.setField(s3StorageService, "awsProfile", "");
 
-        assertTrue(s3StorageService.tieneCredencialesValidas());
-
-        S3Client client = s3StorageService.crearS3Client();
-        assertNotNull(client);
-
-        String base64Image = "data:image/jpeg;base64,/9j/4AAQSkZJRg==";
-        String resultado = s3StorageService.subirFotoAS3(base64Image, "act_antes");
-
-        assertNotNull(resultado);
-        assertTrue(resultado.contains("inspecciones/act_antes_"));
+        String presignedUrl = s3StorageService.generarPresignedUrl("inspecciones/test_foto.jpg");
+        assertNotNull(presignedUrl);
+        assertTrue(presignedUrl.contains("reciclaje-litoral-fotos-prod"));
+        assertTrue(presignedUrl.contains("X-Amz-Algorithm="));
     }
 
     @Test
-    @DisplayName("Debe evaluar todas las combinaciones posibles de tieneCredencialesValidas y crearS3Client")
+    @DisplayName("Debe compresión e imagen nula o no valida retornar rawBytes")
+    void compresionarImagenCasosBorde() {
+        assertNull(s3StorageService.compresionarImagen(null));
+
+        byte[] vacio = new byte[0];
+        assertArrayEquals(vacio, s3StorageService.compresionarImagen(vacio));
+
+        byte[] noImagen = new byte[]{1, 2, 3, 4, 5};
+        assertArrayEquals(noImagen, s3StorageService.compresionarImagen(noImagen));
+
+        byte[] truncadoJpeg = new byte[]{(byte) 0xFF, (byte) 0xD8, (byte) 0xFF, (byte) 0xC0, 0x00, 0x02, 0x00, 0x00};
+        assertArrayEquals(truncadoJpeg, s3StorageService.compresionarImagen(truncadoJpeg));
+    }
+
+    @Test
+    @DisplayName("Debe redimensionar imagen grande apaisada (width > height)")
+    void compresionarImagenGrandeApaisada() throws Exception {
+        byte[] bytesOriginales = crearImagenByteDePrueba(2000, 1500);
+        byte[] bytesCompresos = s3StorageService.compresionarImagen(bytesOriginales);
+
+        assertNotNull(bytesCompresos);
+
+        BufferedImage imgCompresa = ImageIO.read(new ByteArrayInputStream(bytesCompresos));
+        assertNotNull(imgCompresa);
+        assertEquals(1280, imgCompresa.getWidth());
+        assertEquals(960, imgCompresa.getHeight());
+    }
+
+    @Test
+    @DisplayName("Debe redimensionar imagen grande vertical (height > width)")
+    void compresionarImagenGrandeVertical() throws Exception {
+        byte[] bytesOriginales = crearImagenByteDePrueba(1500, 2000);
+        byte[] bytesCompresos = s3StorageService.compresionarImagen(bytesOriginales);
+
+        assertNotNull(bytesCompresos);
+
+        BufferedImage imgCompresa = ImageIO.read(new ByteArrayInputStream(bytesCompresos));
+        assertNotNull(imgCompresa);
+        assertEquals(960, imgCompresa.getWidth());
+        assertEquals(1280, imgCompresa.getHeight());
+    }
+
+    @Test
+    @DisplayName("Debe redimensionar imagen grande cuadrada (width == height)")
+    void compresionarImagenGrandeCuadrada() throws Exception {
+        byte[] bytesOriginales = crearImagenByteDePrueba(1600, 1600);
+        byte[] bytesCompresos = s3StorageService.compresionarImagen(bytesOriginales);
+
+        assertNotNull(bytesCompresos);
+
+        BufferedImage imgCompresa = ImageIO.read(new ByteArrayInputStream(bytesCompresos));
+        assertNotNull(imgCompresa);
+        assertEquals(1280, imgCompresa.getWidth());
+        assertEquals(1280, imgCompresa.getHeight());
+    }
+
+    @Test
+    @DisplayName("Debe comprimir imagen pequeña sin modificar sus dimensiones")
+    void compresionarImagenPequena() throws Exception {
+        byte[] bytesOriginales = crearImagenByteDePrueba(400, 300);
+        byte[] bytesCompresos = s3StorageService.compresionarImagen(bytesOriginales);
+
+        assertNotNull(bytesCompresos);
+
+        BufferedImage imgCompresa = ImageIO.read(new ByteArrayInputStream(bytesCompresos));
+        assertNotNull(imgCompresa);
+        assertEquals(400, imgCompresa.getWidth());
+        assertEquals(300, imgCompresa.getHeight());
+    }
+
+    @Test
+    @DisplayName("Debe evaluar todas las combinaciones posibles de tieneCredencialesValidas, crearS3Client y crearS3Presigner")
     void evaluarCombinacionesCredenciales() {
         // 1. Ambas llaves presentes
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "key");
@@ -121,6 +190,7 @@ class S3StorageServiceTest {
         ReflectionTestUtils.setField(s3StorageService, "awsProfile", "");
         assertTrue(s3StorageService.tieneCredencialesValidas());
         assertNotNull(s3StorageService.crearS3Client());
+        assertNotNull(s3StorageService.crearS3Presigner());
 
         // 2. Solo accessKeyId
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "key");
@@ -128,6 +198,7 @@ class S3StorageServiceTest {
         ReflectionTestUtils.setField(s3StorageService, "awsProfile", "");
         assertFalse(s3StorageService.tieneCredencialesValidas());
         assertNotNull(s3StorageService.crearS3Client());
+        assertNotNull(s3StorageService.crearS3Presigner());
 
         // 3. Solo secretAccessKey
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "");
@@ -135,6 +206,7 @@ class S3StorageServiceTest {
         ReflectionTestUtils.setField(s3StorageService, "awsProfile", "");
         assertFalse(s3StorageService.tieneCredencialesValidas());
         assertNotNull(s3StorageService.crearS3Client());
+        assertNotNull(s3StorageService.crearS3Presigner());
 
         // 4. Solo awsProfile
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "");
@@ -142,6 +214,7 @@ class S3StorageServiceTest {
         ReflectionTestUtils.setField(s3StorageService, "awsProfile", "default");
         assertTrue(s3StorageService.tieneCredencialesValidas());
         assertNotNull(s3StorageService.crearS3Client());
+        assertNotNull(s3StorageService.crearS3Presigner());
 
         // 5. Ninguna credencial ni perfil
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "");
@@ -149,24 +222,33 @@ class S3StorageServiceTest {
         ReflectionTestUtils.setField(s3StorageService, "awsProfile", "");
         assertFalse(s3StorageService.tieneCredencialesValidas());
         assertNotNull(s3StorageService.crearS3Client());
+        assertNotNull(s3StorageService.crearS3Presigner());
     }
 
     @Test
-    @DisplayName("Debe intentar crear cliente S3 con perfil AWS")
-    void subirFotoAS3PerfilAWS() {
-        ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "");
-        ReflectionTestUtils.setField(s3StorageService, "secretAccessKey", "");
-        ReflectionTestUtils.setField(s3StorageService, "awsProfile", "default");
+    @DisplayName("Debe generar URL de fallback si presigner falla")
+    void generarPresignedUrlFallback() {
+        S3StorageService serviceSpy = spy(s3StorageService);
+        doThrow(new RuntimeException("Fallo presigner")).when(serviceSpy).crearS3Presigner();
 
-        assertTrue(s3StorageService.tieneCredencialesValidas());
+        String url = serviceSpy.generarPresignedUrl("inspecciones/foto.jpg");
+        assertNotNull(url);
+        assertTrue(url.contains("reciclaje-litoral-fotos-prod.s3.us-east-1.amazonaws.com/inspecciones/foto.jpg"));
+    }
 
-        S3Client client = s3StorageService.crearS3Client();
-        assertNotNull(client);
+    private byte[] crearImagenByteDePrueba(int width, int height) throws Exception {
+        BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ImageIO.write(img, "jpg", baos);
+        return baos.toByteArray();
+    }
 
-        String base64Image = "/9j/4AAQSkZJRg==";
-        String resultado = s3StorageService.subirFotoAS3(base64Image, "act_despues");
-
-        assertNotNull(resultado);
-        assertTrue(resultado.contains("inspecciones/act_despues_"));
+    private String crearImagenBase64DePrueba(int width, int height) {
+        try {
+            byte[] bytes = crearImagenByteDePrueba(width, height);
+            return "data:image/jpeg;base64," + Base64.getEncoder().encodeToString(bytes);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
 export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) => {
   const isEditing = !!detalleActual?.visitado;
 
+  // Valores iniciales para detección de cambios
+  const initialPorcentaje = detalleActual ? Number(detalleActual.porcentajeEstimado) : 50;
+  const initialObservaciones = detalleActual ? (detalleActual.observaciones || '') : '';
+
   // Estado del formulario
-  const [porcentaje, setPorcentaje] = useState(detalleActual ? detalleActual.porcentajeEstimado : 50);
-  const [observaciones, setObservaciones] = useState(detalleActual ? detalleActual.observaciones || '' : '');
+  const [porcentaje, setPorcentaje] = useState(initialPorcentaje);
+  const [observaciones, setObservaciones] = useState(initialObservaciones);
   
   // Fotos para inspección inicial (o previsualización)
   const [fotosAntes, setFotosAntes] = useState(
@@ -19,23 +23,60 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
   const [fotosAntesActualizacion, setFotosAntesActualizacion] = useState([]);
   const [fotosDespuesActualizacion, setFotosDespuesActualizacion] = useState([]);
 
-  // Estado para modal de Resumen / Confirmación previo a guardar
+  // Estado para modal de Resumen / Confirmación previo a guardar y spinner de carga
   const [showingSummary, setShowingSummary] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Cálculo automático de Kilos
   const maxKilos = contenedor.categoria === 'EMPRESA' ? 500 : 1000;
   const kilosCalculados = ((porcentaje / 100.0) * maxKilos).toFixed(1);
 
-  // Helper para convertir archivo a Data URL previsualizable
+  // Detección de cambios introducidos en el registro
+  const porcentajeChanged = Number(porcentaje) !== initialPorcentaje;
+  const observacionesChanged = observaciones.trim() !== initialObservaciones.trim();
+  const newPhotosUploaded = fotosAntesActualizacion.length > 0 || fotosDespuesActualizacion.length > 0;
+
+  const hasChanges = isEditing
+    ? (porcentajeChanged || observacionesChanged || newPhotosUploaded)
+    : (fotosAntes.length > 0 && fotosDespues.length > 0);
+
+  // Helper para convertir archivo a Data URL previsualizable y comprime imagen client-side
   const handleFileUpload = (e, setPhotoState) => {
     const files = Array.from(e.target.files);
     files.forEach((file) => {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setPhotoState((prev) => [
-          ...prev,
-          { id: Date.now() + Math.random(), url: reader.result, name: file.name }
-        ]);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1280;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxDim || height > maxDim) {
+            if (width >= height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Compresión JPEG a 75% de calidad
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.75);
+
+          setPhotoState((prev) => [
+            ...prev,
+            { id: Date.now() + Math.random(), url: compressedDataUrl, name: file.name }
+          ]);
+        };
+        img.src = event.target.result;
       };
       reader.readAsDataURL(file);
     });
@@ -47,6 +88,9 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
 
   const handleOpenSummary = (e) => {
     e.preventDefault();
+    if (!hasChanges) {
+      return;
+    }
     if (!isEditing && (fotosAntes.length === 0 || fotosDespues.length === 0)) {
       alert('⚠️ Por favor adjunta al menos 1 foto del estado ANTES y 1 foto del estado DESPUÉS de la inspección inicial.');
       return;
@@ -54,18 +98,26 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
     setShowingSummary(true);
   };
 
-  const handleConfirmSave = () => {
-    const dataToSave = {
-      porcentajeEstimado: Number(porcentaje),
-      kilosCalculados: Number(kilosCalculados),
-      observaciones,
-      fotosAntes,
-      fotosDespues,
-      fotosAntesActualizacion,
-      fotosDespuesActualizacion
-    };
+  const handleConfirmSave = async () => {
+    if (isSaving || !hasChanges) return;
+    setIsSaving(true);
+    try {
+      const dataToSave = {
+        porcentajeEstimado: Number(porcentaje),
+        kilosCalculados: Number(kilosCalculados),
+        observaciones,
+        fotosAntes,
+        fotosDespues,
+        fotosAntesActualizacion,
+        fotosDespuesActualizacion
+      };
 
-    onSave(contenedor.id, dataToSave, isEditing);
+      await onSave(contenedor.id, dataToSave, isEditing);
+    } catch (err) {
+      console.error('Error al guardar registro de inspección:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -78,7 +130,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
             </h2>
             <p className="modal-subtitle">{contenedor.nombrePunto} • {contenedor.ubicacion}</p>
           </div>
-          <button onClick={onClose} className="close-modal-btn">✖</button>
+          <button onClick={onClose} className="close-modal-btn" disabled={isSaving}>✖</button>
         </div>
 
         {!showingSummary ? (
@@ -90,10 +142,10 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
               <span className="location-tag">📍 Lat: {contenedor.lat}, Lng: {contenedor.lng}</span>
             </div>
 
-            {/* SI ES EDICIÓN: MOSTRAR CONSERVACIÓN DE FOTOS INICIALES */}
+            {/* SI ES EDICIÓN: MOSTRAR HISTÓRICO DE FOTOS (INICIALES Y CADA ACTUALIZACIÓN POR SEPARADO) */}
             {isEditing && (
               <div className="initial-preserved-section">
-                <h4>🔒 Fotos Conservadas de la Inspección Inicial ({new Date(detalleActual.fechaHoraInicial).toLocaleString('es-CL')})</h4>
+                <h4>🔒 Fotos Conservadas de la Inspección Inicial ({detalleActual.fechaHoraInicial ? new Date(detalleActual.fechaHoraInicial).toLocaleString('es-CL') : ''})</h4>
                 <div className="photo-grid-readonly">
                   <div>
                     <span className="photo-sublabel">Fotos Iniciales ANTES:</span>
@@ -112,6 +164,65 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                     </div>
                   </div>
                 </div>
+
+                {/* RENDERIZAR CADA ACTUALIZACIÓN POR SEPARADO CON SUS FOTOS ESPECÍFICAS */}
+                {detalleActual.actualizacionesHistorial && detalleActual.actualizacionesHistorial.length > 0 ? (
+                  detalleActual.actualizacionesHistorial.map((upd, idx) => (
+                    <div key={idx} className="update-preserved-subsection" style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
+                      <h4>🔄 Actualización #{idx + 1} ({upd.fechaHora ? new Date(upd.fechaHora).toLocaleString('es-CL') : ''})</h4>
+                      <div className="photo-grid-readonly">
+                        <div>
+                          <span className="photo-sublabel">Fotos ANTES:</span>
+                          <div className="photo-thumbnails">
+                            {upd.fotosAntes && upd.fotosAntes.length > 0 ? (
+                              upd.fotosAntes.map((f, i) => (
+                                <img key={i} src={f.url} alt={`Antes Actualización ${idx + 1}`} className="thumb-img" />
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin fotos antes</span>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="photo-sublabel">Fotos DESPUÉS:</span>
+                          <div className="photo-thumbnails">
+                            {upd.fotosDespues && upd.fotosDespues.length > 0 ? (
+                              upd.fotosDespues.map((f, i) => (
+                                <img key={i} src={f.url} alt={`Después Actualización ${idx + 1}`} className="thumb-img" />
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin fotos después</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  (detalleActual.fotosActualizacionAntes?.length > 0 || detalleActual.fotosActualizacionDespues?.length > 0) && (
+                    <div className="update-preserved-subsection" style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
+                      <h4>🔄 Última Actualización ({detalleActual.fechaHoraActualizacion ? new Date(detalleActual.fechaHoraActualizacion).toLocaleString('es-CL') : ''})</h4>
+                      <div className="photo-grid-readonly">
+                        <div>
+                          <span className="photo-sublabel">Fotos ANTES:</span>
+                          <div className="photo-thumbnails">
+                            {detalleActual.fotosActualizacionAntes?.map((f, i) => (
+                              <img key={i} src={f.url} alt="Antes Actualización" className="thumb-img" />
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="photo-sublabel">Fotos DESPUÉS:</span>
+                          <div className="photo-thumbnails">
+                            {detalleActual.fotosActualizacionDespues?.map((f, i) => (
+                              <img key={i} src={f.url} alt="Después Actualización" className="thumb-img" />
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                )}
               </div>
             )}
 
@@ -138,7 +249,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
             {/* SECCIÓN 2: FOTOS ANTES Y DESPUÉS (INICIALES O DE ACTUALIZACIÓN) */}
             <div className="form-section">
               <h3 className="section-title">
-                {isEditing ? '📸 Nuevas Fotos para Registro de Actualización' : '📸 Fotos de Inspección Actual'}
+                {isEditing ? '📸 Nuevas Fotos Opcionales para esta Actualización' : '📸 Fotos de Inspección Actual'}
               </h3>
 
               <div className="photos-upload-grid">
@@ -222,7 +333,12 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
               <button type="button" onClick={onClose} className="cancel-btn">
                 Cancelar
               </button>
-              <button type="submit" className="confirm-btn">
+              <button
+                type="submit"
+                disabled={!hasChanges}
+                className={`confirm-btn ${!hasChanges ? 'disabled' : ''}`}
+                title={!hasChanges ? 'Modifica el porcentaje, comentarios o añade fotos para habilitar este botón' : ''}
+              >
                 🔍 Revisar Resumen de Cambios →
               </button>
             </div>
@@ -247,7 +363,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
             </div>
 
             <div className="summary-photos-preview">
-              <h4>📸 Fotos a Confirmar:</h4>
+              <h4>📸 Fotos a Confirmar en esta Petición:</h4>
               <p>
                 - Antes: {(isEditing ? fotosAntesActualizacion : fotosAntes).length} foto(s)
                 <br />
@@ -256,11 +372,17 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
             </div>
 
             <div className="modal-footer">
-              <button onClick={() => setShowingSummary(false)} className="cancel-btn">
+              <button onClick={() => setShowingSummary(false)} className="cancel-btn" disabled={isSaving}>
                 ← Volver a Modificar
               </button>
-              <button onClick={handleConfirmSave} className="save-final-btn">
-                ✅ Confirmar y Guardar Registro
+              <button onClick={handleConfirmSave} disabled={isSaving || !hasChanges} className="save-final-btn">
+                {isSaving ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="spinner-icon" style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> Guardando e subiendo fotos...
+                  </span>
+                ) : (
+                  '✅ Confirmar y Guardar Registro'
+                )}
               </button>
             </div>
           </div>

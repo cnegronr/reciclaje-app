@@ -1,5 +1,4 @@
-import { API_BASE_URL, getAuthHeaders } from './apiConfig';
-import { TEST_USER } from '../data/mockData';
+import { API_BASE_URL } from './apiConfig';
 
 const AUTH_KEY = 'reciclaje_auth_token';
 const USER_KEY = 'reciclaje_user_data';
@@ -7,7 +6,7 @@ const USER_KEY = 'reciclaje_user_data';
 export const authService = {
   login: async (email, password) => {
     try {
-      // Intentar autenticación vía API REST con backend Spring Boot
+      // Autenticación obligatoria vía API REST con backend Spring Boot / PostgreSQL
       const response = await fetch(`${API_BASE_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -23,19 +22,15 @@ export const authService = {
         const errorData = await response.json().catch(() => ({}));
         return { 
           success: false, 
-          message: errorData.message || 'Credenciales inválidas en el servidor.' 
+          message: errorData.message || 'Credenciales inválidas en el servidor backend.' 
         };
       }
     } catch (err) {
-      console.warn('Backend no disponible, ejecutando en modo simulación local POC:', err);
-      // Fallback a modo simulación local POC
-      if (email === TEST_USER.email && password === 'Password123!') {
-        const token = `jwt_mock_${btoa(JSON.stringify(TEST_USER))}`;
-        localStorage.setItem(AUTH_KEY, token);
-        localStorage.setItem(USER_KEY, JSON.stringify(TEST_USER));
-        return { success: true, user: TEST_USER, token };
-      }
-      return { success: false, message: 'Usuario no registrado. Prueba con: inspector@reciclajelitoral.cl' };
+      console.error('Error al conectar con la API REST del backend Spring Boot:', err);
+      return { 
+        success: false, 
+        message: 'No se pudo establecer conexión con el servidor backend (Spring Boot/PostgreSQL en http://localhost:8080). Verifica los contenedores con docker compose.' 
+      };
     }
   },
 
