@@ -1,0 +1,12 @@
+# Java Spring Boot Backend .gitignore
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+.idea/
+.vscode/
+*.iml
+*.log
+.DS_Store
