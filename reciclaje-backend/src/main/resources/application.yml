@@ -11,9 +11,16 @@ spring:
     password: ${SPRING_DATASOURCE_PASSWORD:reciclaje_pass_2026}
     driver-class-name: org.postgresql.Driver
 
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      data-locations: classpath:init-data.sql
+
   jpa:
+    defer-datasource-initialization: true
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
@@ -24,8 +31,11 @@ jwt:
   secret: ${JWT_SECRET:ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!}
   expiration-ms: 604800000 # 7 días (1 semana)
 
-# Configuración de AWS S3 desde variables de entorno
+# Configuración de AWS S3 desde variables de entorno y perfil AWS
 aws:
+  profile: ${AWS_PROFILE:}
+  access-key-id: ${AWS_ACCESS_KEY_ID:}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY:}
   s3:
     bucket-name: ${AWS_S3_BUCKET:reciclaje-litoral-fotos-prod}
     region: ${AWS_REGION:us-east-1}

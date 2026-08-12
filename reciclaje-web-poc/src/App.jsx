@@ -37,13 +37,24 @@ export function App() {
     cargarComunasData();
   }, []);
 
-  // Cargar registro de inspección semanal cuando cambie la comuna o usuario
+  // Cargar registro de inspección semanal desde PostgreSQL cuando cambie la comuna o usuario
   useEffect(() => {
     if (currentUser) {
-      const record = inspectionService.getInspeccionSemanal(selectedComunaId, currentUser.id);
-      setInspeccionSemanal(record);
+      const selectedComuna = comunas.find((c) => c.id === selectedComunaId);
+      const backendComunaId = selectedComuna?.backendId || null;
+
+      const cargarInspeccion = async () => {
+        const record = await inspectionService.getInspeccionSemanal(
+          selectedComunaId,
+          currentUser.id,
+          backendComunaId
+        );
+        setInspeccionSemanal(record);
+      };
+
+      cargarInspeccion();
     }
-  }, [selectedComunaId, currentUser]);
+  }, [selectedComunaId, currentUser, comunas]);
 
   if (!currentUser) {
     return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
@@ -62,24 +73,31 @@ export function App() {
     .reduce((sum, d) => sum + (d.kilosCalculados || 0), 0);
 
   const handleSaveInspection = async (contenedorId, inspectionData, isEditing) => {
+    const backendContenedorId = activeModalContenedor?.backendId || contenedorId;
+
     const updatedRecord = await inspectionService.saveDetalleInspeccion(
       selectedComunaId,
       currentUser.id,
-      contenedorId,
+      backendContenedorId,
       inspectionData,
-      isEditing
+      isEditing,
+      selectedComuna.backendId
     );
     setInspeccionSemanal({ ...updatedRecord });
     setActiveModalContenedor(null);
   };
 
-  const handleFinalizarRuta = () => {
+  const handleFinalizarRuta = async () => {
     if (pendientesCount > 0) {
       if (!confirm(`⚠️ Aún quedan ${pendientesCount} contenedores pendientes en ${selectedComuna.nombre}. ¿Deseas marcar la ruta como completada de todas formas?`)) {
         return;
       }
     }
-    const updatedRecord = inspectionService.finalizarRutaSemanal(selectedComunaId, currentUser.id);
+    const updatedRecord = await inspectionService.finalizarRutaSemanal(
+      selectedComunaId,
+      currentUser.id,
+      selectedComuna.backendId
+    );
     setInspeccionSemanal({ ...updatedRecord });
     alert('✅ ¡Ruta semanal finalizada exitosamente!');
   };

@@ -1,7 +1,7 @@
 package cl.reciclajelitoral.controller;
 
+import cl.reciclajelitoral.dto.InspeccionSemanalDTO;
 import cl.reciclajelitoral.dto.RegistrarInspeccionRequest;
-import cl.reciclajelitoral.entity.InspeccionSemanal;
 import cl.reciclajelitoral.service.InspeccionSemanalService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -15,12 +15,21 @@ public class InspeccionController {
 
     private final InspeccionSemanalService inspeccionService;
 
+    @GetMapping("/comuna/{comunaId}")
+    public ResponseEntity<InspeccionSemanalDTO> obtenerOCrearInspeccionSemanal(
+            @PathVariable Long comunaId,
+            @RequestParam(defaultValue = "1") Long inspectorId
+    ) {
+        InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(comunaId, inspectorId);
+        return ResponseEntity.ok(dto);
+    }
+
     @PostMapping("/{inspeccionId}/registrar")
-    public ResponseEntity<InspeccionSemanal> registrarOActualizarInspeccion(
+    public ResponseEntity<InspeccionSemanalDTO> registrarOActualizarInspeccion(
             @PathVariable Long inspeccionId,
             @Valid @RequestBody RegistrarInspeccionRequest request
     ) {
-        InspeccionSemanal resultado = inspeccionService.registrarOActualizarInspeccion(
+        InspeccionSemanalDTO resultado = inspeccionService.registrarOActualizarInspeccion(
                 inspeccionId,
                 request.getContenedorId(),
                 request.getPorcentajeEstimado(),
@@ -29,6 +38,12 @@ public class InspeccionController {
                 request.getFotosDespuesUrls(),
                 request.isEsActualizacion()
         );
+        return ResponseEntity.ok(resultado);
+    }
+
+    @PostMapping("/{inspeccionId}/finalizar")
+    public ResponseEntity<InspeccionSemanalDTO> finalizarRutaSemanal(@PathVariable Long inspeccionId) {
+        InspeccionSemanalDTO resultado = inspeccionService.finalizarRutaSemanal(inspeccionId);
         return ResponseEntity.ok(resultado);
     }
 }

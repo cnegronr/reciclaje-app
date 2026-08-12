@@ -66,6 +66,7 @@ class AuthServiceTest {
         AsignacionInspector asignacionMock = AsignacionInspector.builder().comuna(comunaMock).build();
 
         when(usuarioRepository.findByEmail("inspector@reciclajelitoral.cl")).thenReturn(Optional.of(usuarioMock));
+        String encodedPassword = passwordEncoder.encode("Password123!");
         when(passwordEncoder.matches("Password123!", "$2a$10$encodedPassword")).thenReturn(true);
         when(tokenProvider.generarToken("inspector@reciclajelitoral.cl")).thenReturn("token.jwt.mock");
         when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of(asignacionMock));

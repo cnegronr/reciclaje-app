@@ -1,4 +1,4 @@
-name: reciclaje-app
+version: '3.8'
 
 services:
   # 1. Base de Datos PostgreSQL
@@ -14,6 +14,8 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./reciclaje-backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./reciclaje-backend/src/main/resources/init-data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reciclaje_user} -d ${POSTGRES_DB:-reciclaje_db} || exit 1"]
       interval: 5s
@@ -36,8 +38,14 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-reciclaje_user}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-reciclaje_pass_2026}
       JWT_SECRET: ${JWT_SECRET:-ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET:-reciclaje-litoral-fotos-prod}
       AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      # Montar perfil local ~/.aws para reutilizar las credenciales de aws configure en el contenedor
+      - ~/.aws:/root/.aws:ro
     ports:
       - "8080:8080"
 

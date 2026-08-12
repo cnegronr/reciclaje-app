@@ -27,17 +27,77 @@ export const getISOWeekNumber = (d = new Date()) => {
 };
 
 export const inspectionService = {
-  getInspeccionSemanal: (comunaId, inspectorId) => {
+  getInspeccionSemanal: async (comunaId, inspectorId, backendComunaId = null) => {
     const raw = localStorage.getItem(INSPECTIONS_STORAGE_KEY);
     const inspections = raw ? JSON.parse(raw) : {};
     const weekNum = getISOWeekNumber();
     const year = new Date().getFullYear();
     const key = `${inspectorId}_${comunaId}_${year}_W${weekNum}`;
 
+    let backendRecord = null;
+
+    // 1. Intentar obtener o crear la inspección en la base de datos PostgreSQL vía REST API
+    try {
+      const comId = backendComunaId || (typeof comunaId === 'number' ? comunaId : 1);
+      const response = await fetch(`${API_BASE_URL}/inspecciones/comuna/${comId}?inspectorId=${inspectorId || 1}`, {
+        headers: getAuthHeaders()
+      });
+
+      if (response.ok) {
+        backendRecord = await response.json();
+      }
+    } catch (err) {
+      console.warn('Backend API no disponible para consultar inspección, usando caché local:', err);
+    }
+
+    // 2. Si el backend responde, estructurar los detalles de inspección recibidos de PostgreSQL/S3
+    if (backendRecord) {
+      const detallesMap = {};
+      (backendRecord.detalles || []).forEach((d) => {
+        const contId = String(d.contenedorId);
+        
+        const fotosInicialesAntes = (d.fotos || []).filter(f => f.momento === 'INICIAL_ANTES').map(f => ({ id: f.id, url: f.urlFoto }));
+        const fotosInicialesDespues = (d.fotos || []).filter(f => f.momento === 'INICIAL_DESPUES').map(f => ({ id: f.id, url: f.urlFoto }));
+        const fotosActualizacionAntes = (d.fotos || []).filter(f => f.momento === 'ACTUALIZACION_ANTES').map(f => ({ id: f.id, url: f.urlFoto }));
+        const fotosActualizacionDespues = (d.fotos || []).filter(f => f.momento === 'ACTUALIZACION_DESPUES').map(f => ({ id: f.id, url: f.urlFoto }));
+
+        detallesMap[contId] = {
+          contenedorId: contId,
+          porcentajeEstimado: Number(d.porcentajeEstimado || 0),
+          kilosCalculados: Number(d.kilosCalculados || 0),
+          visitado: Boolean(d.visitado),
+          fechaHoraInicial: d.fechaHoraInicial,
+          fechaHoraActualizacion: d.fechaHoraActualizacion,
+          observaciones: d.observaciones || '',
+          fotosInicialesAntes,
+          fotosInicialesDespues,
+          fotosActualizacionAntes,
+          fotosActualizacionDespues
+        };
+      });
+
+      const formattedRecord = {
+        id: key,
+        backendId: backendRecord.id,
+        comunaId,
+        inspectorId,
+        semana: backendRecord.semanaNumero,
+        anio: backendRecord.anio,
+        fechaLimite: backendRecord.fechaLimite || getDeadlineCurrentWeek().toISOString(),
+        estado: backendRecord.estado,
+        detalles: detallesMap
+      };
+
+      inspections[key] = formattedRecord;
+      localStorage.setItem(INSPECTIONS_STORAGE_KEY, JSON.stringify(inspections));
+      return formattedRecord;
+    }
+
+    // Fallback a almacenamiento local si la API está inaccesible
     if (!inspections[key]) {
       return {
         id: key,
-        backendId: 1, // ID por defecto de la inspección en el backend
+        backendId: 1,
         comunaId,
         inspectorId,
         semana: weekNum,
@@ -50,11 +110,13 @@ export const inspectionService = {
     return inspections[key];
   },
 
-  saveDetalleInspeccion: async (comunaId, inspectorId, contenedorId, inspectionData, isUpdateMode = false) => {
-    const record = inspectionService.getInspeccionSemanal(comunaId, inspectorId);
+  saveDetalleInspeccion: async (comunaId, inspectorId, contenedorId, inspectionData, isUpdateMode = false, backendComunaId = null) => {
+    const record = await inspectionService.getInspeccionSemanal(comunaId, inspectorId, backendComunaId);
     const nowIso = new Date().toISOString();
 
-    // 1. Intentar enviar el registro al Backend Spring Boot vía REST API
+    let backendSuccess = false;
+
+    // 1. Enviar registro y fotos (Base64/URLs) a la API REST de Spring Boot para subida a S3 y PostgreSQL
     try {
       const backendContenedorId = typeof contenedorId === 'number' ? contenedorId : parseInt(contenedorId, 10) || 1;
       
@@ -62,21 +124,25 @@ export const inspectionService = {
         contenedorId: backendContenedorId,
         porcentajeEstimado: inspectionData.porcentajeEstimado,
         observaciones: inspectionData.observaciones || '',
-        fotosAntesUrls: (inspectionData.fotosAntes || []).map(f => f.url),
-        fotosDespuesUrls: (inspectionData.fotosDespues || []).map(f => f.url),
+        fotosAntesUrls: (inspectionData.fotosAntes || inspectionData.fotosAntesActualizacion || []).map(f => f.url),
+        fotosDespuesUrls: (inspectionData.fotosDespues || inspectionData.fotosDespuesActualizacion || []).map(f => f.url),
         esActualizacion: isUpdateMode
       };
 
-      await fetch(`${API_BASE_URL}/inspecciones/${record.backendId || 1}/registrar`, {
+      const res = await fetch(`${API_BASE_URL}/inspecciones/${record.backendId || 1}/registrar`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify(payload)
       });
+
+      if (res.ok) {
+        backendSuccess = true;
+      }
     } catch (err) {
-      console.warn('Backend API no disponible para guardar inspección, registrando localmente:', err);
+      console.warn('Error al guardar en el backend Spring Boot / S3, usando respaldo local:', err);
     }
 
-    // 2. Persistir localmente en LocalStorage para garantizar sincronización offline/online
+    // 2. Actualizar estado local
     const raw = localStorage.getItem(INSPECTIONS_STORAGE_KEY);
     const inspections = raw ? JSON.parse(raw) : {};
     const currentDetalle = record.detalles[contenedorId] || {};
@@ -116,13 +182,29 @@ export const inspectionService = {
     record.estado = 'EN_PROGRESO';
     inspections[record.id] = record;
     localStorage.setItem(INSPECTIONS_STORAGE_KEY, JSON.stringify(inspections));
+    
+    // Si la API del backend respondió, volver a consultar para obtener las URLs finales de S3
+    if (backendSuccess) {
+      return await inspectionService.getInspeccionSemanal(comunaId, inspectorId, backendComunaId);
+    }
+
     return record;
   },
 
-  finalizarRutaSemanal: (comunaId, inspectorId) => {
+  finalizarRutaSemanal: async (comunaId, inspectorId, backendComunaId = null) => {
+    const record = await inspectionService.getInspeccionSemanal(comunaId, inspectorId, backendComunaId);
+
+    try {
+      await fetch(`${API_BASE_URL}/inspecciones/${record.backendId || 1}/finalizar`, {
+        method: 'POST',
+        headers: getAuthHeaders()
+      });
+    } catch (err) {
+      console.warn('Error al finalizar ruta en backend:', err);
+    }
+
     const raw = localStorage.getItem(INSPECTIONS_STORAGE_KEY);
     const inspections = raw ? JSON.parse(raw) : {};
-    const record = inspectionService.getInspeccionSemanal(comunaId, inspectorId);
     record.estado = 'FINALIZADO';
     inspections[record.id] = record;
     localStorage.setItem(INSPECTIONS_STORAGE_KEY, JSON.stringify(inspections));

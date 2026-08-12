@@ -1,9 +1,8 @@
 package cl.reciclajelitoral.service;
 
+import cl.reciclajelitoral.dto.InspeccionSemanalDTO;
 import cl.reciclajelitoral.entity.*;
-import cl.reciclajelitoral.repository.ContenedorRepository;
-import cl.reciclajelitoral.repository.DetalleInspeccionRepository;
-import cl.reciclajelitoral.repository.InspeccionSemanalRepository;
+import cl.reciclajelitoral.repository.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +20,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -35,16 +35,32 @@ class InspeccionSemanalServiceTest {
     @Mock
     private ContenedorRepository contenedorRepository;
 
+    @Mock
+    private ComunaRepository comunaRepository;
+
+    @Mock
+    private UsuarioRepository usuarioRepository;
+
+    @Mock
+    private S3StorageService s3StorageService;
+
     @InjectMocks
     private InspeccionSemanalService inspeccionService;
 
     private InspeccionSemanal inspeccionSemanalMock;
     private Contenedor contenedorEmpresaMock;
+    private Comuna comunaMock;
+    private Usuario usuarioMock;
 
     @BeforeEach
     void setUp() {
+        comunaMock = Comuna.builder().id(1L).nombre("El Quisco").codigoRegion("V").build();
+        usuarioMock = Usuario.builder().id(1L).nombre("Inspector Test").email("inspector@reciclajelitoral.cl").build();
+
         inspeccionSemanalMock = InspeccionSemanal.builder()
                 .id(1L)
+                .comuna(comunaMock)
+                .inspector(usuarioMock)
                 .semanaNumero(32)
                 .anio(2026)
                 .estado(EstadoInspeccion.EN_PROGRESO)
@@ -52,6 +68,7 @@ class InspeccionSemanalServiceTest {
 
         contenedorEmpresaMock = Contenedor.builder()
                 .id(10L)
+                .comuna(comunaMock)
                 .nombrePunto("Punto Centro Acopio")
                 .categoria(CategoriaContenedor.EMPRESA)
                 .kilosMaximos(BigDecimal.valueOf(500))
@@ -61,28 +78,26 @@ class InspeccionSemanalServiceTest {
     @Test
     @DisplayName("Debe calcular la fecha limite cuando la fecha actual es antes del Domingo a las 20:00")
     void calcularFechaLimiteSemanalAntesDeDomingo20() {
-        // Martes 11 de Agosto de 2026 a las 10:00 AM
         LocalDateTime martes = LocalDateTime.of(2026, 8, 11, 10, 0, 0);
 
         LocalDateTime limite = inspeccionService.calcularFechaLimiteSemanal(martes);
 
         assertNotNull(limite);
         assertEquals(DayOfWeek.SUNDAY, limite.getDayOfWeek());
-        assertEquals(16, limite.getDayOfMonth()); // Domingo 16 de Agosto
+        assertEquals(16, limite.getDayOfMonth());
         assertEquals(20, limite.getHour());
     }
 
     @Test
     @DisplayName("Debe calcular la fecha limite del PROXIMO Domingo cuando la fecha actual es despues del Domingo a las 20:00")
     void calcularFechaLimiteSemanalDespuesDeDomingo20() {
-        // Domingo 16 de Agosto de 2026 a las 21:00 (Pasado el limite de las 20:00)
         LocalDateTime domingoTarde = LocalDateTime.of(2026, 8, 16, 21, 0, 0);
 
         LocalDateTime limite = inspeccionService.calcularFechaLimiteSemanal(domingoTarde);
 
         assertNotNull(limite);
         assertEquals(DayOfWeek.SUNDAY, limite.getDayOfWeek());
-        assertEquals(23, limite.getDayOfMonth()); // Pasa al siguiente Domingo 23 de Agosto
+        assertEquals(23, limite.getDayOfMonth());
         assertEquals(20, limite.getHour());
     }
 
@@ -97,15 +112,22 @@ class InspeccionSemanalServiceTest {
     }
 
     @Test
-    @DisplayName("Inspeccion Inicial: debe registrar porcentaje, calcular kilos y marcar fechaHoraInicial")
+    @DisplayName("Inspeccion Inicial: debe registrar porcentaje, subir fotos a S3, calcular kilos y marcar fechaHoraInicial")
     void registrarInspeccionInicial() {
-        when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
-                .thenReturn(Optional.empty());
-        when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
-        when(contenedorRepository.findById(10L)).thenReturn(Optional.of(contenedorEmpresaMock));
-        when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
+        DetalleInspeccion detalleNuevo = DetalleInspeccion.builder()
+                .inspeccionSemanal(inspeccionSemanalMock)
+                .contenedor(contenedorEmpresaMock)
+                .visitado(false)
+                .fotos(new ArrayList<>())
+                .build();
 
-        InspeccionSemanal resultado = inspeccionService.registrarOActualizarInspeccion(
+        when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
+                .thenReturn(Optional.of(detalleNuevo));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
+        when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
+        when(s3StorageService.subirFotoAS3(anyString(), anyString())).thenAnswer(i -> i.getArgument(0));
+
+        InspeccionSemanalDTO resultado = inspeccionService.registrarOActualizarInspeccion(
                 1L,
                 10L,
                 BigDecimal.valueOf(80),
@@ -116,6 +138,7 @@ class InspeccionSemanalServiceTest {
         );
 
         assertNotNull(resultado);
+        verify(s3StorageService, times(2)).subirFotoAS3(anyString(), anyString());
         verify(detalleRepository).save(argThat(detalle -> {
             assertTrue(detalle.getVisitado());
             assertEquals(0, BigDecimal.valueOf(400).compareTo(detalle.getKilosCalculados()));
@@ -139,6 +162,7 @@ class InspeccionSemanalServiceTest {
 
         when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
                 .thenReturn(Optional.of(detalleSinFechaInicial));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
         when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
 
         inspeccionService.registrarOActualizarInspeccion(
@@ -162,13 +186,19 @@ class InspeccionSemanalServiceTest {
     @Test
     @DisplayName("Inspeccion Inicial con listas de fotos nulas: no debe fallar")
     void registrarInspeccionInicialFotosNull() {
+        DetalleInspeccion detalleNuevo = DetalleInspeccion.builder()
+                .inspeccionSemanal(inspeccionSemanalMock)
+                .contenedor(contenedorEmpresaMock)
+                .visitado(false)
+                .fotos(new ArrayList<>())
+                .build();
+
         when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
-                .thenReturn(Optional.empty());
-        when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
-        when(contenedorRepository.findById(10L)).thenReturn(Optional.of(contenedorEmpresaMock));
+                .thenReturn(Optional.of(detalleNuevo));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
         when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
 
-        InspeccionSemanal resultado = inspeccionService.registrarOActualizarInspeccion(
+        InspeccionSemanalDTO resultado = inspeccionService.registrarOActualizarInspeccion(
                 1L,
                 10L,
                 BigDecimal.valueOf(50),
@@ -204,7 +234,9 @@ class InspeccionSemanalServiceTest {
 
         when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
                 .thenReturn(Optional.of(detalleExistente));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
         when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
+        when(s3StorageService.subirFotoAS3(anyString(), anyString())).thenAnswer(i -> i.getArgument(0));
 
         inspeccionService.registrarOActualizarInspeccion(
                 1L,
@@ -239,6 +271,7 @@ class InspeccionSemanalServiceTest {
 
         when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
                 .thenReturn(Optional.of(detalleExistente));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
         when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
 
         inspeccionService.registrarOActualizarInspeccion(

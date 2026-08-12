@@ -14,17 +14,34 @@ class S3StorageServiceTest {
     @BeforeEach
     void setUp() {
         s3StorageService = new S3StorageService();
-        ReflectionTestUtils.setField(s3StorageService, "bucketName", "test-bucket");
+        ReflectionTestUtils.setField(s3StorageService, "bucketName", "reciclaje-litoral-fotos-prod");
         ReflectionTestUtils.setField(s3StorageService, "region", "us-east-1");
     }
 
     @Test
-    @DisplayName("Debe generar URL de foto formateada hacia el bucket S3")
-    void generarUrlFotoS3() {
-        String url = s3StorageService.generarUrlFotoS3("antes");
+    @DisplayName("Debe retornar null cuando el photoData sea nulo o vacio")
+    void subirFotoAS3NullOVacia() {
+        assertNull(s3StorageService.subirFotoAS3(null, "inicial"));
+        assertNull(s3StorageService.subirFotoAS3("   ", "inicial"));
+    }
 
-        assertNotNull(url);
-        assertTrue(url.startsWith("https://test-bucket.s3.us-east-1.amazonaws.com/inspecciones/antes_"));
-        assertTrue(url.endsWith(".jpg"));
+    @Test
+    @DisplayName("Debe retornar la misma URL si photoData ya es una URL HTTP/HTTPS")
+    void subirFotoAS3UrlExistente() {
+        String urlHttp = "https://reciclaje-litoral-fotos-prod.s3.us-east-1.amazonaws.com/inspecciones/foto.jpg";
+        String resultado = s3StorageService.subirFotoAS3(urlHttp, "inicial");
+
+        assertEquals(urlHttp, resultado);
+    }
+
+    @Test
+    @DisplayName("Debe procesar contenido Base64 y generar URL de Amazon S3")
+    void subirFotoAS3Base64() {
+        String base64Image = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP==";
+        String resultado = s3StorageService.subirFotoAS3(base64Image, "inicial_antes");
+
+        assertNotNull(resultado);
+        assertTrue(resultado.contains("s3.us-east-1.amazonaws.com"));
+        assertTrue(resultado.contains("inspecciones/inicial_antes_"));
     }
 }
