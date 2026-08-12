@@ -64,6 +64,7 @@ class InspeccionSemanalServiceTest {
                 .semanaNumero(32)
                 .anio(2026)
                 .estado(EstadoInspeccion.EN_PROGRESO)
+                .detalles(new ArrayList<>())
                 .build();
 
         contenedorEmpresaMock = Contenedor.builder()
@@ -109,6 +110,120 @@ class InspeccionSemanalServiceTest {
         assertNotNull(limite);
         assertEquals(DayOfWeek.SUNDAY, limite.getDayOfWeek());
         assertEquals(20, limite.getHour());
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe retornar existente si ya existe con detalles y fotos convertidos")
+    void obtenerOCrearInspeccionSemanalExistente() {
+        FotoInspeccion fotoMock = FotoInspeccion.builder()
+                .id(100L)
+                .momento(MomentoFoto.INICIAL_ANTES)
+                .urlFoto("http://s3.com/foto.jpg")
+                .creadoEn(LocalDateTime.now())
+                .build();
+
+        DetalleInspeccion detalleMock = DetalleInspeccion.builder()
+                .id(50L)
+                .contenedor(contenedorEmpresaMock)
+                .porcentajeEstimado(BigDecimal.valueOf(80))
+                .kilosCalculados(BigDecimal.valueOf(400))
+                .visitado(true)
+                .fotos(List.of(fotoMock))
+                .build();
+
+        inspeccionSemanalMock.getDetalles().add(detalleMock);
+
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(inspeccionSemanalMock));
+
+        InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L);
+
+        assertNotNull(dto);
+        assertEquals(1L, dto.getId());
+        assertEquals(1, dto.getDetalles().size());
+        assertEquals(1, dto.getDetalles().get(0).getFotos().size());
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe manejar detalles y fotos nulas en la conversion DTO")
+    void obtenerOCrearInspeccionSemanalConDetallesYFotosNull() {
+        InspeccionSemanal inspeccionSinDetalles = InspeccionSemanal.builder()
+                .id(2L)
+                .comuna(comunaMock)
+                .inspector(usuarioMock)
+                .semanaNumero(32)
+                .anio(2026)
+                .estado(EstadoInspeccion.EN_PROGRESO)
+                .detalles(null)
+                .build();
+
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(inspeccionSinDetalles));
+
+        InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L);
+
+        assertNotNull(dto);
+        assertTrue(dto.getDetalles().isEmpty());
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe manejar fotos nulas dentro del detalle")
+    void obtenerOCrearInspeccionSemanalConFotosNullEnDetalle() {
+        DetalleInspeccion detalleFotosNull = DetalleInspeccion.builder()
+                .id(51L)
+                .contenedor(contenedorEmpresaMock)
+                .visitado(false)
+                .fotos(null)
+                .build();
+
+        inspeccionSemanalMock.getDetalles().add(detalleFotosNull);
+
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(inspeccionSemanalMock));
+
+        InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L);
+
+        assertNotNull(dto);
+        assertEquals(1, dto.getDetalles().size());
+        assertTrue(dto.getDetalles().get(0).getFotos().isEmpty());
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe crear nueva inspeccion e inicializar contenedores si no existe")
+    void obtenerOCrearInspeccionSemanalNueva() {
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.empty());
+        when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
+        when(contenedorRepository.findByComunaId(1L)).thenReturn(List.of(contenedorEmpresaMock));
+        when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
+
+        InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L);
+
+        assertNotNull(dto);
+        verify(detalleRepository).save(any(DetalleInspeccion.class));
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe lanzar excepcion si la comuna no existe")
+    void obtenerOCrearInspeccionSemanalComunaNoEncontrada() {
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.empty());
+        when(comunaRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L));
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe lanzar excepcion si el inspector no existe")
+    void obtenerOCrearInspeccionSemanalInspectorNoEncontrado() {
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.empty());
+        when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L));
     }
 
     @Test
@@ -292,6 +407,24 @@ class InspeccionSemanalServiceTest {
     }
 
     @Test
+    @DisplayName("Debe crear un detalle nuevo si la inspeccion existe pero no el detalle previo")
+    void registrarInspeccionDetalleNoExiste() {
+        when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
+                .thenReturn(Optional.empty());
+        when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
+        when(contenedorRepository.findById(10L)).thenReturn(Optional.of(contenedorEmpresaMock));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
+        when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
+
+        InspeccionSemanalDTO dto = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(50), "Nuevo", null, null, false
+        );
+
+        assertNotNull(dto);
+        verify(detalleRepository).save(any(DetalleInspeccion.class));
+    }
+
+    @Test
     @DisplayName("Debe lanzar excepcion si la inspeccion semanal no existe")
     void registrarInspeccionNoEncontrada() {
         when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
@@ -314,5 +447,25 @@ class InspeccionSemanalServiceTest {
         assertThrows(IllegalArgumentException.class, () -> inspeccionService.registrarOActualizarInspeccion(
                 1L, 10L, BigDecimal.valueOf(50), null, null, null, false
         ));
+    }
+
+    @Test
+    @DisplayName("finalizarRutaSemanal: debe cambiar el estado a FINALIZADO")
+    void finalizarRutaSemanalExitoso() {
+        when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenAnswer(i -> i.getArgument(0));
+
+        InspeccionSemanalDTO dto = inspeccionService.finalizarRutaSemanal(1L);
+
+        assertNotNull(dto);
+        assertEquals("FINALIZADO", dto.getEstado());
+    }
+
+    @Test
+    @DisplayName("finalizarRutaSemanal: debe lanzar excepcion si no se encuentra la inspeccion")
+    void finalizarRutaSemanalNoEncontrada() {
+        when(inspeccionRepository.findById(1L)).thenReturn(Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> inspeccionService.finalizarRutaSemanal(1L));
     }
 }

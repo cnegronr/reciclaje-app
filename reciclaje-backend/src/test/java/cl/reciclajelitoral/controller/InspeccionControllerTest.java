@@ -100,4 +100,16 @@ class InspeccionControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1));
     }
+
+    @Test
+    @DisplayName("POST /api/inspecciones/{id}/finalizar debe finalizar la ruta semanal")
+    void finalizarRutaSemanal() throws Exception {
+        inspeccionDTO.setEstado("FINALIZADO");
+        when(inspeccionService.finalizarRutaSemanal(1L)).thenReturn(inspeccionDTO);
+
+        mockMvc.perform(post("/api/inspecciones/1/finalizar")
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.estado").value("FINALIZADO"));
+    }
 }

@@ -100,7 +100,7 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
 
-            <!-- Configuración del Plugin JaCoCo con Umbrales del 90% en INSTRUCTION y BRANCH -->
+            <!-- Configuración del Plugin JaCoCo con Umbral del 100% (1.0) en INSTRUCTION y BRANCH -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
@@ -137,13 +137,13 @@
                                 <rule>
                                     <element>BUNDLE</element>
                                     <limits>
-                                        <!-- Cobertura de Instrucciones: 90% Mínimo -->
+                                        <!-- Cobertura de Instrucciones: 100% (1.0) Mínimo -->
                                         <limit>
                                             <counter>INSTRUCTION</counter>
                                             <value>COVEREDRATIO</value>
                                             <minimum>1.0</minimum>
                                         </limit>
-                                        <!-- Cobertura de Ramas / Branch Coverage: 90% Mínimo -->
+                                        <!-- Cobertura de Ramas / Branch Coverage: 100% (1.0) Mínimo -->
                                         <limit>
                                             <counter>BRANCH</counter>
                                             <value>COVEREDRATIO</value>
