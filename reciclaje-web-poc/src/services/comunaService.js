@@ -1,5 +1,4 @@
 import { API_BASE_URL, getAuthHeaders } from './apiConfig';
-import { COMUNAS_DATA } from '../data/mockData';
 
 export const comunaService = {
   obtenerComunas: async () => {
@@ -32,9 +31,8 @@ export const comunaService = {
         }
       }
     } catch (err) {
-      console.warn('Backend no disponible para cargar comunas, usando datos locales:', err);
+      console.error('Error al cargar comunas desde la API REST del backend:', err);
     }
-    // Fallback a datos locales cargados desde Excel
-    return COMUNAS_DATA;
+    return [];
   }
 };

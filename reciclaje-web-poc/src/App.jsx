@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { authService } from './services/authService';
 import { comunaService } from './services/comunaService';
 import { inspectionService } from './services/inspectionService';
-import { COMUNAS_DATA } from './data/mockData';
 import { LoginScreen } from './components/LoginScreen';
 import { Header } from './components/Header';
 import { MapView } from './components/MapView';
@@ -11,8 +10,8 @@ import { InspectionModal } from './components/InspectionModal';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState(null);
-  const [comunas, setComunas] = useState(COMUNAS_DATA);
-  const [selectedComunaId, setSelectedComunaId] = useState(COMUNAS_DATA[0].id);
+  const [comunas, setComunas] = useState([]);
+  const [selectedComunaId, setSelectedComunaId] = useState('');
   const [inspeccionSemanal, setInspeccionSemanal] = useState(null);
   const [activeModalContenedor, setActiveModalContenedor] = useState(null);
   const [loadingComunas, setLoadingComunas] = useState(true);
@@ -39,7 +38,7 @@ export function App() {
 
   // Cargar registro de inspección semanal desde PostgreSQL cuando cambie la comuna o usuario
   useEffect(() => {
-    if (currentUser) {
+    if (currentUser && selectedComunaId) {
       const selectedComuna = comunas.find((c) => c.id === selectedComunaId);
       const backendComunaId = selectedComuna?.backendId || null;
 
@@ -60,11 +59,32 @@ export function App() {
     return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
 
-  const selectedComuna = comunas.find((c) => c.id === selectedComunaId) || comunas[0] || COMUNAS_DATA[0];
+  const selectedComuna = comunas.find((c) => c.id === selectedComunaId) || comunas[0] || null;
+
+  if (loadingComunas || !selectedComuna) {
+    return (
+      <div className="app-main-layout">
+        <Header
+          user={currentUser}
+          comunas={comunas}
+          selectedComunaId={selectedComunaId}
+          onSelectComuna={(id) => setSelectedComunaId(id)}
+          onLogout={() => {
+            authService.logout();
+            setCurrentUser(null);
+          }}
+        />
+        <main className="main-content-container" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
+          <h2>⏳ Cargando comunas y puntos de reciclaje desde PostgreSQL...</h2>
+        </main>
+      </div>
+    );
+  }
+
   const detallesMap = inspeccionSemanal?.detalles || {};
 
   // Estadísticas de la ruta semanal
-  const totalContenedores = selectedComuna.contenedores.length;
+  const totalContenedores = selectedComuna.contenedores ? selectedComuna.contenedores.length : 0;
   const visitadosCount = Object.values(detallesMap).filter((d) => d.visitado).length;
   const pendientesCount = totalContenedores - visitadosCount;
 
@@ -153,7 +173,7 @@ export function App() {
 
         {/* MAPA E INDICACIONES DE GEORREFERENCIACIÓN */}
         <MapView
-          contenedores={selectedComuna.contenedores}
+          contenedores={selectedComuna.contenedores || []}
           selectedContenedorId={activeModalContenedor?.id}
           onSelectContenedor={(c) => setActiveModalContenedor(c)}
         />
@@ -176,7 +196,7 @@ export function App() {
           </div>
 
           <div className="containers-grid">
-            {selectedComuna.contenedores.map((contenedor) => (
+            {(selectedComuna.contenedores || []).map((contenedor) => (
               <ContainerCard
                 key={contenedor.id}
                 contenedor={contenedor}
