@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from './services/authService';
+import { comunaService } from './services/comunaService';
 import { inspectionService } from './services/inspectionService';
 import { COMUNAS_DATA } from './data/mockData';
 import { LoginScreen } from './components/LoginScreen';
@@ -10,16 +11,30 @@ import { InspectionModal } from './components/InspectionModal';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [comunas, setComunas] = useState(COMUNAS_DATA);
   const [selectedComunaId, setSelectedComunaId] = useState(COMUNAS_DATA[0].id);
   const [inspeccionSemanal, setInspeccionSemanal] = useState(null);
   const [activeModalContenedor, setActiveModalContenedor] = useState(null);
+  const [loadingComunas, setLoadingComunas] = useState(true);
 
-  // Inicializar autenticación
+  // Inicializar autenticación y cargar comunas desde el backend Spring Boot
   useEffect(() => {
     const user = authService.getCurrentUser();
     if (user) {
       setCurrentUser(user);
     }
+
+    const cargarComunasData = async () => {
+      setLoadingComunas(true);
+      const dataComunas = await comunaService.obtenerComunas();
+      setComunas(dataComunas);
+      if (dataComunas && dataComunas.length > 0) {
+        setSelectedComunaId(dataComunas[0].id);
+      }
+      setLoadingComunas(false);
+    };
+
+    cargarComunasData();
   }, []);
 
   // Cargar registro de inspección semanal cuando cambie la comuna o usuario
@@ -34,7 +49,7 @@ export function App() {
     return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
   }
 
-  const selectedComuna = COMUNAS_DATA.find((c) => c.id === selectedComunaId) || COMUNAS_DATA[0];
+  const selectedComuna = comunas.find((c) => c.id === selectedComunaId) || comunas[0] || COMUNAS_DATA[0];
   const detallesMap = inspeccionSemanal?.detalles || {};
 
   // Estadísticas de la ruta semanal
@@ -46,8 +61,8 @@ export function App() {
     .filter((d) => d.visitado)
     .reduce((sum, d) => sum + (d.kilosCalculados || 0), 0);
 
-  const handleSaveInspection = (contenedorId, inspectionData, isEditing) => {
-    const updatedRecord = inspectionService.saveDetalleInspeccion(
+  const handleSaveInspection = async (contenedorId, inspectionData, isEditing) => {
+    const updatedRecord = await inspectionService.saveDetalleInspeccion(
       selectedComunaId,
       currentUser.id,
       contenedorId,
@@ -73,7 +88,7 @@ export function App() {
     <div className="app-main-layout">
       <Header
         user={currentUser}
-        comunas={COMUNAS_DATA}
+        comunas={comunas}
         selectedComunaId={selectedComunaId}
         onSelectComuna={(id) => setSelectedComunaId(id)}
         onLogout={() => {
