@@ -134,24 +134,9 @@ export function App() {
           authService.logout();
           setCurrentUser(null);
         }}
+        activeView={activeView}
+        onChangeView={(view) => setActiveView(view)}
       />
-
-      {currentUser?.rol === 'ADMIN' && (
-        <div style={{ background: '#eef2f6', borderBottom: '1px solid #cfd8dc', padding: '0.5rem 1rem', display: 'flex', gap: '8px', justifyContent: 'center' }}>
-          <button
-            className={`btn ${activeView === 'inspection' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveView('inspection')}
-          >
-            📋 Módulo Inspección (Vista Inspector)
-          </button>
-          <button
-            className={`btn ${activeView === 'admin' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setActiveView('admin')}
-          >
-            ⚙️ Panel de Administración (ADMIN)
-          </button>
-        </div>
-      )}
 
       {activeView === 'admin' && currentUser?.rol === 'ADMIN' ? (
         <React.Suspense fallback={<div className="p-4 text-center">Cargando Panel Admin...</div>}>

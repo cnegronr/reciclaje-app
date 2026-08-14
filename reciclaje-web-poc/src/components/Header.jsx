@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getDeadlineCurrentWeek } from '../services/inspectionService';
 
-export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogout }) => {
+export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogout, activeView, onChangeView }) => {
   const [timeLeft, setTimeLeft] = useState('');
 
   useEffect(() => {
@@ -69,6 +69,26 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
               <span className="user-name">{user?.nombre}</span>
               <span className="user-role">{user?.rol}</span>
             </div>
+
+            {user?.rol === 'ADMIN' && (
+              <div className="admin-mode-pill-toggle">
+                <button
+                  className={`mode-toggle-btn ${activeView === 'inspection' ? 'active' : ''}`}
+                  onClick={() => onChangeView('inspection')}
+                  title="Módulo Inspección (Vista Inspector)"
+                >
+                  📋 Inspección
+                </button>
+                <button
+                  className={`mode-toggle-btn ${activeView === 'admin' ? 'active' : ''}`}
+                  onClick={() => onChangeView('admin')}
+                  title="Panel de Administración (ADMIN)"
+                >
+                  ⚙️ Admin
+                </button>
+              </div>
+            )}
+
             <button onClick={onLogout} className="logout-btn" title="Cerrar Sesión">
               🚪 Salir
             </button>
