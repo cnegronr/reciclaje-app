@@ -27,8 +27,13 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     setPassword('Password123!');
   };
 
-  const fillChoferCredentials = () => {
+  const fillChofer1Credentials = () => {
     setEmail('chofer@reciclajelitoral.cl');
+    setPassword('Password123!');
+  };
+
+  const fillChofer2Credentials = () => {
+    setEmail('chofer2@reciclajelitoral.cl');
     setPassword('Password123!');
   };
 
@@ -74,18 +79,22 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         </form>
 
         <div className="test-credentials-box">
-          <p className="test-title">🧪 Credenciales de Prueba POC:</p>
+          <p className="test-title">🧪 Credenciales de Prueba (Colaboración Multi-Chofer):</p>
           <div className="credentials-code">
             <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl</span>
-            <span><strong>Chofer:</strong> chofer@reciclajelitoral.cl</span>
+            <span><strong>Chofer 1:</strong> chofer@reciclajelitoral.cl (Pedro)</span>
+            <span><strong>Chofer 2:</strong> chofer2@reciclajelitoral.cl (Juan)</span>
             <span><strong>Clave:</strong> Password123!</span>
           </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-            <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1 }}>
-              📋 Cargar Inspector
+          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+            <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
+              📋 Inspector
             </button>
-            <button onClick={fillChoferCredentials} className="auto-fill-btn" style={{ flex: 1 }}>
-              🚛 Cargar Chofer
+            <button onClick={fillChofer1Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
+              🚛 Chofer 1 (Pedro)
+            </button>
+            <button onClick={fillChofer2Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
+              🚛 Chofer 2 (Juan)
             </button>
           </div>
         </div>

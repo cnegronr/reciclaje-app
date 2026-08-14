@@ -36,7 +36,8 @@ public class InspeccionController {
                 request.getObservaciones(),
                 request.getFotosAntesUrls(),
                 request.getFotosDespuesUrls(),
-                request.isEsActualizacion()
+                request.isEsActualizacion(),
+                request.getUsuarioId()
         );
         return ResponseEntity.ok(resultado);
     }

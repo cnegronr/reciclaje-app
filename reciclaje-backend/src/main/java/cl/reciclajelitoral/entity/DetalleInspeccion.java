@@ -28,6 +28,14 @@ public class DetalleInspeccion {
     @JoinColumn(name = "contenedor_id", nullable = false)
     private Contenedor contenedor;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "creado_por_usuario_id")
+    private Usuario creadoPorUsuario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actualizado_por_usuario_id")
+    private Usuario actualizadoPorUsuario;
+
     @Column(name = "porcentaje_estimado", precision = 5, scale = 2)
     private BigDecimal porcentajeEstimado;
 

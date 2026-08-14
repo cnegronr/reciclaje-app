@@ -145,7 +145,14 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
             {/* SI ES EDICIÓN: MOSTRAR HISTÓRICO DE FOTOS (INICIALES Y CADA ACTUALIZACIÓN POR SEPARADO) */}
             {isEditing && (
               <div className="initial-preserved-section">
-                <h4>🔒 Fotos Conservadas de la Inspección Inicial ({detalleActual.fechaHoraInicial ? new Date(detalleActual.fechaHoraInicial).toLocaleString('es-CL') : ''})</h4>
+                <h4>
+                  🔒 Inspección Inicial ({detalleActual.fechaHoraInicial ? new Date(detalleActual.fechaHoraInicial).toLocaleString('es-CL') : ''})
+                  {detalleActual.creadoPorUsuarioNombre && (
+                    <span style={{ fontSize: '0.8rem', color: '#38bdf8', marginLeft: '8px', fontWeight: 'bold' }}>
+                      👤 Registrado por: {detalleActual.creadoPorUsuarioNombre}
+                    </span>
+                  )}
+                </h4>
                 <div className="photo-grid-readonly">
                   <div>
                     <span className="photo-sublabel">Fotos Iniciales ANTES:</span>
@@ -167,41 +174,58 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
 
                 {/* RENDERIZAR CADA ACTUALIZACIÓN POR SEPARADO CON SUS FOTOS ESPECÍFICAS */}
                 {detalleActual.actualizacionesHistorial && detalleActual.actualizacionesHistorial.length > 0 ? (
-                  detalleActual.actualizacionesHistorial.map((upd, idx) => (
-                    <div key={idx} className="update-preserved-subsection" style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
-                      <h4>🔄 Actualización #{idx + 1} ({upd.fechaHora ? new Date(upd.fechaHora).toLocaleString('es-CL') : ''})</h4>
-                      <div className="photo-grid-readonly">
-                        <div>
-                          <span className="photo-sublabel">Fotos ANTES:</span>
-                          <div className="photo-thumbnails">
-                            {upd.fotosAntes && upd.fotosAntes.length > 0 ? (
-                              upd.fotosAntes.map((f, i) => (
-                                <img key={i} src={f.url} alt={`Antes Actualización ${idx + 1}`} className="thumb-img" />
-                              ))
-                            ) : (
-                              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin fotos antes</span>
-                            )}
+                  detalleActual.actualizacionesHistorial.map((upd, idx) => {
+                    const authorName = upd.fotosAntes?.[0]?.usuarioNombre || upd.fotosDespues?.[0]?.usuarioNombre || detalleActual.actualizadoPorUsuarioNombre;
+                    return (
+                      <div key={idx} className="update-preserved-subsection" style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
+                        <h4>
+                          🔄 Actualización #{idx + 1} ({upd.fechaHora ? new Date(upd.fechaHora).toLocaleString('es-CL') : ''})
+                          {authorName && (
+                            <span style={{ fontSize: '0.8rem', color: '#f59e0b', marginLeft: '8px', fontWeight: 'bold' }}>
+                              👤 Actualizado por: {authorName}
+                            </span>
+                          )}
+                        </h4>
+                        <div className="photo-grid-readonly">
+                          <div>
+                            <span className="photo-sublabel">Fotos ANTES:</span>
+                            <div className="photo-thumbnails">
+                              {upd.fotosAntes && upd.fotosAntes.length > 0 ? (
+                                upd.fotosAntes.map((f, i) => (
+                                  <img key={i} src={f.url} alt={`Antes Actualización ${idx + 1}`} className="thumb-img" />
+                                ))
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin fotos antes</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div>
-                          <span className="photo-sublabel">Fotos DESPUÉS:</span>
-                          <div className="photo-thumbnails">
-                            {upd.fotosDespues && upd.fotosDespues.length > 0 ? (
-                              upd.fotosDespues.map((f, i) => (
-                                <img key={i} src={f.url} alt={`Después Actualización ${idx + 1}`} className="thumb-img" />
-                              ))
-                            ) : (
-                              <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin fotos después</span>
-                            )}
+                          <div>
+                            <span className="photo-sublabel">Fotos DESPUÉS:</span>
+                            <div className="photo-thumbnails">
+                              {upd.fotosDespues && upd.fotosDespues.length > 0 ? (
+                                upd.fotosDespues.map((f, i) => (
+                                  <img key={i} src={f.url} alt={`Después Actualización ${idx + 1}`} className="thumb-img" />
+                                ))
+                              ) : (
+                                <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontStyle: 'italic' }}>Sin fotos después</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   (detalleActual.fotosActualizacionAntes?.length > 0 || detalleActual.fotosActualizacionDespues?.length > 0) && (
                     <div className="update-preserved-subsection" style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
-                      <h4>🔄 Última Actualización ({detalleActual.fechaHoraActualizacion ? new Date(detalleActual.fechaHoraActualizacion).toLocaleString('es-CL') : ''})</h4>
+                      <h4>
+                        🔄 Última Actualización ({detalleActual.fechaHoraActualizacion ? new Date(detalleActual.fechaHoraActualizacion).toLocaleString('es-CL') : ''})
+                        {detalleActual.actualizadoPorUsuarioNombre && (
+                          <span style={{ fontSize: '0.8rem', color: '#f59e0b', marginLeft: '8px', fontWeight: 'bold' }}>
+                            👤 Actualizado por: {detalleActual.actualizadoPorUsuarioNombre}
+                          </span>
+                        )}
+                      </h4>
                       <div className="photo-grid-readonly">
                         <div>
                           <span className="photo-sublabel">Fotos ANTES:</span>

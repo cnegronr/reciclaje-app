@@ -15,4 +15,6 @@ public class FotoInspeccionDTO {
     private String momento; // INICIAL_ANTES | INICIAL_DESPUES | ACTUALIZACION_ANTES | ACTUALIZACION_DESPUES
     private String urlFoto;
     private LocalDateTime creadoEn;
+    private Long usuarioId;
+    private String usuarioNombre;
 }

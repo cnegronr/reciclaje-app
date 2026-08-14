@@ -19,4 +19,5 @@ public class RegistrarInspeccionRequest {
     private List<String> fotosDespuesUrls;
 
     private boolean esActualizacion;
+    private Long usuarioId;
 }

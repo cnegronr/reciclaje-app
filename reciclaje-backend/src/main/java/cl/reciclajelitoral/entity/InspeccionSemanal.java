@@ -31,6 +31,11 @@ public class InspeccionSemanal {
     @JoinColumn(name = "inspector_asociado_id")
     private Usuario inspectorAsociado;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_ruta", length = 20)
+    @Builder.Default
+    private TipoRuta tipoRuta = TipoRuta.INSPECTOR;
+
     @Column(name = "semana_numero", nullable = false)
     private Integer semanaNumero;
 

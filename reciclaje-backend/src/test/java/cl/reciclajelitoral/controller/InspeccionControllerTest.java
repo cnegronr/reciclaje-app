@@ -91,7 +91,7 @@ class InspeccionControllerTest {
 
         when(inspeccionService.registrarOActualizarInspeccion(
                 eq(1L), eq(5L), eq(BigDecimal.valueOf(80)), eq("Despejado"),
-                any(), any(), eq(false)
+                any(), any(), eq(false), any()
         )).thenReturn(inspeccionDTO);
 
         mockMvc.perform(post("/api/inspecciones/1/registrar")

@@ -14,6 +14,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.WeekFields;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,48 +49,56 @@ public class InspeccionSemanalService {
         int semanaNumero = ahora.get(WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear());
         int anio = ahora.getYear();
 
-        InspeccionSemanal inspeccion = inspeccionRepository
-                .findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(comunaId, inspectorId, semanaNumero, anio)
-                .orElseGet(() -> {
-                    Comuna comuna = comunaRepository.findById(comunaId)
-                            .orElseThrow(() -> new IllegalArgumentException("Comuna no encontrada: " + comunaId));
-                    Usuario usuarioActivo = usuarioRepository.findById(inspectorId)
-                            .orElseThrow(() -> new IllegalArgumentException("Inspector no encontrado: " + inspectorId));
+        Usuario usuarioActivo = usuarioRepository.findById(inspectorId).orElse(null);
+        TipoRuta tipoRuta = (usuarioActivo != null && usuarioActivo.getRol() == Rol.CHOFER) ? TipoRuta.CHOFER : TipoRuta.INSPECTOR;
 
-                    // Buscar el Inspector primario asignado a la comuna para vincularlo a las inspecciones del CHOFER
-                    Usuario inspectorAsociado = asignacionRepository.findByComunaId(comunaId).stream()
-                            .map(AsignacionInspector::getInspector)
-                            .filter(u -> u.getRol() == Rol.INSPECTOR)
-                            .findFirst()
-                            .orElse(usuarioActivo);
+        InspeccionSemanal inspeccion = (tipoRuta == TipoRuta.CHOFER)
+                ? inspeccionRepository.findByComunaIdAndTipoRutaAndSemanaNumeroAndAnio(comunaId, TipoRuta.CHOFER, semanaNumero, anio).orElse(null)
+                : inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(comunaId, inspectorId, semanaNumero, anio).orElse(null);
 
-                    InspeccionSemanal nuevaInspeccion = InspeccionSemanal.builder()
-                            .comuna(comuna)
-                            .inspector(usuarioActivo)
-                            .inspectorAsociado(inspectorAsociado)
-                            .semanaNumero(semanaNumero)
-                            .anio(anio)
-                            .fechaLimite(calcularFechaLimiteSemanal(ahora))
-                            .estado(EstadoInspeccion.EN_PROGRESO)
-                            .build();
+        if (inspeccion == null) {
+            Comuna comuna = comunaRepository.findById(comunaId)
+                    .orElseThrow(() -> new IllegalArgumentException("Comuna no encontrada: " + comunaId));
 
-                    InspeccionSemanal guardada = inspeccionRepository.save(nuevaInspeccion);
+            if (usuarioActivo == null) {
+                throw new IllegalArgumentException("Inspector no encontrado: " + inspectorId);
+            }
 
-                    // Inicializar detalles de inspección para cada contenedor de la comuna
-                    List<Contenedor> contenedores = contenedorRepository.findByComunaId(comunaId);
-                    for (Contenedor cont : contenedores) {
-                        DetalleInspeccion detalle = DetalleInspeccion.builder()
-                                .inspeccionSemanal(guardada)
-                                .contenedor(cont)
-                                .porcentajeEstimado(BigDecimal.ZERO)
-                                .kilosCalculados(BigDecimal.ZERO)
-                                .visitado(false)
-                                .build();
-                        detalleRepository.save(detalle);
-                    }
+            // Buscar el Inspector primario asignado a la comuna para vincularlo a las inspecciones del CHOFER
+            Usuario inspectorAsociado = asignacionRepository.findByComunaId(comunaId).stream()
+                    .map(AsignacionInspector::getInspector)
+                    .filter(u -> u.getRol() == Rol.INSPECTOR)
+                    .findFirst()
+                    .orElse(usuarioActivo);
 
-                    return inspeccionRepository.findById(guardada.getId()).orElse(guardada);
-                });
+            InspeccionSemanal nuevaInspeccion = InspeccionSemanal.builder()
+                    .comuna(comuna)
+                    .inspector(usuarioActivo)
+                    .inspectorAsociado(inspectorAsociado)
+                    .tipoRuta(tipoRuta)
+                    .semanaNumero(semanaNumero)
+                    .anio(anio)
+                    .fechaLimite(calcularFechaLimiteSemanal(ahora))
+                    .estado(EstadoInspeccion.EN_PROGRESO)
+                    .build();
+
+            InspeccionSemanal guardada = inspeccionRepository.save(nuevaInspeccion);
+
+            // Inicializar detalles de inspección para cada contenedor de la comuna
+            List<Contenedor> contenedores = contenedorRepository.findByComunaId(comunaId);
+            for (Contenedor cont : contenedores) {
+                DetalleInspeccion detalle = DetalleInspeccion.builder()
+                        .inspeccionSemanal(guardada)
+                        .contenedor(cont)
+                        .porcentajeEstimado(BigDecimal.ZERO)
+                        .kilosCalculados(BigDecimal.ZERO)
+                        .visitado(false)
+                        .build();
+                detalleRepository.save(detalle);
+            }
+
+            inspeccion = guardada;
+        }
 
         return convertirADTO(inspeccion);
     }
@@ -104,6 +113,20 @@ public class InspeccionSemanalService {
             List<String> fotosDespuesUrls,
             boolean esActualizacion
     ) {
+        return registrarOActualizarInspeccion(inspeccionSemanalId, contenedorId, porcentajeEstimado, observaciones, fotosAntesUrls, fotosDespuesUrls, esActualizacion, null);
+    }
+
+    @Transactional
+    public InspeccionSemanalDTO registrarOActualizarInspeccion(
+            Long inspeccionSemanalId,
+            Long contenedorId,
+            BigDecimal porcentajeEstimado,
+            String observaciones,
+            List<String> fotosAntesUrls,
+            List<String> fotosDespuesUrls,
+            boolean esActualizacion,
+            Long usuarioId
+    ) {
         DetalleInspeccion detalle = detalleRepository.findByInspeccionSemanalIdAndContenedorId(inspeccionSemanalId, contenedorId)
                 .orElseGet(() -> {
                     InspeccionSemanal inspeccion = inspeccionRepository.findById(inspeccionSemanalId)
@@ -117,6 +140,10 @@ public class InspeccionSemanalService {
                             .build();
                 });
 
+        Usuario actor = (usuarioId != null)
+                ? usuarioRepository.findById(usuarioId).orElse(detalle.getInspeccionSemanal().getInspector())
+                : detalle.getInspeccionSemanal().getInspector();
+
         Contenedor contenedor = detalle.getContenedor();
         BigDecimal kilos = contenedor.calcularKilos(porcentajeEstimado);
 
@@ -124,12 +151,14 @@ public class InspeccionSemanalService {
         detalle.setKilosCalculados(kilos);
         detalle.setObservaciones(observaciones);
         detalle.setVisitado(true);
+        detalle.setActualizadoPorUsuario(actor);
 
         LocalDateTime ahora = LocalDateTime.now();
 
         if (!esActualizacion || detalle.getFechaHoraInicial() == null) {
             // INSPECCIÓN INICIAL
             detalle.setFechaHoraInicial(ahora);
+            detalle.setCreadoPorUsuario(actor);
 
             if (fotosAntesUrls != null) {
                 for (String photoData : fotosAntesUrls) {
@@ -138,6 +167,7 @@ public class InspeccionSemanalService {
                             .momento(MomentoFoto.INICIAL_ANTES)
                             .urlFoto(urlS3)
                             .creadoEn(ahora)
+                            .usuario(actor)
                             .build());
                 }
             }
@@ -148,11 +178,12 @@ public class InspeccionSemanalService {
                             .momento(MomentoFoto.INICIAL_DESPUES)
                             .urlFoto(urlS3)
                             .creadoEn(ahora)
+                            .usuario(actor)
                             .build());
                 }
             }
         } else {
-            // EDICIÓN / ACTUALIZACIÓN (PRESERVA FOTOS INICIALES E INSERTA FOTOS DE ACTUALIZACIÓN)
+            // EDICIÓN / ACTUALIZACIÓN (PRESERVA FOTOS INICIALES E INSERTA FOTOS DE ACTUALIZACIÓN REGISTRANDO EL AUTOR)
             detalle.setFechaHoraActualizacion(ahora);
 
             if (fotosAntesUrls != null) {
@@ -162,6 +193,7 @@ public class InspeccionSemanalService {
                             .momento(MomentoFoto.ACTUALIZACION_ANTES)
                             .urlFoto(urlS3)
                             .creadoEn(ahora)
+                            .usuario(actor)
                             .build());
                 }
             }
@@ -172,6 +204,7 @@ public class InspeccionSemanalService {
                             .momento(MomentoFoto.ACTUALIZACION_DESPUES)
                             .urlFoto(urlS3)
                             .creadoEn(ahora)
+                            .usuario(actor)
                             .build());
                 }
             }
@@ -200,9 +233,15 @@ public class InspeccionSemanalService {
         List<DetalleInspeccionDTO> detallesDTO = detalles.stream()
                 .map(d -> {
                     List<FotoInspeccion> fotos = d.getFotos() != null ? d.getFotos() : List.of();
+                    Usuario creador = d.getCreadoPorUsuario();
+                    Usuario actualizador = d.getActualizadoPorUsuario();
                     return DetalleInspeccionDTO.builder()
                             .id(d.getId())
                             .contenedorId(d.getContenedor().getId())
+                            .creadoPorUsuarioId(Optional.ofNullable(creador).map(Usuario::getId).orElse(null))
+                            .creadoPorUsuarioNombre(Optional.ofNullable(creador).map(Usuario::getNombre).orElse(null))
+                            .actualizadoPorUsuarioId(Optional.ofNullable(actualizador).map(Usuario::getId).orElse(null))
+                            .actualizadoPorUsuarioNombre(Optional.ofNullable(actualizador).map(Usuario::getNombre).orElse(null))
                             .porcentajeEstimado(d.getPorcentajeEstimado())
                             .kilosCalculados(d.getKilosCalculados())
                             .visitado(d.getVisitado())
@@ -210,12 +249,17 @@ public class InspeccionSemanalService {
                             .fechaHoraActualizacion(d.getFechaHoraActualizacion())
                             .observaciones(d.getObservaciones())
                             .fotos(fotos.stream()
-                                    .map(f -> FotoInspeccionDTO.builder()
-                                            .id(f.getId())
-                                            .momento(f.getMomento().name())
-                                            .urlFoto(f.getUrlFoto())
-                                            .creadoEn(f.getCreadoEn())
-                                            .build())
+                                    .map(f -> {
+                                        Usuario uFoto = f.getUsuario();
+                                        return FotoInspeccionDTO.builder()
+                                                .id(f.getId())
+                                                .momento(f.getMomento().name())
+                                                .urlFoto(f.getUrlFoto())
+                                                .creadoEn(f.getCreadoEn())
+                                                .usuarioId(Optional.ofNullable(uFoto).map(Usuario::getId).orElse(null))
+                                                .usuarioNombre(Optional.ofNullable(uFoto).map(Usuario::getNombre).orElse(null))
+                                                .build();
+                                    })
                                     .collect(Collectors.toList()))
                             .build();
                 })

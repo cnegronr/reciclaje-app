@@ -94,9 +94,9 @@ export const inspectionService = {
             updatesByTimestamp[tKey] = { fechaHora: tKey, fotosAntes: [], fotosDespues: [] };
           }
           if (f.momento === 'ACTUALIZACION_ANTES') {
-            updatesByTimestamp[tKey].fotosAntes.push({ id: f.id, url: f.urlFoto });
+            updatesByTimestamp[tKey].fotosAntes.push({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre });
           } else if (f.momento === 'ACTUALIZACION_DESPUES') {
-            updatesByTimestamp[tKey].fotosDespues.push({ id: f.id, url: f.urlFoto });
+            updatesByTimestamp[tKey].fotosDespues.push({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre });
           }
         });
 
@@ -110,6 +110,10 @@ export const inspectionService = {
 
         detallesMap[contId] = {
           contenedorId: contId,
+          creadoPorUsuarioId: d.creadoPorUsuarioId,
+          creadoPorUsuarioNombre: d.creadoPorUsuarioNombre,
+          actualizadoPorUsuarioId: d.actualizadoPorUsuarioId,
+          actualizadoPorUsuarioNombre: d.actualizadoPorUsuarioNombre,
           porcentajeEstimado: Number(d.porcentajeEstimado || 0),
           kilosCalculados: Number(d.kilosCalculados || 0),
           visitado: Boolean(d.visitado),
@@ -155,7 +159,7 @@ export const inspectionService = {
     if (!inspections[key]) {
       inspections[key] = {
         id: key,
-        backendId: 1,
+        backendId: null,
         comunaId,
         inspectorId,
         semana: weekNum,
@@ -187,7 +191,8 @@ export const inspectionService = {
         observaciones: inspectionData.observaciones || '',
         fotosAntesUrls: (fotosAntesList || []).map(f => f.url),
         fotosDespuesUrls: (fotosDespuesList || []).map(f => f.url),
-        esActualizacion: isUpdateMode
+        esActualizacion: isUpdateMode,
+        usuarioId: inspectorId
       };
 
       const res = await fetch(`${API_BASE_URL}/inspecciones/${record.backendId || 1}/registrar`, {

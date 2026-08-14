@@ -136,6 +136,7 @@ class InspeccionSemanalServiceTest {
 
         inspeccionSemanalMock.getDetalles().add(detalleMock);
 
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
         when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
                 .thenReturn(Optional.of(inspeccionSemanalMock));
 
@@ -160,6 +161,7 @@ class InspeccionSemanalServiceTest {
                 .detalles(null)
                 .build();
 
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
         when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
                 .thenReturn(Optional.of(inspeccionSinDetalles));
 
@@ -181,6 +183,7 @@ class InspeccionSemanalServiceTest {
 
         inspeccionSemanalMock.getDetalles().add(detalleFotosNull);
 
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
         when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
                 .thenReturn(Optional.of(inspeccionSemanalMock));
 
@@ -200,7 +203,6 @@ class InspeccionSemanalServiceTest {
         when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
         when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenReturn(inspeccionSemanalMock);
         when(contenedorRepository.findByComunaId(1L)).thenReturn(List.of(contenedorEmpresaMock));
-        when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
 
         InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L);
 
@@ -211,9 +213,10 @@ class InspeccionSemanalServiceTest {
     @Test
     @DisplayName("obtenerOCrearInspeccionSemanal: debe lanzar excepcion si la comuna no existe")
     void obtenerOCrearInspeccionSemanalComunaNoEncontrada() {
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
         when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
                 .thenReturn(Optional.empty());
-        when(comunaRepository.findById(1L)).thenReturn(Optional.empty());
+        when(comunaRepository.findById(1L)).thenReturn(Optional.ofNullable(null));
 
         assertThrows(IllegalArgumentException.class, () -> inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L));
     }
@@ -480,7 +483,7 @@ class InspeccionSemanalServiceTest {
         AsignacionInspector asignacionChofer = AsignacionInspector.builder().id(9L).inspector(choferMock).comuna(comunaMock).build();
         AsignacionInspector asignacionInspector = AsignacionInspector.builder().id(10L).inspector(inspectorPrimarioMock).comuna(comunaMock).build();
 
-        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), eq(2L), anyInt(), anyInt()))
+        when(inspeccionRepository.findByComunaIdAndTipoRutaAndSemanaNumeroAndAnio(anyLong(), eq(TipoRuta.CHOFER), anyInt(), anyInt()))
                 .thenReturn(Optional.empty());
         when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
         when(usuarioRepository.findById(2L)).thenReturn(Optional.of(choferMock));
@@ -490,18 +493,6 @@ class InspeccionSemanalServiceTest {
             arg.setId(20L);
             return arg;
         });
-        when(inspeccionRepository.findById(20L)).thenAnswer(i -> {
-            InspeccionSemanal is = InspeccionSemanal.builder()
-                    .id(20L)
-                    .comuna(comunaMock)
-                    .inspector(choferMock)
-                    .inspectorAsociado(inspectorPrimarioMock)
-                    .semanaNumero(32)
-                    .anio(2026)
-                    .estado(EstadoInspeccion.EN_PROGRESO)
-                    .build();
-            return Optional.of(is);
-        });
 
         InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 2L);
 
@@ -510,5 +501,93 @@ class InspeccionSemanalServiceTest {
         assertEquals(1L, dto.getInspectorAsociadoId());
         assertEquals("John Inspector", dto.getInspectorAsociadoNombre());
         assertEquals("CHOFER", dto.getRolUsuario());
+    }
+
+    @Test
+    @DisplayName("registrarOActualizarInspeccion: debe atribuir el creador y actualizador en colaboracion multi-chofer")
+    void registrarInspeccionColaboracionMultiChofer() {
+        Usuario pedroChofer = Usuario.builder().id(2L).nombre("Pedro Chofer").email("chofer@reciclajelitoral.cl").rol(Rol.CHOFER).build();
+        Usuario juanChofer = Usuario.builder().id(3L).nombre("Juan Chofer").email("chofer2@reciclajelitoral.cl").rol(Rol.CHOFER).build();
+
+        DetalleInspeccion detalleExistente = DetalleInspeccion.builder()
+                .id(50L)
+                .inspeccionSemanal(inspeccionSemanalMock)
+                .contenedor(contenedorEmpresaMock)
+                .creadoPorUsuario(pedroChofer)
+                .actualizadoPorUsuario(pedroChofer)
+                .porcentajeEstimado(BigDecimal.valueOf(40))
+                .kilosCalculados(BigDecimal.valueOf(200))
+                .fechaHoraInicial(LocalDateTime.now().minusHours(2))
+                .visitado(true)
+                .fotos(new ArrayList<>())
+                .build();
+
+        when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
+                .thenReturn(Optional.of(detalleExistente));
+        when(usuarioRepository.findById(3L)).thenReturn(Optional.of(juanChofer));
+        when(s3StorageService.subirFotoAS3(anyString(), anyString())).thenReturn("https://s3.fake/foto_act.jpg");
+        when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenAnswer(i -> i.getArgument(0));
+
+        InspeccionSemanalDTO dto = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(80), "Inspeccionado por Juan",
+                List.of("data:image/png;base64,abc"), List.of("data:image/png;base64,xyz"), true, 3L
+        );
+
+        assertNotNull(dto);
+        verify(detalleRepository).save(argThat(d -> {
+            assertEquals("Pedro Chofer", d.getCreadoPorUsuario().getNombre());
+            assertEquals("Juan Chofer", d.getActualizadoPorUsuario().getNombre());
+            assertEquals(2, d.getFotos().size());
+            assertEquals("Juan Chofer", d.getFotos().get(0).getUsuario().getNombre());
+            return true;
+        }));
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe mapear correctamente detalles y fotos con autores nulos a DTO")
+    void convertirADTOConAutoresNull() {
+        FotoInspeccion fotoSinUsuario = FotoInspeccion.builder()
+                .id(105L)
+                .momento(MomentoFoto.INICIAL_ANTES)
+                .urlFoto("http://s3.com/foto_anon.jpg")
+                .creadoEn(LocalDateTime.now())
+                .usuario(null)
+                .build();
+
+        DetalleInspeccion detalleSinAutores = DetalleInspeccion.builder()
+                .id(55L)
+                .contenedor(contenedorEmpresaMock)
+                .creadoPorUsuario(null)
+                .actualizadoPorUsuario(null)
+                .porcentajeEstimado(BigDecimal.valueOf(50))
+                .kilosCalculados(BigDecimal.valueOf(250))
+                .visitado(true)
+                .fotos(List.of(fotoSinUsuario))
+                .build();
+
+        InspeccionSemanal inspeccionConDetalleSinAutores = InspeccionSemanal.builder()
+                .id(99L)
+                .comuna(comunaMock)
+                .inspector(usuarioMock)
+                .semanaNumero(32)
+                .anio(2026)
+                .estado(EstadoInspeccion.EN_PROGRESO)
+                .detalles(List.of(detalleSinAutores))
+                .build();
+
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(inspeccionConDetalleSinAutores));
+
+        InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L);
+
+        assertNotNull(dto);
+        assertNull(dto.getDetalles().get(0).getCreadoPorUsuarioId());
+        assertNull(dto.getDetalles().get(0).getCreadoPorUsuarioNombre());
+        assertNull(dto.getDetalles().get(0).getActualizadoPorUsuarioId());
+        assertNull(dto.getDetalles().get(0).getActualizadoPorUsuarioNombre());
+        assertNull(dto.getDetalles().get(0).getFotos().get(0).getUsuarioId());
+        assertNull(dto.getDetalles().get(0).getFotos().get(0).getUsuarioNombre());
     }
 }

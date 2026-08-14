@@ -15,6 +15,10 @@ import java.util.List;
 public class DetalleInspeccionDTO {
     private Long id;
     private Long contenedorId;
+    private Long creadoPorUsuarioId;
+    private String creadoPorUsuarioNombre;
+    private Long actualizadoPorUsuarioId;
+    private String actualizadoPorUsuarioNombre;
     private BigDecimal porcentajeEstimado;
     private BigDecimal kilosCalculados;
     private Boolean visitado;
