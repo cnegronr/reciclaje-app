@@ -105,5 +105,15 @@ export const adminService = {
     });
     if (!res.ok) throw new Error('Error al descargar reporte Excel ZIP');
     return res.blob();
+  },
+
+  // Reportes en formato PDF
+  async downloadPdfReport(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE_URL}/admin/reports/pdf?${query}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Error al descargar reporte PDF');
+    return res.blob();
   }
 };

@@ -58,4 +58,14 @@ class AdminReportServiceTest {
         assertNotNull(zipBytes);
         assertTrue(zipBytes.length > 0);
     }
+
+    @Test
+    void shouldGenerateValidPdfReport() throws Exception {
+        when(detalleRepository.findAll()).thenReturn(List.of(detalle));
+
+        byte[] pdfBytes = adminReportService.generatePdfReport(null, null);
+
+        assertNotNull(pdfBytes);
+        assertTrue(pdfBytes.length > 0);
+    }
 }

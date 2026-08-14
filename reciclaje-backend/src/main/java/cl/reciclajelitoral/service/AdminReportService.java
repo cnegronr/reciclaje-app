@@ -136,6 +136,82 @@ public class AdminReportService {
         return zipBaos.toByteArray();
     }
 
+    @Transactional(readOnly = true)
+    public byte[] generatePdfReport(Long comunaId, Long usuarioId) throws Exception {
+        List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
+                .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
+                .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
+                .filter(d -> usuarioId == null || (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(usuarioId)) || (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(usuarioId)))
+                .toList();
+
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        com.lowagie.text.Document document = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4.rotate());
+        com.lowagie.text.pdf.PdfWriter.getInstance(document, baos);
+
+        document.open();
+
+        // Título del PDF
+        com.lowagie.text.Font titleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 18, java.awt.Color.BLUE);
+        com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph("♻️ Reciclaje Litoral - Reporte Consolidado", titleFont);
+        title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+        document.add(title);
+
+        com.lowagie.text.Font subtitleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10, java.awt.Color.GRAY);
+        com.lowagie.text.Paragraph subtitle = new com.lowagie.text.Paragraph("Generado el: " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) + " | Sistema de Monitoreo", subtitleFont);
+        subtitle.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+        subtitle.setSpacingAfter(15f);
+        document.add(subtitle);
+
+        // Tabla de Detalle
+        com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(8);
+        table.setWidthPercentage(100);
+        table.setWidths(new float[]{1.2f, 2.5f, 3.5f, 2.0f, 2.0f, 2.2f, 2.5f, 4.0f});
+
+        com.lowagie.text.Font headFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 9, java.awt.Color.WHITE);
+        String[] headers = {"ID", "Comuna", "Punto Limpio", "Categoría", "% Llenado", "Kilos (kg)", "Inspector", "Observaciones"};
+
+        for (String h : headers) {
+            com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(h, headFont));
+            cell.setBackgroundColor(new java.awt.Color(30, 144, 255));
+            cell.setPadding(6f);
+            cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+            table.addCell(cell);
+        }
+
+        com.lowagie.text.Font bodyFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, java.awt.Color.BLACK);
+        double totalKilos = 0;
+
+        for (DetalleInspeccion d : detalles) {
+            table.addCell(new com.lowagie.text.Phrase(String.valueOf(d.getId()), bodyFont));
+            table.addCell(new com.lowagie.text.Phrase(d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A", bodyFont));
+            table.addCell(new com.lowagie.text.Phrase(d.getContenedor() != null ? d.getContenedor().getNombrePunto() : "-", bodyFont));
+            table.addCell(new com.lowagie.text.Phrase(d.getContenedor() != null && d.getContenedor().getCategoria() != null ? d.getContenedor().getCategoria().name() : "-", bodyFont));
+            table.addCell(new com.lowagie.text.Phrase((d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado() : "0") + "%", bodyFont));
+            
+            double kg = d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0;
+            totalKilos += kg;
+            table.addCell(new com.lowagie.text.Phrase(String.format("%.1f", kg), bodyFont));
+
+            String userNombre = d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getNombre() :
+                    (d.getCreadoPorUsuario() != null ? d.getCreadoPorUsuario().getNombre() : "Sistema");
+            table.addCell(new com.lowagie.text.Phrase(userNombre, bodyFont));
+            table.addCell(new com.lowagie.text.Phrase(d.getObservaciones() != null ? d.getObservaciones() : "", bodyFont));
+        }
+
+        document.add(table);
+
+        // Resumen Final
+        com.lowagie.text.Paragraph summary = new com.lowagie.text.Paragraph(
+                "\nTotal Registros: " + detalles.size() + " | Total Kilos Recolectados: " + String.format("%.1f kg", totalKilos),
+                com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10, java.awt.Color.DARK_GRAY)
+        );
+        summary.setAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+        document.add(summary);
+
+        document.close();
+        return baos.toByteArray();
+    }
+
     private byte[] getImageBytes(FotoInspeccion foto, String nombrePunto) throws IOException {
         if (foto != null && foto.getUrlFoto() != null && foto.getUrlFoto().startsWith("data:image/")) {
             try {

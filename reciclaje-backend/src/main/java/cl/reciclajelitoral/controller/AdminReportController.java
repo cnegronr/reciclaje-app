@@ -28,4 +28,17 @@ public class AdminReportController {
                 .contentType(MediaType.parseMediaType("application/zip"))
                 .body(zipBytes);
     }
+
+    @GetMapping("/pdf")
+    public ResponseEntity<byte[]> downloadPdfReport(
+            @RequestParam(required = false) Long comunaId,
+            @RequestParam(required = false) Long usuarioId
+    ) throws Exception {
+        byte[] pdfBytes = adminReportService.generatePdfReport(comunaId, usuarioId);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.pdf\"")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdfBytes);
+    }
 }
