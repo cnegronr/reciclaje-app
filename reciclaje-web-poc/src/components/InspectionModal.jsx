@@ -212,10 +212,37 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                   </div>
                 </div>
 
-                {/* RENDERIZAR CADA ACTUALIZACIÓN POR SEPARADO CON SUS FOTOS ESPECÍFICAS */}
+                {/* RENDERIZAR CADA ACTUALIZACIÓN POR SEPARADO CON SUS FOTOS ESPECÍFICAS O FOTOS VIGENTES CONSERVADAS */}
                 {detalleActual.actualizacionesHistorial && detalleActual.actualizacionesHistorial.length > 0 ? (
                   detalleActual.actualizacionesHistorial.map((upd, idx) => {
-                    const authorName = upd.fotosAntes?.[0]?.usuarioNombre || upd.fotosDespues?.[0]?.usuarioNombre || detalleActual.actualizadoPorUsuarioNombre;
+                    const authorName = upd.usuarioNombre || upd.fotosAntes?.[0]?.usuarioNombre || upd.fotosDespues?.[0]?.usuarioNombre || detalleActual.actualizadoPorUsuarioNombre;
+                    const hasNewPhotosInUpdate = (upd.fotosAntes && upd.fotosAntes.length > 0) || (upd.fotosDespues && upd.fotosDespues.length > 0);
+
+                    // Helper para obtener fotos vigentes conservadas cuando la actualización no cargó fotos nuevas
+                    const getVigentePhotos = (historial, currentIdx) => {
+                      for (let i = currentIdx - 1; i >= 0; i--) {
+                        const prevUpd = historial[i];
+                        const pAntes = prevUpd.fotosAntes || [];
+                        const pDespues = prevUpd.fotosDespues || [];
+                        if (pAntes.length > 0 || pDespues.length > 0) {
+                          return {
+                            fotosAntes: pAntes,
+                            fotosDespues: pDespues,
+                            origen: `Actualización #${i + 1}`
+                          };
+                        }
+                      }
+                      return {
+                        fotosAntes: detalleActual.fotosInicialesAntes || [],
+                        fotosDespues: detalleActual.fotosInicialesDespues || [],
+                        origen: 'Inspección Inicial'
+                      };
+                    };
+
+                    const vigenteInfo = hasNewPhotosInUpdate ? null : getVigentePhotos(detalleActual.actualizacionesHistorial, idx);
+                    const displayAntes = hasNewPhotosInUpdate ? (upd.fotosAntes || []) : vigenteInfo.fotosAntes;
+                    const displayDespues = hasNewPhotosInUpdate ? (upd.fotosDespues || []) : vigenteInfo.fotosDespues;
+
                     return (
                       <div key={idx} className="update-preserved-subsection" style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed rgba(255,255,255,0.15)' }}>
                         <h4>
@@ -232,12 +259,21 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                             <span><strong>💬 Comentarios:</strong> <span style={{ color: '#e2e8f0', fontStyle: 'italic' }}>"{upd.observaciones}"</span></span>
                           )}
                         </div>
+
+                        {!hasNewPhotosInUpdate && (
+                          <div style={{ fontSize: '0.78rem', color: '#38bdf8', margin: '4px 0 8px 0', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            ℹ️ Esta actualización no incluyó nuevas imágenes. Se mantienen las fotografías vigentes conservadas de {vigenteInfo.origen}:
+                          </div>
+                        )}
+
                         <div className="photo-grid-readonly">
                           <div>
-                            <span className="photo-sublabel">Fotos ANTES:</span>
+                            <span className="photo-sublabel">
+                              {hasNewPhotosInUpdate ? 'Fotos ANTES cargadas en esta visita:' : `Fotos ANTES vigentes (${vigenteInfo.origen}):`}
+                            </span>
                             <div className="photo-thumbnails">
-                              {upd.fotosAntes && upd.fotosAntes.length > 0 ? (
-                                upd.fotosAntes.map((f, i) => (
+                              {displayAntes && displayAntes.length > 0 ? (
+                                displayAntes.map((f, i) => (
                                   <img key={i} src={f.url} alt={`Antes Actualización ${idx + 1}`} className="thumb-img" />
                                 ))
                               ) : (
@@ -246,10 +282,12 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                             </div>
                           </div>
                           <div>
-                            <span className="photo-sublabel">Fotos DESPUÉS:</span>
+                            <span className="photo-sublabel">
+                              {hasNewPhotosInUpdate ? 'Fotos DESPUÉS cargadas en esta visita:' : `Fotos DESPUÉS vigentes (${vigenteInfo.origen}):`}
+                            </span>
                             <div className="photo-thumbnails">
-                              {upd.fotosDespues && upd.fotosDespues.length > 0 ? (
-                                upd.fotosDespues.map((f, i) => (
+                              {displayDespues && displayDespues.length > 0 ? (
+                                displayDespues.map((f, i) => (
                                   <img key={i} src={f.url} alt={`Después Actualización ${idx + 1}`} className="thumb-img" />
                                 ))
                               ) : (
