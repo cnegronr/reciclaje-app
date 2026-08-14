@@ -43,6 +43,10 @@ public class Contenedor {
     @JoinColumn(name = "comuna_id")
     private Comuna comuna;
 
+    @Column(name = "activo")
+    @Builder.Default
+    private Boolean activo = true;
+
     // Método de negocio: Cálculo automático de kilos según categoría
     public BigDecimal calcularKilos(BigDecimal porcentajeEstimado) {
         if (porcentajeEstimado == null) return BigDecimal.ZERO;
@@ -50,4 +54,25 @@ public class Contenedor {
             BigDecimal.valueOf(500) : BigDecimal.valueOf(1000);
         return porcentajeEstimado.divide(BigDecimal.valueOf(100)).multiply(max);
     }
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+    public String getNombrePunto() { return nombrePunto; }
+    public void setNombrePunto(String nombrePunto) { this.nombrePunto = nombrePunto; }
+    public String getUbicacionDescripcion() { return ubicacionDescripcion; }
+    public void setUbicacionDescripcion(String u) { this.ubicacionDescripcion = u; }
+    public CategoriaContenedor getCategoria() { return categoria; }
+    public void setCategoria(CategoriaContenedor c) { this.categoria = c; }
+    public BigDecimal getKilosMaximos() { return kilosMaximos; }
+    public void setKilosMaximos(BigDecimal k) { this.kilosMaximos = k; }
+    public String getUrlGoogleMaps() { return urlGoogleMaps; }
+    public void setUrlGoogleMaps(String url) { this.urlGoogleMaps = url; }
+    public BigDecimal getLatitud() { return latitud; }
+    public void setLatitud(BigDecimal l) { this.latitud = l; }
+    public BigDecimal getLongitud() { return longitud; }
+    public void setLongitud(BigDecimal l) { this.longitud = l; }
+    public Boolean getActivo() { return activo; }
+    public void setActivo(Boolean activo) { this.activo = activo; }
+    public Comuna getComuna() { return comuna; }
+    public void setComuna(Comuna c) { this.comuna = c; }
 }

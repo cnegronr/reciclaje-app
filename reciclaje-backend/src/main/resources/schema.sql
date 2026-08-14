@@ -6,8 +6,11 @@ CREATE TABLE IF NOT EXISTS usuarios (
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     rol VARCHAR(20) DEFAULT 'INSPECTOR',
+    activo BOOLEAN DEFAULT TRUE,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;
 
 CREATE TABLE IF NOT EXISTS comunas (
     id BIGSERIAL PRIMARY KEY,
@@ -25,7 +28,20 @@ CREATE TABLE IF NOT EXISTS contenedores (
     url_google_maps TEXT NOT NULL,
     latitud NUMERIC(10,7),
     longitud NUMERIC(10,7),
+    activo BOOLEAN DEFAULT TRUE,
     CONSTRAINT unique_contenedor_comuna_punto UNIQUE (comuna_id, nombre_punto, ubicacion_descripcion)
+);
+
+ALTER TABLE contenedores ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;
+
+CREATE TABLE IF NOT EXISTS outbox_events (
+    id BIGSERIAL PRIMARY KEY,
+    aggregate_type VARCHAR(50) NOT NULL,
+    aggregate_id VARCHAR(50) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    payload TEXT NOT NULL,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS asignaciones_inspector (

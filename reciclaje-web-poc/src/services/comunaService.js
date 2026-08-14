@@ -34,5 +34,8 @@ export const comunaService = {
       console.error('Error al cargar comunas desde la API REST del backend:', err);
     }
     return [];
+  },
+  getComunas: async function () {
+    return this.obtenerComunas();
   }
 };

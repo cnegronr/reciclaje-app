@@ -1,6 +1,10 @@
 -- Script de inicialización init-data.sql generado desde Litoral_Central.xlsx (Pestañas EL QUISCO 2026 y ALGARROBO 2026)
 
--- 1. Usuarios de Prueba (inspector@reciclajelitoral.cl / chofer@reciclajelitoral.cl / chofer2@reciclajelitoral.cl / Password123!)
+-- 1. Usuarios de Prueba (admin@reciclajelitoral.cl / inspector@reciclajelitoral.cl / chofer@reciclajelitoral.cl / chofer2@reciclajelitoral.cl / Password123!)
+INSERT INTO usuarios (nombre, email, password_hash, rol) 
+VALUES ('Administrador General', 'admin@reciclajelitoral.cl', '$2a$10$WE2R8JlMw93G6PpO2ySRuOaBCewDrYqBYdojHvq2mM6dtuT6SRMam', 'ADMIN')
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
 INSERT INTO usuarios (nombre, email, password_hash, rol) 
 VALUES ('John Doe', 'inspector@reciclajelitoral.cl', '$2a$10$WE2R8JlMw93G6PpO2ySRuOaBCewDrYqBYdojHvq2mM6dtuT6SRMam', 'INSPECTOR')
 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;

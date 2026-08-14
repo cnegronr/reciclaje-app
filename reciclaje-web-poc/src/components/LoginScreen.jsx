@@ -37,6 +37,11 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     setPassword('Password123!');
   };
 
+  const fillAdminCredentials = () => {
+    setEmail('admin@reciclajelitoral.cl');
+    setPassword('Password123!');
+  };
+
   return (
     <div className="login-wrapper">
       <div className="login-card glass-panel">
@@ -79,14 +84,18 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         </form>
 
         <div className="test-credentials-box">
-          <p className="test-title">🧪 Credenciales de Prueba (Colaboración Multi-Chofer):</p>
+          <p className="test-title">🧪 Credenciales de Prueba (Inspector, Admin, Choferes):</p>
           <div className="credentials-code">
+            <span><strong>Admin:</strong> admin@reciclajelitoral.cl</span>
             <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl</span>
             <span><strong>Chofer 1:</strong> chofer@reciclajelitoral.cl (Pedro)</span>
             <span><strong>Chofer 2:</strong> chofer2@reciclajelitoral.cl (Juan)</span>
             <span><strong>Clave:</strong> Password123!</span>
           </div>
           <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+            <button onClick={fillAdminCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px', background: '#ffebee', color: '#c62828', borderColor: '#ef9a9a' }}>
+              🛡️ Admin
+            </button>
             <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
               📋 Inspector
             </button>

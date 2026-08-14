@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: reciclaje-app
+data:
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres-service:5432/reciclaje_db"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka-service:9092"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+  namespace: reciclaje-app
+  labels:
+    app: backend-microservice
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend-microservice
+  template:
+    metadata:
+      labels:
+        app: backend-microservice
+    spec:
+      containers:
+        - name: backend
+          image: reciclaje-backend:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "reciclaje_user"
+            - name: SPRING_DATASOURCE_PASSWORD
+              value: "reciclaje_pass_2026"
+            - name: JWT_SECRET
+              value: "ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!"
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "512Mi"
+            limits:
+              cpu: "500m"
+              memory: "1024Mi"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+  namespace: reciclaje-app
+spec:
+  selector:
+    app: backend-microservice
+  ports:
+    - port: 8080
+      targetPort: 8080
+  type: ClusterIP
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-hpa
+  namespace: reciclaje-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-deployment
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75
