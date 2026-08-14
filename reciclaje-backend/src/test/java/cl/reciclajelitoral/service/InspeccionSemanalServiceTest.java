@@ -42,6 +42,9 @@ class InspeccionSemanalServiceTest {
     private UsuarioRepository usuarioRepository;
 
     @Mock
+    private AsignacionInspectorRepository asignacionRepository;
+
+    @Mock
     private S3StorageService s3StorageService;
 
     @InjectMocks
@@ -55,7 +58,7 @@ class InspeccionSemanalServiceTest {
     @BeforeEach
     void setUp() {
         comunaMock = Comuna.builder().id(1L).nombre("El Quisco").codigoRegion("V").build();
-        usuarioMock = Usuario.builder().id(1L).nombre("Inspector Test").email("inspector@reciclajelitoral.cl").build();
+        usuarioMock = Usuario.builder().id(1L).nombre("Inspector Test").email("inspector@reciclajelitoral.cl").rol(Rol.INSPECTOR).build();
 
         inspeccionSemanalMock = InspeccionSemanal.builder()
                 .id(1L)
@@ -467,5 +470,45 @@ class InspeccionSemanalServiceTest {
         when(inspeccionRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> inspeccionService.finalizarRutaSemanal(1L));
+    }
+
+    @Test
+    @DisplayName("obtenerOCrearInspeccionSemanal: debe asociar automaticamente el inspector primario a las inspecciones del CHOFER")
+    void obtenerOCrearInspeccionSemanalChofer() {
+        Usuario choferMock = Usuario.builder().id(2L).nombre("Pedro Chofer").email("chofer@reciclajelitoral.cl").rol(Rol.CHOFER).build();
+        Usuario inspectorPrimarioMock = Usuario.builder().id(1L).nombre("John Inspector").email("inspector@reciclajelitoral.cl").rol(Rol.INSPECTOR).build();
+        AsignacionInspector asignacionChofer = AsignacionInspector.builder().id(9L).inspector(choferMock).comuna(comunaMock).build();
+        AsignacionInspector asignacionInspector = AsignacionInspector.builder().id(10L).inspector(inspectorPrimarioMock).comuna(comunaMock).build();
+
+        when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), eq(2L), anyInt(), anyInt()))
+                .thenReturn(Optional.empty());
+        when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(choferMock));
+        when(asignacionRepository.findByComunaId(1L)).thenReturn(List.of(asignacionChofer, asignacionInspector));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenAnswer(i -> {
+            InspeccionSemanal arg = i.getArgument(0);
+            arg.setId(20L);
+            return arg;
+        });
+        when(inspeccionRepository.findById(20L)).thenAnswer(i -> {
+            InspeccionSemanal is = InspeccionSemanal.builder()
+                    .id(20L)
+                    .comuna(comunaMock)
+                    .inspector(choferMock)
+                    .inspectorAsociado(inspectorPrimarioMock)
+                    .semanaNumero(32)
+                    .anio(2026)
+                    .estado(EstadoInspeccion.EN_PROGRESO)
+                    .build();
+            return Optional.of(is);
+        });
+
+        InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 2L);
+
+        assertNotNull(dto);
+        assertEquals(2L, dto.getInspectorId());
+        assertEquals(1L, dto.getInspectorAsociadoId());
+        assertEquals("John Inspector", dto.getInspectorAsociadoNombre());
+        assertEquals("CHOFER", dto.getRolUsuario());
     }
 }

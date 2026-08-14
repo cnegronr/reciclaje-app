@@ -47,7 +47,7 @@ export const inspectionService = {
     const weekNum = getWeekNumber(today);
     const year = today.getFullYear();
 
-    const key = `inspeccion_${comunaId}_w${weekNum}_${year}`;
+    const key = `inspeccion_${comunaId}_u${inspectorId || 1}_w${weekNum}_${year}`;
     let backendRecord = null;
 
     // 1. Intentar obtener datos actualizados desde la API REST de Spring Boot / PostgreSQL
@@ -56,7 +56,7 @@ export const inspectionService = {
         ? inspectionService.parseBackendComunaId(backendComunaId) 
         : inspectionService.parseBackendComunaId(comunaId);
 
-      const res = await fetch(`${API_BASE_URL}/inspecciones/comuna/${comunaIdQuery}`, {
+      const res = await fetch(`${API_BASE_URL}/inspecciones/comuna/${comunaIdQuery}?inspectorId=${inspectorId || 1}`, {
         headers: getAuthHeaders()
       });
       if (res.ok) {
@@ -129,6 +129,9 @@ export const inspectionService = {
         backendId: backendRecord.id,
         comunaId,
         inspectorId,
+        inspectorAsociadoId: backendRecord.inspectorAsociadoId,
+        inspectorAsociadoNombre: backendRecord.inspectorAsociadoNombre,
+        rolUsuario: backendRecord.rolUsuario,
         semana: backendRecord.semanaNumero,
         anio: backendRecord.anio,
         fechaLimite: backendRecord.fechaLimite || getDeadlineCurrentWeek().toISOString(),

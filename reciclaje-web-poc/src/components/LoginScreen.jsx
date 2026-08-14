@@ -22,8 +22,13 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     }
   };
 
-  const fillTestCredentials = () => {
+  const fillInspectorCredentials = () => {
     setEmail('inspector@reciclajelitoral.cl');
+    setPassword('Password123!');
+  };
+
+  const fillChoferCredentials = () => {
+    setEmail('chofer@reciclajelitoral.cl');
     setPassword('Password123!');
   };
 
@@ -71,12 +76,18 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         <div className="test-credentials-box">
           <p className="test-title">🧪 Credenciales de Prueba POC:</p>
           <div className="credentials-code">
-            <span><strong>Usuario:</strong> inspector@reciclajelitoral.cl</span>
+            <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl</span>
+            <span><strong>Chofer:</strong> chofer@reciclajelitoral.cl</span>
             <span><strong>Clave:</strong> Password123!</span>
           </div>
-          <button onClick={fillTestCredentials} className="auto-fill-btn">
-            ⚡ Cargar Credenciales de Prueba
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1 }}>
+              📋 Cargar Inspector
+            </button>
+            <button onClick={fillChoferCredentials} className="auto-fill-btn" style={{ flex: 1 }}>
+              🚛 Cargar Chofer
+            </button>
+          </div>
         </div>
       </div>
     </div>

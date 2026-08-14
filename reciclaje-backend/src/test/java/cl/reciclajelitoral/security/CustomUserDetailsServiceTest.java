@@ -27,8 +27,8 @@ class CustomUserDetailsServiceTest {
     private CustomUserDetailsService customUserDetailsService;
 
     @Test
-    @DisplayName("Debe cargar UserDetails correctamente si el usuario existe en base de datos")
-    void loadUserByUsernameExitoso() {
+    @DisplayName("Debe cargar UserDetails correctamente para un INSPECTOR")
+    void loadUserByUsernameExitosoInspector() {
         Usuario usuarioMock = Usuario.builder()
                 .id(1L)
                 .email("inspector@reciclajelitoral.cl")
@@ -44,6 +44,32 @@ class CustomUserDetailsServiceTest {
         assertEquals("inspector@reciclajelitoral.cl", userDetails.getUsername());
         assertEquals("hashed_password", userDetails.getPassword());
         assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_INSPECTOR")));
+    }
+
+    @Test
+    @DisplayName("Debe cargar UserDetails correctamente para un CHOFER")
+    void loadUserByUsernameExitosoChofer() {
+        Usuario usuarioMock = Usuario.builder()
+                .id(2L)
+                .email("chofer@reciclajelitoral.cl")
+                .passwordHash("hashed_password")
+                .rol(Rol.CHOFER)
+                .build();
+
+        when(usuarioRepository.findByEmail("chofer@reciclajelitoral.cl")).thenReturn(Optional.of(usuarioMock));
+
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername("chofer@reciclajelitoral.cl");
+
+        assertNotNull(userDetails);
+        assertEquals("chofer@reciclajelitoral.cl", userDetails.getUsername());
+        assertTrue(userDetails.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_CHOFER")));
+    }
+
+    @Test
+    @DisplayName("Debe validar los valores del Enum Rol incluyendo CHOFER")
+    void testRolEnum() {
+        assertEquals(3, Rol.values().length);
+        assertEquals(Rol.CHOFER, Rol.valueOf("CHOFER"));
     }
 
     @Test

@@ -27,6 +27,10 @@ public class InspeccionSemanal {
     @JoinColumn(name = "inspector_id", nullable = false)
     private Usuario inspector;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "inspector_asociado_id")
+    private Usuario inspectorAsociado;
+
     @Column(name = "semana_numero", nullable = false)
     private Integer semanaNumero;
 

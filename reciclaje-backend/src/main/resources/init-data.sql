@@ -1,18 +1,22 @@
 -- Script de inicialización init-data.sql generado desde Litoral_Central.xlsx (Pestañas EL QUISCO 2026 y ALGARROBO 2026)
 
--- 1. Usuario Inspector de Prueba (inspector@reciclajelitoral.cl / Password123!)
+-- 1. Usuarios de Prueba (inspector@reciclajelitoral.cl / chofer@reciclajelitoral.cl / Password123!)
 INSERT INTO usuarios (nombre, email, password_hash, rol) 
 VALUES ('John Doe', 'inspector@reciclajelitoral.cl', '$2a$10$WE2R8JlMw93G6PpO2ySRuOaBCewDrYqBYdojHvq2mM6dtuT6SRMam', 'INSPECTOR')
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+
+INSERT INTO usuarios (nombre, email, password_hash, rol) 
+VALUES ('Pedro Chofer', 'chofer@reciclajelitoral.cl', '$2a$10$WE2R8JlMw93G6PpO2ySRuOaBCewDrYqBYdojHvq2mM6dtuT6SRMam', 'CHOFER')
 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
 -- 2. Comunas: El Quisco y Algarrobo
 INSERT INTO comunas (nombre, codigo_region) VALUES ('El Quisco', 'V') ON CONFLICT (nombre) DO NOTHING;
 INSERT INTO comunas (nombre, codigo_region) VALUES ('Algarrobo', 'V') ON CONFLICT (nombre) DO NOTHING;
 
--- 3. Asignación de Comunas al Inspector
+-- 3. Asignación de Comunas al Inspector y Chofer
 INSERT INTO asignaciones_inspector (inspector_id, comuna_id)
 SELECT u.id, c.id FROM usuarios u, comunas c
-WHERE u.email = 'inspector@reciclajelitoral.cl' AND c.nombre IN ('El Quisco', 'Algarrobo')
+WHERE u.email IN ('inspector@reciclajelitoral.cl', 'chofer@reciclajelitoral.cl') AND c.nombre IN ('El Quisco', 'Algarrobo')
 ON CONFLICT DO NOTHING;
 
 -- 4. Contenedores de El Quisco desde pestana EL QUISCO 2026

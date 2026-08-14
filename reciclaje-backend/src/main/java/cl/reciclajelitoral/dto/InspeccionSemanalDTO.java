@@ -15,6 +15,9 @@ public class InspeccionSemanalDTO {
     private Long id;
     private Long comunaId;
     private Long inspectorId;
+    private Long inspectorAsociadoId;
+    private String inspectorAsociadoNombre;
+    private String rolUsuario;
     private Integer semanaNumero;
     private Integer anio;
     private LocalDateTime fechaLimite;

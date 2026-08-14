@@ -25,6 +25,7 @@ public class InspeccionSemanalService {
     private final ContenedorRepository contenedorRepository;
     private final ComunaRepository comunaRepository;
     private final UsuarioRepository usuarioRepository;
+    private final AsignacionInspectorRepository asignacionRepository;
     private final S3StorageService s3StorageService;
 
     public LocalDateTime calcularFechaLimiteSemanal() {
@@ -52,12 +53,20 @@ public class InspeccionSemanalService {
                 .orElseGet(() -> {
                     Comuna comuna = comunaRepository.findById(comunaId)
                             .orElseThrow(() -> new IllegalArgumentException("Comuna no encontrada: " + comunaId));
-                    Usuario inspector = usuarioRepository.findById(inspectorId)
+                    Usuario usuarioActivo = usuarioRepository.findById(inspectorId)
                             .orElseThrow(() -> new IllegalArgumentException("Inspector no encontrado: " + inspectorId));
+
+                    // Buscar el Inspector primario asignado a la comuna para vincularlo a las inspecciones del CHOFER
+                    Usuario inspectorAsociado = asignacionRepository.findByComunaId(comunaId).stream()
+                            .map(AsignacionInspector::getInspector)
+                            .filter(u -> u.getRol() == Rol.INSPECTOR)
+                            .findFirst()
+                            .orElse(usuarioActivo);
 
                     InspeccionSemanal nuevaInspeccion = InspeccionSemanal.builder()
                             .comuna(comuna)
-                            .inspector(inspector)
+                            .inspector(usuarioActivo)
+                            .inspectorAsociado(inspectorAsociado)
                             .semanaNumero(semanaNumero)
                             .anio(anio)
                             .fechaLimite(calcularFechaLimiteSemanal(ahora))
@@ -212,10 +221,15 @@ public class InspeccionSemanalService {
                 })
                 .collect(Collectors.toList());
 
+        Usuario inspectorAsociado = i.getInspectorAsociado() != null ? i.getInspectorAsociado() : i.getInspector();
+
         return InspeccionSemanalDTO.builder()
                 .id(i.getId())
                 .comunaId(i.getComuna().getId())
                 .inspectorId(i.getInspector().getId())
+                .inspectorAsociadoId(inspectorAsociado.getId())
+                .inspectorAsociadoNombre(inspectorAsociado.getNombre())
+                .rolUsuario(i.getInspector().getRol().name())
                 .semanaNumero(i.getSemanaNumero())
                 .anio(i.getAnio())
                 .fechaLimite(i.getFechaLimite())

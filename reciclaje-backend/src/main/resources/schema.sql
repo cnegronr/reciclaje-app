@@ -39,12 +39,13 @@ CREATE TABLE IF NOT EXISTS inspecciones_semanales (
     id BIGSERIAL PRIMARY KEY,
     comuna_id BIGINT REFERENCES comunas(id),
     inspector_id BIGINT REFERENCES usuarios(id),
+    inspector_asociado_id BIGINT REFERENCES usuarios(id),
     semana_numero INT NOT NULL,
     anio INT NOT NULL,
     fecha_limite TIMESTAMP NOT NULL,
     estado VARCHAR(20) DEFAULT 'EN_PROGRESO',
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(comuna_id, semana_numero, anio)
+    CONSTRAINT unique_inspeccion_comuna_usuario_semana UNIQUE(comuna_id, inspector_id, semana_numero, anio)
 );
 
 CREATE TABLE IF NOT EXISTS detalle_inspecciones (
