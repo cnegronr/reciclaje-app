@@ -1,6 +1,6 @@
 # Reciclaje Litoral - AI Agent Guide (`AGENT.md`)
 
-This document provides architectural context, routing directives, and operational workflows for AI coding assistants working in this repository.
+This document provides architectural context, routing directives, and strict operational workflows for AI coding assistants in this workspace.
 
 ---
 
@@ -8,67 +8,64 @@ This document provides architectural context, routing directives, and operationa
 
 ### Directory Structure
 - **`/reciclaje-backend`**: Java 21, Spring Boot 3.2.3 (Maven)
-  - REST APIs for authentication, weekly inspection management, container tracking, and S3 image upload.
-  - Relational Database: PostgreSQL 16 (H2 for unit tests).
-  - Code Quality: Mandatory **100.00% JaCoCo instruction & branch coverage** (`mvn clean verify`).
-- **`/reciclaje-web-poc`**: React (JavaScript/JSX), Vite, Vanilla CSS
-  - Responsive Web App for field Inspectors and Choferes.
-  - Maps integration (Leaflet/MapLibre), camera photo capture, and offline-resilient local storage caching.
+    - REST APIs: Auth, weekly inspection management, container tracking, S3 image upload.
+    - Database: PostgreSQL 16 (H2 / Mockito for unit testing).
+    - Code Quality: Mandatory **100.00% JaCoCo instruction & branch coverage**.
+- **`/reciclaje-web-poc`**: React (JSX), Vite, Vanilla CSS
+    - Field Web App for Inspectors and Choferes (Leaflet/MapLibre, camera, local storage).
 - **`/reciclaje-cdk`**: AWS CDK v2 (TypeScript)
-  - Declarative Cloud Infrastructure (VPC, RDS PostgreSQL, EC2 instance, S3 Bucket, Security Groups, IAM Roles).
-- **`/docker-compose.yml`**: Multi-container local development orchestrator (PostgreSQL 16, Spring Boot backend, React web app).
+    - Infrastructure: VPC, RDS PostgreSQL, EC2, S3, Security Groups, IAM.
+- **`/docker-compose.yml`**: Multi-container orchestrator (Postgres 16, Spring Boot, React).
 
 ---
 
-## 2. Agent Operational Directives
+## 2. Test-First Development & Execution Rules (TDD)
+
+### 1. Mandatory Test-First Protocol (Red-Green-Refactor)
+To minimize token consumption and prevent guessing loops:
+1. **Step 1 (Red - Test First):** Write or update the Unit Test (JUnit 5 + Mockito / AssertJ / Vitest) *before* touching production code. Define boundaries, exceptions, and assertions.
+2. **Step 2 (Green - Targeted Code):** Implement *only* the code required to satisfy the unit test.
+3. **Step 3 (Refactor):** Clean up without altering public method signatures.
+
+### 2. Forbidden Iteration Commands (Token Traps)
+- **NEVER** run `mvn test`, `mvn verify`, `mvn clean install`, or full npm suites during the development loop.
+- **NEVER** parse or debug large stack traces when a single assertion failure is sufficient.
+
+### 3. Fast Targeted Testing (Use During Active Coding)
+Run **only** the exact test class or method in quiet mode:
+- **Backend (Class):** `mvn test -Dtest=TargetServiceTest -q` (inside `/reciclaje-backend`)
+- **Backend (Single Method):** `mvn test -Dtest=TargetServiceTest#shouldProcessInspection -q`
+- **Frontend (Target Component):** `npm test -- src/components/TargetComponent.test.jsx`
+- **AWS CDK (Stack Test):** `npm test -- test/reciclaje-cdk.test.ts`
+
+---
+
+## 3. Operational Directives & Scope Constraints
 
 ### 1. Targeted Subfolder Scope
-- Limit file searches, views, and modifications strictly to the relevant subfolder for the current task:
-  - Backend API / Business Logic: Work inside `/reciclaje-backend`.
-  - Web UI / Frontend Logic: Work inside `/reciclaje-web-poc`.
-  - Infrastructure / AWS Deployment: Work inside `/reciclaje-cdk`.
-- Avoid cross-inspecting unrelated subdirectories unless the user explicitly requests full-stack end-to-end integration.
+- Limit all searches, reads, and modifications strictly to the relevant subfolder:
+    - Backend Logic: `/reciclaje-backend`
+    - Web UI: `/reciclaje-web-poc`
+    - Cloud / Infra: `/reciclaje-cdk`
+- Do not inspect cross-domain directories unless explicitly instructed for end-to-end integration.
 
-### 2. Strict Exclusion of Build Artifacts
-- **NEVER** search, view, or parse generated build outputs or external dependencies:
-  - Java/Maven: `**/target/`, `**/*.class`, `**/jacoco.exec`
-  - React/Node: `**/node_modules/`, `**/dist/`
-  - AWS CDK: `**/cdk.out/`
-  - Version Control & IDEs: `.git/`, `.idea/`, `.qodo/`
+### 2. Strict Artifact Exclusion
+- **NEVER** inspect, read, or list build output directories or caches:
+    - Java/Maven: `**/target/`, `**/*.class`, `**/jacoco.exec`, `.gradle/`
+    - Frontend: `**/node_modules/`, `**/dist/`, `**/.next/`
+    - AWS CDK: `**/cdk.out/`, `**/cdk.context.json`
+    - IDEs / Metadata: `.git/`, `.idea/`, `.qodo/`
 
-### 3. Concise & Surgical File Edits
-- Prefer targeted snippet replacements (`replace_file_content` / `multi_replace_file_content`) over overwriting entire source files.
-- Preserve existing comments, formatting, and docstrings unrelated to the modification.
-
-### 4. Mandatory Empirical Verification
-Before declaring any task complete, always execute and confirm the respective verification commands:
-- **Backend Changes (`/reciclaje-backend`):**
-  ```bash
-  mvn clean verify
-  ```
-  *(Must compile cleanly, pass all JUnit 5 tests, and meet the 100.00% JaCoCo coverage threshold)*.
-- **Frontend Changes (`/reciclaje-web-poc`):**
-  ```bash
-  npm run build
-  ```
-  *(Must execute Vite production build without syntax or bundle errors)*.
-- **Infrastructure Changes (`/reciclaje-cdk`):**
-  ```bash
-  npx cdk synth
-  ```
-  *(Must generate valid AWS CloudFormation templates)*.
+### 3. Surgical Edits
+- Always prefer targeted replacements (`replace_file_content` / diffs) over whole-file rewrites.
+- Preserve existing formatting, annotations, and comments.
 
 ---
 
-## 3. Domain Model & Business Logic Summary
+## 4. Final Empirical Verification (Run Once at Task Completion)
 
-### Inspection Workflow (`INSPECTOR` vs `CHOFER`)
-1. **INSPECTOR Role:**
-   - Private weekly route per comuna, week, and year (`tipo_ruta = 'INSPECTOR'`).
-   - Assigned to specific comunas.
-2. **CHOFER Role:**
-   - Shared weekly route for all choferes assigned to the same comuna (`tipo_ruta = 'CHOFER'`).
-   - Automatically links the primary `INSPECTOR` assigned to the comuna as `inspectorAsociado` for audit comparisons.
-3. **Author Attribution:**
-   - Container details track `creadoPorUsuario` (initial inspection) and `actualizadoPorUsuario` (subsequent updates).
-   - Photos track individual uploader `usuario`.
+Only after all unit tests pass cleanly via targeted execution, run the final verification step:
+
+- **Backend Changes:**
+  ```bash
+  mvn clean verify -q
