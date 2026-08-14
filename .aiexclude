@@ -1,0 +1,47 @@
+# === Reciclaje Litoral AI Exclusion Rules (.aiexclude) ===
+
+# === Submodule & Build Output Artifacts (Token Heavy) ===
+**/target/
+**/build/
+**/dist/
+**/out/
+**/cdk.out/
+**/.cdk.staging/
+**/.aws-sam/
+.gradle/
+*.class
+*.jar
+*.war
+*.template.json
+cdk.context.json
+
+# === Dependency Folders & Large Lockfiles ===
+**/node_modules/
+**/package-lock.json
+**/pnpm-lock.yaml
+**/yarn.lock
+**/coverage/
+
+# === IDE, Version Control & Tool Metadata ===
+.git/
+.idea/
+.vscode/
+.qodo/
+.gemini/
+*.swp
+*.swo
+
+# === Environment Variables & Secrets (Allowing .env.example) ===
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+*.p12
+
+# === System Files & Executables ===
+.DS_Store
+.DS_Store?
+._*
+*.log
