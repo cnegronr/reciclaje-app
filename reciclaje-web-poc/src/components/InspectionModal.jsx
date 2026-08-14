@@ -3,8 +3,10 @@ import React, { useState } from 'react';
 export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) => {
   const isEditing = !!detalleActual?.visitado;
 
-  // Valores iniciales para detección de cambios
-  const initialPorcentaje = detalleActual ? Number(detalleActual.porcentajeEstimado) : 50;
+  // Valores iniciales para detección de cambios (por defecto 0% en vez de 50%)
+  const initialPorcentaje = (detalleActual && (detalleActual.visitado || detalleActual.porcentajeEstimado !== undefined))
+    ? Number(detalleActual.porcentajeEstimado)
+    : 0;
   const initialObservaciones = detalleActual ? (detalleActual.observaciones || '') : '';
 
   // Estado del formulario
@@ -153,6 +155,12 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                     </span>
                   )}
                 </h4>
+                <div className="update-data-summary" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '8px 0 10px 0', fontSize: '0.85rem', background: 'rgba(0, 0, 0, 0.2)', padding: '8px 12px', borderRadius: '6px' }}>
+                  <span><strong>📊 Llenado Inicial Registrado:</strong> <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{detalleActual.porcentajeEstimadoInicial ?? detalleActual.porcentajeEstimado}%</span> ({detalleActual.kilosCalculadosInicial ?? detalleActual.kilosCalculados} kg)</span>
+                  {(detalleActual.observacionesInicial || detalleActual.observaciones) && (
+                    <span><strong>💬 Comentarios Iniciales:</strong> <span style={{ color: '#e2e8f0', fontStyle: 'italic' }}>"{detalleActual.observacionesInicial || detalleActual.observaciones}"</span></span>
+                  )}
+                </div>
                 <div className="photo-grid-readonly">
                   <div>
                     <span className="photo-sublabel">Fotos Iniciales ANTES:</span>

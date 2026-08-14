@@ -42,6 +42,12 @@ public class DetalleInspeccion {
     @Column(name = "kilos_calculados", precision = 7, scale = 2)
     private BigDecimal kilosCalculados;
 
+    @Column(name = "porcentaje_estimado_inicial", precision = 5, scale = 2)
+    private BigDecimal porcentajeEstimadoInicial;
+
+    @Column(name = "kilos_calculados_inicial", precision = 7, scale = 2)
+    private BigDecimal kilosCalculadosInicial;
+
     @Column(name = "visitado")
     private Boolean visitado = false;
 
@@ -53,6 +59,9 @@ public class DetalleInspeccion {
 
     @Column(name = "observaciones", columnDefinition = "TEXT")
     private String observaciones;
+
+    @Column(name = "observaciones_inicial", columnDefinition = "TEXT")
+    private String observacionesInicial;
 
     @OneToMany(mappedBy = "detalleInspeccion", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

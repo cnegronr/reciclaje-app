@@ -56,10 +56,13 @@ CREATE TABLE IF NOT EXISTS detalle_inspecciones (
     actualizado_por_usuario_id BIGINT REFERENCES usuarios(id),
     porcentaje_estimado NUMERIC(5,2) CHECK (porcentaje_estimado BETWEEN 0 AND 100),
     kilos_calculados NUMERIC(7,2) NOT NULL,
+    porcentaje_estimado_inicial NUMERIC(5,2) CHECK (porcentaje_estimado_inicial BETWEEN 0 AND 100),
+    kilos_calculados_inicial NUMERIC(7,2),
     visitado BOOLEAN DEFAULT FALSE,
     fecha_hora_inicial TIMESTAMP,
     fecha_hora_actualizacion TIMESTAMP,
     observaciones TEXT,
+    observaciones_inicial TEXT,
     UNIQUE(inspeccion_semanal_id, contenedor_id)
 );
 

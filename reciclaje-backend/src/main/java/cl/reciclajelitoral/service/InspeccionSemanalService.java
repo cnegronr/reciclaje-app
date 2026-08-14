@@ -147,6 +147,12 @@ public class InspeccionSemanalService {
         Contenedor contenedor = detalle.getContenedor();
         BigDecimal kilos = contenedor.calcularKilos(porcentajeEstimado);
 
+        if (detalle.getPorcentajeEstimadoInicial() == null) {
+            detalle.setPorcentajeEstimadoInicial(Optional.ofNullable(detalle.getPorcentajeEstimado()).orElse(porcentajeEstimado));
+            detalle.setKilosCalculadosInicial(Optional.ofNullable(detalle.getKilosCalculados()).orElse(kilos));
+            detalle.setObservacionesInicial(Optional.ofNullable(detalle.getObservaciones()).orElse(observaciones));
+        }
+
         detalle.setPorcentajeEstimado(porcentajeEstimado);
         detalle.setKilosCalculados(kilos);
         detalle.setObservaciones(observaciones);
@@ -159,6 +165,9 @@ public class InspeccionSemanalService {
             // INSPECCIÓN INICIAL
             detalle.setFechaHoraInicial(ahora);
             detalle.setCreadoPorUsuario(actor);
+            detalle.setPorcentajeEstimadoInicial(porcentajeEstimado);
+            detalle.setKilosCalculadosInicial(kilos);
+            detalle.setObservacionesInicial(observaciones);
 
             if (fotosAntesUrls != null) {
                 for (String photoData : fotosAntesUrls) {
@@ -285,10 +294,13 @@ public class InspeccionSemanalService {
                             .actualizadoPorUsuarioNombre(Optional.ofNullable(actualizador).map(Usuario::getNombre).orElse(null))
                             .porcentajeEstimado(d.getPorcentajeEstimado())
                             .kilosCalculados(d.getKilosCalculados())
+                            .porcentajeEstimadoInicial(Optional.ofNullable(d.getPorcentajeEstimadoInicial()).orElse(d.getPorcentajeEstimado()))
+                            .kilosCalculadosInicial(Optional.ofNullable(d.getKilosCalculadosInicial()).orElse(d.getKilosCalculados()))
                             .visitado(d.getVisitado())
                             .fechaHoraInicial(d.getFechaHoraInicial())
                             .fechaHoraActualizacion(d.getFechaHoraActualizacion())
                             .observaciones(d.getObservaciones())
+                            .observacionesInicial(Optional.ofNullable(d.getObservacionesInicial()).orElse(d.getObservaciones()))
                             .actualizacionesHistorial(actDTOList)
                             .fotos(fotos.stream()
                                     .map(f -> {

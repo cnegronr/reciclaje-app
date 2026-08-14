@@ -21,10 +21,13 @@ public class DetalleInspeccionDTO {
     private String actualizadoPorUsuarioNombre;
     private BigDecimal porcentajeEstimado;
     private BigDecimal kilosCalculados;
+    private BigDecimal porcentajeEstimadoInicial;
+    private BigDecimal kilosCalculadosInicial;
     private Boolean visitado;
     private LocalDateTime fechaHoraInicial;
     private LocalDateTime fechaHoraActualizacion;
     private String observaciones;
+    private String observacionesInicial;
     private List<FotoInspeccionDTO> fotos;
     private List<ActualizacionDetalleDTO> actualizacionesHistorial;
 }

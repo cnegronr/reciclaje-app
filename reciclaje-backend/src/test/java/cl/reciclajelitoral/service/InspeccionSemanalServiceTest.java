@@ -517,6 +517,9 @@ class InspeccionSemanalServiceTest {
                 .actualizadoPorUsuario(pedroChofer)
                 .porcentajeEstimado(BigDecimal.valueOf(40))
                 .kilosCalculados(BigDecimal.valueOf(200))
+                .porcentajeEstimadoInicial(BigDecimal.valueOf(40))
+                .kilosCalculadosInicial(BigDecimal.valueOf(200))
+                .observacionesInicial("Inicial por Pedro")
                 .fechaHoraInicial(LocalDateTime.now().minusHours(2))
                 .visitado(true)
                 .fotos(new ArrayList<>())
@@ -550,10 +553,12 @@ class InspeccionSemanalServiceTest {
         assertEquals("Juan Chofer", dto.getDetalles().get(0).getActualizacionesHistorial().get(0).getUsuarioNombre());
         assertEquals(BigDecimal.valueOf(80), dto.getDetalles().get(0).getActualizacionesHistorial().get(0).getPorcentajeEstimado());
         assertEquals("Inspeccionado por Juan", dto.getDetalles().get(0).getActualizacionesHistorial().get(0).getObservaciones());
+        assertEquals(BigDecimal.valueOf(40), dto.getDetalles().get(0).getPorcentajeEstimadoInicial());
 
         verify(detalleRepository).save(argThat(d -> {
             assertEquals("Pedro Chofer", d.getCreadoPorUsuario().getNombre());
             assertEquals("Juan Chofer", d.getActualizadoPorUsuario().getNombre());
+            assertEquals(BigDecimal.valueOf(40), d.getPorcentajeEstimadoInicial());
             assertEquals(1, d.getActualizaciones().size());
             assertEquals(BigDecimal.valueOf(80), d.getActualizaciones().get(0).getPorcentajeEstimado());
             assertEquals("Inspeccionado por Juan", d.getActualizaciones().get(0).getObservaciones());
