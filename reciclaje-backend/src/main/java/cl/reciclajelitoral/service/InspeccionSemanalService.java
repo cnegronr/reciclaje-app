@@ -147,15 +147,43 @@ public class InspeccionSemanalService {
         Contenedor contenedor = detalle.getContenedor();
         BigDecimal kilos = contenedor.calcularKilos(porcentajeEstimado);
 
+        boolean tieneFotosNuevas = tieneFotosLista(fotosAntesUrls) || tieneFotosLista(fotosDespuesUrls);
+        boolean tieneObservacionesInput = observaciones != null && !observaciones.trim().isEmpty();
+
+        String observacionesFinales;
+
+        if (!esActualizacion || detalle.getFechaHoraInicial() == null) {
+            observacionesFinales = tieneObservacionesInput ? observaciones.trim() : "Registro inicial";
+        } else {
+            if (tieneFotosNuevas) {
+                if (!tieneObservacionesInput || "Actualización de porcentaje".equals(observaciones.trim()) || "Registro inicial".equals(observaciones.trim())) {
+                    observacionesFinales = "Actualización de fotos";
+                } else {
+                    observacionesFinales = observaciones.trim();
+                }
+            } else {
+                if (!tieneObservacionesInput || "Actualización de fotos".equals(observaciones.trim())) {
+                    observacionesFinales = "Actualización de porcentaje";
+                } else {
+                    String obsTrim = observaciones.trim();
+                    if (obsTrim.startsWith("Comentario actualizado") || obsTrim.startsWith("Actualización de porcentaje")) {
+                        observacionesFinales = obsTrim;
+                    } else {
+                        observacionesFinales = "Comentario actualizado: " + obsTrim;
+                    }
+                }
+            }
+        }
+
         if (detalle.getPorcentajeEstimadoInicial() == null) {
             detalle.setPorcentajeEstimadoInicial(Optional.ofNullable(detalle.getPorcentajeEstimado()).orElse(porcentajeEstimado));
             detalle.setKilosCalculadosInicial(Optional.ofNullable(detalle.getKilosCalculados()).orElse(kilos));
-            detalle.setObservacionesInicial(Optional.ofNullable(detalle.getObservaciones()).orElse(observaciones));
+            detalle.setObservacionesInicial(Optional.ofNullable(detalle.getObservaciones()).orElse(observacionesFinales));
         }
 
         detalle.setPorcentajeEstimado(porcentajeEstimado);
         detalle.setKilosCalculados(kilos);
-        detalle.setObservaciones(observaciones);
+        detalle.setObservaciones(observacionesFinales);
         detalle.setVisitado(true);
         detalle.setActualizadoPorUsuario(actor);
 
@@ -167,7 +195,7 @@ public class InspeccionSemanalService {
             detalle.setCreadoPorUsuario(actor);
             detalle.setPorcentajeEstimadoInicial(porcentajeEstimado);
             detalle.setKilosCalculadosInicial(kilos);
-            detalle.setObservacionesInicial(observaciones);
+            detalle.setObservacionesInicial(observacionesFinales);
 
             if (fotosAntesUrls != null) {
                 for (String photoData : fotosAntesUrls) {
@@ -200,7 +228,7 @@ public class InspeccionSemanalService {
                     .usuario(actor)
                     .porcentajeEstimado(porcentajeEstimado)
                     .kilosCalculados(kilos)
-                    .observaciones(observaciones)
+                    .observaciones(observacionesFinales)
                     .fechaHora(ahora)
                     .build();
 
@@ -334,5 +362,9 @@ public class InspeccionSemanalService {
                 .estado(i.getEstado().name())
                 .detalles(detallesDTO)
                 .build();
+    }
+
+    private boolean tieneFotosLista(List<String> fotos) {
+        return Optional.ofNullable(fotos).map(l -> !l.isEmpty()).orElse(false);
     }
 }

@@ -94,8 +94,14 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
       return;
     }
     if (!isEditing && (fotosAntes.length === 0 || fotosDespues.length === 0)) {
-      alert('⚠️ Por favor adjunta al menos 1 foto del estado ANTES y 1 foto del estado DESPUÉS de la inspección inicial.');
+      alert('⚠️ Para registrar la inspección inicial, debe proporcionar al menos 1 imagen del estado ANTES y al menos 1 imagen del estado DESPUÉS.');
       return;
+    }
+    if (isEditing && newPhotosUploaded) {
+      if (fotosAntesActualizacion.length === 0 || fotosDespuesActualizacion.length === 0) {
+        alert('⚠️ Al actualizar imágenes, debe proporcionar al menos 1 imagen del estado ANTES y al menos 1 imagen del estado DESPUÉS.');
+        return;
+      }
     }
     setShowingSummary(true);
   };
@@ -104,10 +110,36 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
     if (isSaving || !hasChanges) return;
     setIsSaving(true);
     try {
+      let finalObservaciones = observaciones.trim();
+
+      if (!isEditing) {
+        // Registro inicial
+        finalObservaciones = finalObservaciones ? finalObservaciones : "Registro inicial";
+      } else {
+        // Actualización
+        if (newPhotosUploaded) {
+          // Si no se modificó el comentario en esta visita o viene vacuo/automático previo -> "Actualización de fotos"
+          if (!observacionesChanged || !finalObservaciones || finalObservaciones === "Actualización de porcentaje" || finalObservaciones === "Registro inicial") {
+            finalObservaciones = "Actualización de fotos";
+          }
+        } else {
+          // Actualización sin imágenes
+          if (!observacionesChanged) {
+            finalObservaciones = "Actualización de porcentaje";
+          } else {
+            if (porcentajeChanged) {
+              finalObservaciones = `Actualización de porcentaje: ${finalObservaciones}`;
+            } else {
+              finalObservaciones = `Comentario actualizado: ${finalObservaciones}`;
+            }
+          }
+        }
+      }
+
       const dataToSave = {
         porcentajeEstimado: Number(porcentaje),
         kilosCalculados: Number(kilosCalculados),
-        observaciones,
+        observaciones: finalObservaciones,
         fotosAntes,
         fotosDespues,
         fotosAntesActualizacion,
@@ -384,6 +416,12 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
         ) : (
           /* VISTA DE RESUMEN Y CONFIRMACIÓN DE CAMBIOS */
           <div className="summary-view">
+            {isEditing && !newPhotosUploaded && (
+              <div className="summary-alert warning-no-photos" style={{ background: 'rgba(234, 179, 8, 0.15)', border: '1px solid #eab308', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', color: '#fef08a' }}>
+                ⚠️ <strong>Atención (Actualización sin imágenes):</strong> La actualización no contiene nuevas imágenes. ¿Está seguro de continuar sin adjuntar fotografías?
+              </div>
+            )}
+
             <div className="summary-alert">
               ⚠️ <strong>Confirmación de Inspección:</strong> Una vez guardados los cambios, el registro solo podrá modificarse mediante el flujo de actualización.
             </div>

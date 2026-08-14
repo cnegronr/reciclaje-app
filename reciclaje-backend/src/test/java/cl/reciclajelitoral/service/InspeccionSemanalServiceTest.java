@@ -569,6 +569,110 @@ class InspeccionSemanalServiceTest {
     }
 
     @Test
+    @DisplayName("registrarOActualizarInspeccion: asignacion automatica de comentarios por defecto y foto-less")
+    void registrarInspeccionMatrizComentarios() {
+        Usuario inspector = Usuario.builder().id(1L).nombre("John Inspector").email("inspector@reciclajelitoral.cl").rol(Rol.INSPECTOR).build();
+
+        DetalleInspeccion detalleNulo = DetalleInspeccion.builder()
+                .id(100L)
+                .inspeccionSemanal(inspeccionSemanalMock)
+                .contenedor(contenedorEmpresaMock)
+                .porcentajeEstimado(BigDecimal.valueOf(30))
+                .kilosCalculados(BigDecimal.valueOf(150))
+                .build();
+        inspeccionSemanalMock.setDetalles(List.of(detalleNulo));
+
+        // 1. Registro inicial sin comentario -> "Registro inicial"
+        when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
+                .thenReturn(Optional.of(detalleNulo));
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(inspector));
+        when(detalleRepository.save(any(DetalleInspeccion.class))).thenAnswer(i -> i.getArgument(0));
+        when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenAnswer(i -> i.getArgument(0));
+
+        InspeccionSemanalDTO dtoInicial = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(30), "   ",
+                null, null, false, 1L
+        );
+        assertEquals("Registro inicial", dtoInicial.getDetalles().get(0).getObservaciones());
+
+        // 2. Actualización con fotos sin comentario -> "Actualización de fotos"
+        DetalleInspeccion detalleConInicial = DetalleInspeccion.builder()
+                .id(50L)
+                .inspeccionSemanal(inspeccionSemanalMock)
+                .contenedor(contenedorEmpresaMock)
+                .creadoPorUsuario(inspector)
+                .actualizadoPorUsuario(inspector)
+                .porcentajeEstimado(BigDecimal.valueOf(30))
+                .kilosCalculados(BigDecimal.valueOf(150))
+                .porcentajeEstimadoInicial(BigDecimal.valueOf(30))
+                .fechaHoraInicial(LocalDateTime.now().minusHours(3))
+                .visitado(true)
+                .build();
+        inspeccionSemanalMock.setDetalles(List.of(detalleConInicial));
+        when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
+                .thenReturn(Optional.of(detalleConInicial));
+        when(s3StorageService.subirFotoAS3(anyString(), anyString())).thenReturn("https://s3.fake/foto_act.jpg");
+
+        InspeccionSemanalDTO dtoActFotos = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(50), null,
+                null, List.of("data:image/png;base64,123"), true, 1L
+        );
+        assertEquals("Actualización de fotos", dtoActFotos.getDetalles().get(0).getActualizacionesHistorial().get(0).getObservaciones());
+
+        // 3. Actualización sin fotos sin comentario -> "Actualización de porcentaje"
+        InspeccionSemanalDTO dtoActPorcentaje = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(70), "",
+                List.of(), List.of(), true, 1L
+        );
+        assertEquals("Actualización de porcentaje", dtoActPorcentaje.getDetalles().get(0).getActualizacionesHistorial().get(1).getObservaciones());
+
+        // 4. Actualización sin fotos con comentario nuevo -> "Comentario actualizado: <texto>"
+        InspeccionSemanalDTO dtoActComentario = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(70), "Contenedor limpio",
+                null, null, true, 1L
+        );
+        assertEquals("Comentario actualizado: Contenedor limpio", dtoActComentario.getDetalles().get(0).getActualizacionesHistorial().get(2).getObservaciones());
+
+        // 5. Actualización con comentario ya formateado -> Preserva el prefijo sin duplicar
+        InspeccionSemanalDTO dtoActRepetido = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(70), "Comentario actualizado: Ya verificado",
+                null, null, true, 1L
+        );
+        assertEquals("Comentario actualizado: Ya verificado", dtoActRepetido.getDetalles().get(0).getActualizacionesHistorial().get(3).getObservaciones());
+
+        InspeccionSemanalDTO dtoActRepetidoPorcentaje = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(70), "Actualización de porcentaje: Desgaste en tapa",
+                null, null, true, 1L
+        );
+        assertEquals("Actualización de porcentaje: Desgaste en tapa", dtoActRepetidoPorcentaje.getDetalles().get(0).getActualizacionesHistorial().get(4).getObservaciones());
+
+        // 6. Subir nuevas fotos cuando las observaciones anteriores eran "Actualización de porcentaje" o "Registro inicial" -> Sobreescribe a "Actualización de fotos"
+        InspeccionSemanalDTO dtoFotosSobrePorcentaje = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(80), "Actualización de porcentaje",
+                List.of("data:image/png;base64,456"), null, true, 1L
+        );
+        assertEquals("Actualización de fotos", dtoFotosSobrePorcentaje.getDetalles().get(0).getActualizacionesHistorial().get(5).getObservaciones());
+
+        InspeccionSemanalDTO dtoFotosSobreInicial = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(80), "Registro inicial",
+                List.of("data:image/png;base64,456"), null, true, 1L
+        );
+        assertEquals("Actualización de fotos", dtoFotosSobreInicial.getDetalles().get(0).getActualizacionesHistorial().get(6).getObservaciones());
+
+        InspeccionSemanalDTO dtoFotosConComentarioCustom = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(80), "Fotos de reja despejada",
+                List.of("data:image/png;base64,456"), null, true, 1L
+        );
+        assertEquals("Fotos de reja despejada", dtoFotosConComentarioCustom.getDetalles().get(0).getActualizacionesHistorial().get(7).getObservaciones());
+
+        InspeccionSemanalDTO dtoPorcentajeSobreFotos = inspeccionService.registrarOActualizarInspeccion(
+                1L, 10L, BigDecimal.valueOf(90), "Actualización de fotos",
+                null, null, true, 1L
+        );
+        assertEquals("Actualización de porcentaje", dtoPorcentajeSobreFotos.getDetalles().get(0).getActualizacionesHistorial().get(8).getObservaciones());
+    }
+
+    @Test
     @DisplayName("obtenerOCrearInspeccionSemanal: debe mapear correctamente detalles y fotos con autores nulos a DTO")
     void convertirADTOConAutoresNull() {
         FotoInspeccion fotoSinUsuario = FotoInspeccion.builder()

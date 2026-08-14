@@ -272,13 +272,15 @@ export const inspectionService = {
         fechaHora: nowIso,
         porcentajeEstimado: Number(inspectionData.porcentajeEstimado || 0),
         kilosCalculados: Number(inspectionData.kilosCalculados || 0),
-        observaciones: inspectionData.observaciones || '',
+        observaciones: inspectionData.observaciones || (hasNewPhotos ? 'Actualización de fotos' : 'Actualización de porcentaje'),
         fotosAntes: inspectionData.fotosAntesActualizacion || [],
         fotosDespues: inspectionData.fotosDespuesActualizacion || []
       };
       nuevoHistorial = [...nuevoHistorial, updateEntry];
-      fotosActAntes = updateEntry.fotosAntes;
-      fotosActDespues = updateEntry.fotosDespues;
+      if (hasNewPhotos) {
+        fotosActAntes = updateEntry.fotosAntes;
+        fotosActDespues = updateEntry.fotosDespues;
+      }
 
       record.detalles[contenedorId] = {
         ...currentDetalle,
