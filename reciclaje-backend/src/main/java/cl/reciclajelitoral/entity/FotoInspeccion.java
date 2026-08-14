@@ -25,6 +25,10 @@ public class FotoInspeccion {
     @JoinColumn(name = "usuario_id")
     private Usuario usuario;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "actualizacion_detalle_id")
+    private ActualizacionDetalle actualizacionDetalle;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "momento", nullable = false, length = 25)
     private MomentoFoto momento;

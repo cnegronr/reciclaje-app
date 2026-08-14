@@ -522,6 +522,17 @@ class InspeccionSemanalServiceTest {
                 .fotos(new ArrayList<>())
                 .build();
 
+        InspeccionSemanal inspeccionMock = InspeccionSemanal.builder()
+                .id(1L)
+                .comuna(comunaMock)
+                .inspector(pedroChofer)
+                .semanaNumero(32)
+                .anio(2026)
+                .estado(EstadoInspeccion.EN_PROGRESO)
+                .detalles(List.of(detalleExistente))
+                .build();
+        detalleExistente.setInspeccionSemanal(inspeccionMock);
+
         when(detalleRepository.findByInspeccionSemanalIdAndContenedorId(1L, 10L))
                 .thenReturn(Optional.of(detalleExistente));
         when(usuarioRepository.findById(3L)).thenReturn(Optional.of(juanChofer));
@@ -535,11 +546,19 @@ class InspeccionSemanalServiceTest {
         );
 
         assertNotNull(dto);
+        assertEquals(1, dto.getDetalles().get(0).getActualizacionesHistorial().size());
+        assertEquals("Juan Chofer", dto.getDetalles().get(0).getActualizacionesHistorial().get(0).getUsuarioNombre());
+        assertEquals(BigDecimal.valueOf(80), dto.getDetalles().get(0).getActualizacionesHistorial().get(0).getPorcentajeEstimado());
+        assertEquals("Inspeccionado por Juan", dto.getDetalles().get(0).getActualizacionesHistorial().get(0).getObservaciones());
+
         verify(detalleRepository).save(argThat(d -> {
             assertEquals("Pedro Chofer", d.getCreadoPorUsuario().getNombre());
             assertEquals("Juan Chofer", d.getActualizadoPorUsuario().getNombre());
-            assertEquals(2, d.getFotos().size());
-            assertEquals("Juan Chofer", d.getFotos().get(0).getUsuario().getNombre());
+            assertEquals(1, d.getActualizaciones().size());
+            assertEquals(BigDecimal.valueOf(80), d.getActualizaciones().get(0).getPorcentajeEstimado());
+            assertEquals("Inspeccionado por Juan", d.getActualizaciones().get(0).getObservaciones());
+            assertEquals("Juan Chofer", d.getActualizaciones().get(0).getUsuario().getNombre());
+            assertEquals(2, d.getActualizaciones().get(0).getFotos().size());
             return true;
         }));
     }

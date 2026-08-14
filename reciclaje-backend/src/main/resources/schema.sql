@@ -63,9 +63,20 @@ CREATE TABLE IF NOT EXISTS detalle_inspecciones (
     UNIQUE(inspeccion_semanal_id, contenedor_id)
 );
 
+CREATE TABLE IF NOT EXISTS actualizaciones_detalle (
+    id BIGSERIAL PRIMARY KEY,
+    detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE,
+    usuario_id BIGINT REFERENCES usuarios(id),
+    porcentaje_estimado NUMERIC(5,2) CHECK (porcentaje_estimado BETWEEN 0 AND 100),
+    kilos_calculados NUMERIC(7,2) NOT NULL,
+    observaciones TEXT,
+    fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS fotos_inspeccion (
     id BIGSERIAL PRIMARY KEY,
     detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE,
+    actualizacion_detalle_id BIGINT REFERENCES actualizaciones_detalle(id) ON DELETE CASCADE,
     usuario_id BIGINT REFERENCES usuarios(id),
     momento VARCHAR(25) CHECK (momento IN ('INICIAL_ANTES', 'INICIAL_DESPUES', 'ACTUALIZACION_ANTES', 'ACTUALIZACION_DESPUES')),
     url_foto TEXT NOT NULL,

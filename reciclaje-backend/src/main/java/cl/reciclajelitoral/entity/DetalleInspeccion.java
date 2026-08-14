@@ -58,9 +58,19 @@ public class DetalleInspeccion {
     @Builder.Default
     private List<FotoInspeccion> fotos = new ArrayList<>();
 
+    @OneToMany(mappedBy = "detalleInspeccion", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<ActualizacionDetalle> actualizaciones = new ArrayList<>();
+
     // Helper para agregar foto
     public void addFoto(FotoInspeccion foto) {
         foto.setDetalleInspeccion(this);
         this.fotos.add(foto);
+    }
+
+    // Helper para agregar actualizacion
+    public void addActualizacion(ActualizacionDetalle actualizacion) {
+        actualizacion.setDetalleInspeccion(this);
+        this.actualizaciones.add(actualizacion);
     }
 }

@@ -82,27 +82,50 @@ export const inspectionService = {
           .filter(f => f.momento === 'INICIAL_DESPUES')
           .map(f => ({ id: f.id, url: f.urlFoto, creadoEn: f.creadoEn }));
 
-        // Agrupar fotos de actualización por momento y timestamp de creación (creadoEn)
-        const updatePhotos = (d.fotos || []).filter(f =>
-          f.momento === 'ACTUALIZACION_ANTES' || f.momento === 'ACTUALIZACION_DESPUES'
-        );
+        let actualizacionesHistorial = [];
+        if (d.actualizacionesHistorial && d.actualizacionesHistorial.length > 0) {
+          actualizacionesHistorial = d.actualizacionesHistorial.map(act => ({
+            id: act.id,
+            fechaHora: act.fechaHora,
+            usuarioId: act.usuarioId,
+            usuarioNombre: act.usuarioNombre,
+            porcentajeEstimado: Number(act.porcentajeEstimado || 0),
+            kilosCalculados: Number(act.kilosCalculados || 0),
+            observaciones: act.observaciones || '',
+            fotosAntes: (act.fotos || []).filter(f => f.momento === 'ACTUALIZACION_ANTES').map(f => ({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre })),
+            fotosDespues: (act.fotos || []).filter(f => f.momento === 'ACTUALIZACION_DESPUES').map(f => ({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre }))
+          })).sort((a, b) => new Date(a.fechaHora) - new Date(b.fechaHora));
+        } else {
+          // Fallback legacy fotos por timestamp si no se recibieron entradas explícitas
+          const updatePhotos = (d.fotos || []).filter(f =>
+            f.momento === 'ACTUALIZACION_ANTES' || f.momento === 'ACTUALIZACION_DESPUES'
+          );
 
-        const updatesByTimestamp = {};
-        updatePhotos.forEach(f => {
-          const tKey = f.creadoEn || d.fechaHoraActualizacion || 'sin-fecha';
-          if (!updatesByTimestamp[tKey]) {
-            updatesByTimestamp[tKey] = { fechaHora: tKey, fotosAntes: [], fotosDespues: [] };
-          }
-          if (f.momento === 'ACTUALIZACION_ANTES') {
-            updatesByTimestamp[tKey].fotosAntes.push({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre });
-          } else if (f.momento === 'ACTUALIZACION_DESPUES') {
-            updatesByTimestamp[tKey].fotosDespues.push({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre });
-          }
-        });
+          const updatesByTimestamp = {};
+          updatePhotos.forEach(f => {
+            const tKey = f.creadoEn || d.fechaHoraActualizacion || 'sin-fecha';
+            if (!updatesByTimestamp[tKey]) {
+              updatesByTimestamp[tKey] = {
+                fechaHora: tKey,
+                usuarioNombre: f.usuarioNombre || d.actualizadoPorUsuarioNombre,
+                porcentajeEstimado: Number(d.porcentajeEstimado || 0),
+                kilosCalculados: Number(d.kilosCalculados || 0),
+                observaciones: d.observaciones || '',
+                fotosAntes: [],
+                fotosDespues: []
+              };
+            }
+            if (f.momento === 'ACTUALIZACION_ANTES') {
+              updatesByTimestamp[tKey].fotosAntes.push({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre });
+            } else if (f.momento === 'ACTUALIZACION_DESPUES') {
+              updatesByTimestamp[tKey].fotosDespues.push({ id: f.id, url: f.urlFoto, usuarioNombre: f.usuarioNombre });
+            }
+          });
 
-        const actualizacionesHistorial = Object.values(updatesByTimestamp).sort(
-          (a, b) => new Date(a.fechaHora) - new Date(b.fechaHora)
-        );
+          actualizacionesHistorial = Object.values(updatesByTimestamp).sort(
+            (a, b) => new Date(a.fechaHora) - new Date(b.fechaHora)
+          );
+        }
 
         const ultimaAct = actualizacionesHistorial.length > 0
           ? actualizacionesHistorial[actualizacionesHistorial.length - 1]
@@ -239,16 +262,17 @@ export const inspectionService = {
       let fotosActAntes = currentDetalle.fotosActualizacionAntes || [];
       let fotosActDespues = currentDetalle.fotosActualizacionDespues || [];
 
-      if (hasNewPhotos) {
-        const updateEntry = {
-          fechaHora: nowIso,
-          fotosAntes: inspectionData.fotosAntesActualizacion || [],
-          fotosDespues: inspectionData.fotosDespuesActualizacion || []
-        };
-        nuevoHistorial = [...nuevoHistorial, updateEntry];
-        fotosActAntes = updateEntry.fotosAntes;
-        fotosActDespues = updateEntry.fotosDespues;
-      }
+      const updateEntry = {
+        fechaHora: nowIso,
+        porcentajeEstimado: Number(inspectionData.porcentajeEstimado || 0),
+        kilosCalculados: Number(inspectionData.kilosCalculados || 0),
+        observaciones: inspectionData.observaciones || '',
+        fotosAntes: inspectionData.fotosAntesActualizacion || [],
+        fotosDespues: inspectionData.fotosDespuesActualizacion || []
+      };
+      nuevoHistorial = [...nuevoHistorial, updateEntry];
+      fotosActAntes = updateEntry.fotosAntes;
+      fotosActDespues = updateEntry.fotosDespues;
 
       record.detalles[contenedorId] = {
         ...currentDetalle,

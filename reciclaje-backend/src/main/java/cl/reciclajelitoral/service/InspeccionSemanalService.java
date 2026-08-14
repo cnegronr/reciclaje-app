@@ -183,31 +183,44 @@ public class InspeccionSemanalService {
                 }
             }
         } else {
-            // EDICIÓN / ACTUALIZACIÓN (PRESERVA FOTOS INICIALES E INSERTA FOTOS DE ACTUALIZACIÓN REGISTRANDO EL AUTOR)
+            // EDICIÓN / ACTUALIZACIÓN (PRESERVA INICIAL Y REGISTRA ENTRADA COMPLETA EN ACTUALIZACIONES_DETALLE)
             detalle.setFechaHoraActualizacion(ahora);
+
+            ActualizacionDetalle actDetalle = ActualizacionDetalle.builder()
+                    .detalleInspeccion(detalle)
+                    .usuario(actor)
+                    .porcentajeEstimado(porcentajeEstimado)
+                    .kilosCalculados(kilos)
+                    .observaciones(observaciones)
+                    .fechaHora(ahora)
+                    .build();
 
             if (fotosAntesUrls != null) {
                 for (String photoData : fotosAntesUrls) {
                     String urlS3 = s3StorageService.subirFotoAS3(photoData, "act_antes");
-                    detalle.addFoto(FotoInspeccion.builder()
+                    FotoInspeccion foto = FotoInspeccion.builder()
                             .momento(MomentoFoto.ACTUALIZACION_ANTES)
                             .urlFoto(urlS3)
                             .creadoEn(ahora)
                             .usuario(actor)
-                            .build());
+                            .build();
+                    actDetalle.addFoto(foto);
                 }
             }
             if (fotosDespuesUrls != null) {
                 for (String photoData : fotosDespuesUrls) {
                     String urlS3 = s3StorageService.subirFotoAS3(photoData, "act_despues");
-                    detalle.addFoto(FotoInspeccion.builder()
+                    FotoInspeccion foto = FotoInspeccion.builder()
                             .momento(MomentoFoto.ACTUALIZACION_DESPUES)
                             .urlFoto(urlS3)
                             .creadoEn(ahora)
                             .usuario(actor)
-                            .build());
+                            .build();
+                    actDetalle.addFoto(foto);
                 }
             }
+
+            detalle.addActualizacion(actDetalle);
         }
 
         DetalleInspeccion detalleGuardado = detalleRepository.save(detalle);
@@ -232,9 +245,37 @@ public class InspeccionSemanalService {
         List<DetalleInspeccion> detalles = i.getDetalles() != null ? i.getDetalles() : List.of();
         List<DetalleInspeccionDTO> detallesDTO = detalles.stream()
                 .map(d -> {
-                    List<FotoInspeccion> fotos = d.getFotos() != null ? d.getFotos() : List.of();
+                    List<FotoInspeccion> fotos = Optional.ofNullable(d.getFotos()).orElseGet(List::of);
+                    List<ActualizacionDetalle> actualizaciones = Optional.ofNullable(d.getActualizaciones()).orElseGet(List::of);
                     Usuario creador = d.getCreadoPorUsuario();
                     Usuario actualizador = d.getActualizadoPorUsuario();
+
+                    List<ActualizacionDetalleDTO> actDTOList = actualizaciones.stream()
+                            .map(act -> {
+                                Usuario uAct = act.getUsuario();
+                                List<FotoInspeccion> fotosAct = Optional.ofNullable(act.getFotos()).orElseGet(List::of);
+                                return ActualizacionDetalleDTO.builder()
+                                        .id(act.getId())
+                                        .usuarioId(Optional.ofNullable(uAct).map(Usuario::getId).orElse(null))
+                                        .usuarioNombre(Optional.ofNullable(uAct).map(Usuario::getNombre).orElse(null))
+                                        .porcentajeEstimado(act.getPorcentajeEstimado())
+                                        .kilosCalculados(act.getKilosCalculados())
+                                        .observaciones(act.getObservaciones())
+                                        .fechaHora(act.getFechaHora())
+                                        .fotos(fotosAct.stream()
+                                                .map(f -> FotoInspeccionDTO.builder()
+                                                        .id(f.getId())
+                                                        .momento(f.getMomento().name())
+                                                        .urlFoto(f.getUrlFoto())
+                                                        .creadoEn(f.getCreadoEn())
+                                                        .usuarioId(Optional.ofNullable(f.getUsuario()).map(Usuario::getId).orElse(null))
+                                                        .usuarioNombre(Optional.ofNullable(f.getUsuario()).map(Usuario::getNombre).orElse(null))
+                                                        .build())
+                                                .collect(Collectors.toList()))
+                                        .build();
+                            })
+                            .collect(Collectors.toList());
+
                     return DetalleInspeccionDTO.builder()
                             .id(d.getId())
                             .contenedorId(d.getContenedor().getId())
@@ -248,6 +289,7 @@ public class InspeccionSemanalService {
                             .fechaHoraInicial(d.getFechaHoraInicial())
                             .fechaHoraActualizacion(d.getFechaHoraActualizacion())
                             .observaciones(d.getObservaciones())
+                            .actualizacionesHistorial(actDTOList)
                             .fotos(fotos.stream()
                                     .map(f -> {
                                         Usuario uFoto = f.getUsuario();

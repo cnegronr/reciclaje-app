@@ -26,4 +26,5 @@ public class DetalleInspeccionDTO {
     private LocalDateTime fechaHoraActualizacion;
     private String observaciones;
     private List<FotoInspeccionDTO> fotos;
+    private List<ActualizacionDetalleDTO> actualizacionesHistorial;
 }

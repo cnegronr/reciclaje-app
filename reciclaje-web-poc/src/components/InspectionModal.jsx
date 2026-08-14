@@ -186,6 +186,12 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                             </span>
                           )}
                         </h4>
+                        <div className="update-data-summary" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '8px 0 10px 0', fontSize: '0.85rem', background: 'rgba(0, 0, 0, 0.2)', padding: '8px 12px', borderRadius: '6px' }}>
+                          <span><strong>📊 Llenado Registrado:</strong> <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{upd.porcentajeEstimado}%</span> ({upd.kilosCalculados} kg)</span>
+                          {upd.observaciones && (
+                            <span><strong>💬 Comentarios:</strong> <span style={{ color: '#e2e8f0', fontStyle: 'italic' }}>"{upd.observaciones}"</span></span>
+                          )}
+                        </div>
                         <div className="photo-grid-readonly">
                           <div>
                             <span className="photo-sublabel">Fotos ANTES:</span>
