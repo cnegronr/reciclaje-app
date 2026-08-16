@@ -60,12 +60,6 @@ public class S3StorageService {
             return photoData;
         }
 
-        // Si no existen credenciales AWS configuradas en local, retornar el Data URL Base64 directamente
-        if (!tieneCredencialesValidas()) {
-            System.out.println("S3StorageService: Modo Simulación Local (Retornando Data URL directamente).");
-            return photoData;
-        }
-
         String fileName = prefijo + "_" + UUID.randomUUID().toString() + ".jpg";
         String s3Key = "inspecciones/" + fileName;
 
@@ -74,8 +68,7 @@ public class S3StorageService {
             byte[] rawBytes = Base64.getDecoder().decode(base64Content);
             byte[] compressedBytes = compresionarImagen(rawBytes);
 
-            S3Client s3Client = crearS3Client();
-            try {
+            try (S3Client s3Client = crearS3Client()) {
                 PutObjectRequest putObjectRequest = PutObjectRequest.builder()
                         .bucket(bucketName)
                         .key(s3Key)
@@ -87,8 +80,6 @@ public class S3StorageService {
                 String s3Url = generarPresignedUrl(s3Key);
                 System.out.println("S3StorageService: Subida exitosa a Amazon S3 -> " + s3Url);
                 return s3Url;
-            } finally {
-                s3Client.close();
             }
         } catch (Exception e) {
             System.err.println("Aviso S3: Falló la subida a AWS S3 (" + e.getMessage() + "). Se retorna Data URL de respaldo.");
