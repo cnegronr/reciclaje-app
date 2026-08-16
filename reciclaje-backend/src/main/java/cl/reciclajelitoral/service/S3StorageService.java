@@ -169,41 +169,44 @@ public class S3StorageService {
         }
     }
 
-    public S3Client crearS3Client() {
-        S3ClientBuilder builder = S3Client.builder().region(Region.of(region));
-
+    public software.amazon.awssdk.auth.credentials.AwsCredentialsProvider resolveCredentialsProvider() {
         if (StringUtils.hasText(accessKeyId) && StringUtils.hasText(secretAccessKey)) {
-            builder.credentialsProvider(StaticCredentialsProvider.create(
+            return StaticCredentialsProvider.create(
                     AwsBasicCredentials.create(accessKeyId, secretAccessKey)
-            ));
-        } else if (StringUtils.hasText(awsProfile)) {
-            builder.credentialsProvider(ProfileCredentialsProvider.create(awsProfile));
-        } else {
-            builder.credentialsProvider(DefaultCredentialsProvider.create());
+            );
         }
+        if (StringUtils.hasText(awsProfile) && !"default".equalsIgnoreCase(awsProfile.trim())) {
+            try {
+                return ProfileCredentialsProvider.create(awsProfile.trim());
+            } catch (Exception e) {
+                return DefaultCredentialsProvider.create();
+            }
+        }
+        return DefaultCredentialsProvider.create();
+    }
 
-        return builder.build();
+    public S3Client crearS3Client() {
+        return S3Client.builder()
+                .region(Region.of(region))
+                .credentialsProvider(resolveCredentialsProvider())
+                .build();
     }
 
     public S3Presigner crearS3Presigner() {
-        var builder = S3Presigner.builder().region(Region.of(region));
-
-        if (StringUtils.hasText(accessKeyId) && StringUtils.hasText(secretAccessKey)) {
-            builder.credentialsProvider(StaticCredentialsProvider.create(
-                    AwsBasicCredentials.create(accessKeyId, secretAccessKey)
-            ));
-        } else if (StringUtils.hasText(awsProfile)) {
-            builder.credentialsProvider(ProfileCredentialsProvider.create(awsProfile));
-        } else {
-            builder.credentialsProvider(DefaultCredentialsProvider.create());
-        }
-
-        return builder.build();
+        return S3Presigner.builder()
+                .region(Region.of(region))
+                .credentialsProvider(resolveCredentialsProvider())
+                .build();
     }
 
     public boolean tieneCredencialesValidas() {
         boolean tieneLlaves = StringUtils.hasText(accessKeyId) && StringUtils.hasText(secretAccessKey);
-        boolean tienePerfil = StringUtils.hasText(awsProfile);
-        return tieneLlaves || tienePerfil;
+        boolean tienePerfilNombrado = StringUtils.hasText(awsProfile) && !"default".equalsIgnoreCase(awsProfile.trim());
+        boolean enEntornoAWS = StringUtils.hasText(System.getenv("AWS_ACCESS_KEY_ID")) ||
+                               StringUtils.hasText(System.getenv("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")) ||
+                               StringUtils.hasText(System.getenv("AWS_WEB_IDENTITY_TOKEN_FILE")) ||
+                               StringUtils.hasText(System.getenv("AWS_ROLE_ARN")) ||
+                               StringUtils.hasText(System.getenv("AWS_EXECUTION_ENV"));
+        return tieneLlaves || tienePerfilNombrado || enEntornoAWS;
     }
 }

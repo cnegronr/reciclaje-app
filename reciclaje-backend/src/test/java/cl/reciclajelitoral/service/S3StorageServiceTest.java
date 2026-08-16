@@ -208,10 +208,10 @@ class S3StorageServiceTest {
         assertNotNull(s3StorageService.crearS3Client());
         assertNotNull(s3StorageService.crearS3Presigner());
 
-        // 4. Solo awsProfile
+        // 4. Perfil nombrado personalizado
         ReflectionTestUtils.setField(s3StorageService, "accessKeyId", "");
         ReflectionTestUtils.setField(s3StorageService, "secretAccessKey", "");
-        ReflectionTestUtils.setField(s3StorageService, "awsProfile", "default");
+        ReflectionTestUtils.setField(s3StorageService, "awsProfile", "prod-profile");
         assertTrue(s3StorageService.tieneCredencialesValidas());
         assertNotNull(s3StorageService.crearS3Client());
         assertNotNull(s3StorageService.crearS3Presigner());
