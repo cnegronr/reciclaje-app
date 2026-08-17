@@ -4,10 +4,12 @@ import cl.reciclajelitoral.entity.DetalleInspeccion;
 import cl.reciclajelitoral.entity.FotoInspeccion;
 import cl.reciclajelitoral.repository.DetalleInspeccionRepository;
 import cl.reciclajelitoral.repository.InspeccionSemanalRepository;
+import cl.reciclajelitoral.util.WeekDateUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFHyperlink;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,17 +22,12 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-import java.time.temporal.WeekFields;
 import java.util.*;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class AdminReportService {
-
-    private static final ZoneId CHILE_ZONE = ZoneId.of("America/Santiago");
 
     private final DetalleInspeccionRepository detalleRepository;
     private final InspeccionSemanalRepository inspeccionSemanalRepository;
@@ -41,7 +38,7 @@ public class AdminReportService {
         if (dt == null) {
             return d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getSemanaNumero() : -1;
         }
-        return cl.reciclajelitoral.util.WeekDateUtils.getWeekNumber(dt);
+        return WeekDateUtils.getWeekNumber(dt);
     }
 
     public int getEffectiveYear(DetalleInspeccion d) {
@@ -49,7 +46,7 @@ public class AdminReportService {
         if (dt == null) {
             return d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getAnio() : -1;
         }
-        return cl.reciclajelitoral.util.WeekDateUtils.getYear(dt);
+        return WeekDateUtils.getYear(dt);
     }
 
     private LocalDateTime getEffectiveLocalDateTime(DetalleInspeccion d) {
@@ -63,7 +60,7 @@ public class AdminReportService {
 
     @Transactional(readOnly = true)
     public List<Integer> getAvailableReportYears() {
-        int currentYear = java.time.LocalDate.now(CHILE_ZONE).getYear();
+        int currentYear = WeekDateUtils.getCurrentYear();
         Set<Integer> yearsSet = new TreeSet<>(Comparator.reverseOrder());
         yearsSet.add(currentYear);
 
@@ -90,10 +87,34 @@ public class AdminReportService {
                 .filter(d -> anio == null || anio.equals(getEffectiveYear(d)))
                 .toList();
 
+        int maxFotosAntes = 1;
+        int maxFotosDespues = 1;
+
+        for (DetalleInspeccion d : detalles) {
+            List<FotoInspeccion> fotos = d.getFotos();
+            if (fotos != null && !fotos.isEmpty()) {
+                int countAntes = 0;
+                int countDespues = 0;
+                for (FotoInspeccion f : fotos) {
+                    if (f.getMomento() != null && f.getMomento().name().contains("ANTES")) {
+                        countAntes++;
+                    } else if (f.getMomento() != null && f.getMomento().name().contains("DESPUES")) {
+                        countDespues++;
+                    }
+                }
+                if (countAntes == 0 && countDespues == 0) {
+                    countAntes = 1;
+                    if (fotos.size() > 1) countDespues = fotos.size() - 1;
+                }
+                maxFotosAntes = Math.max(maxFotosAntes, countAntes);
+                maxFotosDespues = Math.max(maxFotosDespues, countDespues);
+            }
+        }
+
         try (Workbook workbook = new XSSFWorkbook()) {
             Sheet sheet = workbook.createSheet("Reporte Consolidado");
 
-            // Header Style
+            // Styles
             CellStyle headerStyle = workbook.createCellStyle();
             Font headerFont = workbook.createFont();
             headerFont.setBold(true);
@@ -102,25 +123,38 @@ public class AdminReportService {
             headerStyle.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
             headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             headerStyle.setAlignment(HorizontalAlignment.CENTER);
+            headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
 
-            // Hyperlink Style
             CellStyle linkStyle = workbook.createCellStyle();
             Font linkFont = workbook.createFont();
             linkFont.setUnderline(Font.U_SINGLE);
             linkFont.setColor(IndexedColors.BLUE.getIndex());
             linkStyle.setFont(linkFont);
+            linkStyle.setAlignment(HorizontalAlignment.CENTER);
+            linkStyle.setVerticalAlignment(VerticalAlignment.CENTER);
 
-            Row header = sheet.createRow(0);
-            String[] headers = {
+            // Encabezados con columnas dedicadas por foto
+            List<String> headersList = new ArrayList<>(List.of(
                     "ID Detalle", "Semana / Año", "Comuna", "Contenedor / Punto",
                     "Categoría", "Porcentaje Llenado (%)", "Kilos Calculados", "Usuario / Inspector",
-                    "Observaciones", "Foto Antes (Vista Previa)", "Enlaces S3 Foto Antes HD",
-                    "Foto Después (Vista Previa)", "Enlaces S3 Foto Después HD"
-            };
+                    "Observaciones"
+            ));
 
-            for (int i = 0; i < headers.length; i++) {
+            for (int i = 1; i <= maxFotosAntes; i++) {
+                headersList.add(maxFotosAntes == 1 ? "Foto Antes (Vista Previa)" : "Foto Antes " + i + " (Vista Previa)");
+                headersList.add(maxFotosAntes == 1 ? "Enlace S3 Foto Antes (HD ↗)" : "Enlace S3 Foto Antes " + i + " (HD ↗)");
+            }
+
+            for (int i = 1; i <= maxFotosDespues; i++) {
+                headersList.add(maxFotosDespues == 1 ? "Foto Después (Vista Previa)" : "Foto Después " + i + " (Vista Previa)");
+                headersList.add(maxFotosDespues == 1 ? "Enlace S3 Foto Después " + i + " (HD ↗)" : "Enlace S3 Foto Después " + i + " (HD ↗)");
+            }
+
+            Row header = sheet.createRow(0);
+            header.setHeightInPoints(25f);
+            for (int i = 0; i < headersList.size(); i++) {
                 Cell cell = header.createCell(i);
-                cell.setCellValue(headers[i]);
+                cell.setCellValue(headersList.get(i));
                 cell.setCellStyle(headerStyle);
             }
 
@@ -163,76 +197,107 @@ public class AdminReportService {
                     }
                     if (fotosAntes.isEmpty() && fotosDespues.isEmpty()) {
                         fotosAntes.add(fotos.get(0));
-                        if (fotos.size() > 1) {
-                            fotosDespues.add(fotos.get(1));
+                        for (int i = 1; i < fotos.size(); i++) {
+                            fotosDespues.add(fotos.get(i));
                         }
                     }
                 }
 
                 boolean hasPhoto = false;
+                int currentColIdx = 9;
 
-                // 1. Foto(s) Antes
-                if (!fotosAntes.isEmpty()) {
-                    FotoInspeccion principalAntes = fotosAntes.get(0);
-                    byte[] thumb1 = getResizedThumbnailBytes(principalAntes, nombrePunto, 120, 80);
-                    if (thumb1.length > 0) {
-                        int picIdx1 = workbook.addPicture(thumb1, Workbook.PICTURE_TYPE_JPEG);
-                        ClientAnchor anchor1 = createHelper.createClientAnchor();
-                        anchor1.setCol1(9);
-                        anchor1.setRow1(rowIdx);
-                        anchor1.setCol2(10);
-                        anchor1.setRow2(rowIdx + 1);
-                        drawing.createPicture(anchor1, picIdx1);
-                        hasPhoto = true;
-                    }
+                // 1. Columnas para Fotos ANTES
+                for (int i = 0; i < maxFotosAntes; i++) {
+                    int colThumb = currentColIdx++;
+                    int colLink = currentColIdx++;
 
-                    Cell link1Cell = row.createCell(10);
-                    FotoInspeccion fPrimary = fotosAntes.get(0);
-                    String freshUrl = s3StorageService.obtenerUrlFresca(fPrimary.getUrlFoto());
-                    if (freshUrl != null && !freshUrl.isEmpty()) {
-                        String label = fotosAntes.size() > 1 ? "Abrir Foto Antes 1 (" + fotosAntes.size() + " fotos) ↗" : "Abrir Foto Antes ↗";
-                        link1Cell.setCellValue(label);
-                        Hyperlink hLink = createHelper.createHyperlink(HyperlinkType.URL);
-                        hLink.setAddress(freshUrl);
-                        link1Cell.setHyperlink(hLink);
-                        link1Cell.setCellStyle(linkStyle);
+                    Cell thumbCell = row.createCell(colThumb);
+                    Cell linkCell = row.createCell(colLink);
+
+                    if (i < fotosAntes.size()) {
+                        FotoInspeccion f = fotosAntes.get(i);
+                        String freshUrl = s3StorageService.obtenerUrlFresca(f.getUrlFoto());
+
+                        byte[] thumb = getResizedThumbnailBytes(f, nombrePunto, 110, 75);
+                        if (thumb.length > 0) {
+                            int picIdx = workbook.addPicture(thumb, Workbook.PICTURE_TYPE_JPEG);
+                            ClientAnchor anchor = createHelper.createClientAnchor();
+                            anchor.setCol1(colThumb);
+                            anchor.setRow1(rowIdx);
+                            anchor.setCol2(colThumb + 1);
+                            anchor.setRow2(rowIdx + 1);
+
+                            drawing.createPicture(anchor, picIdx);
+                            hasPhoto = true;
+                        }
+
+                        if (freshUrl != null && !freshUrl.isEmpty()) {
+                            // Asignar hipervínculo estándar de POI a la celda de miniatura
+                            XSSFHyperlink hLinkThumb = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
+                            hLinkThumb.setAddress(freshUrl);
+                            thumbCell.setHyperlink(hLinkThumb);
+
+                            // Asignar hipervínculo estándar de POI a la celda de enlace HD
+                            String label = maxFotosAntes == 1 ? "🔗 Abrir Foto en S3 HD ↗" : "🔗 Abrir Foto " + (i + 1) + " en S3 HD ↗";
+                            linkCell.setCellValue(label);
+                            XSSFHyperlink hLinkText = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
+                            hLinkText.setAddress(freshUrl);
+                            linkCell.setHyperlink(hLinkText);
+                            linkCell.setCellStyle(linkStyle);
+                        } else {
+                            linkCell.setCellValue("Sin URL");
+                        }
                     } else {
-                        link1Cell.setCellValue("Sin URL");
+                        thumbCell.setCellValue("-");
+                        linkCell.setCellValue("-");
                     }
-                } else {
-                    row.createCell(10).setCellValue("Sin foto");
                 }
 
-                // 2. Foto(s) Después
-                if (!fotosDespues.isEmpty()) {
-                    FotoInspeccion principalDespues = fotosDespues.get(0);
-                    byte[] thumb2 = getResizedThumbnailBytes(principalDespues, nombrePunto, 120, 80);
-                    if (thumb2.length > 0) {
-                        int picIdx2 = workbook.addPicture(thumb2, Workbook.PICTURE_TYPE_JPEG);
-                        ClientAnchor anchor2 = createHelper.createClientAnchor();
-                        anchor2.setCol1(11);
-                        anchor2.setRow1(rowIdx);
-                        anchor2.setCol2(12);
-                        anchor2.setRow2(rowIdx + 1);
-                        drawing.createPicture(anchor2, picIdx2);
-                        hasPhoto = true;
-                    }
+                // 2. Columnas para Fotos DESPUÉS
+                for (int i = 0; i < maxFotosDespues; i++) {
+                    int colThumb = currentColIdx++;
+                    int colLink = currentColIdx++;
 
-                    Cell link2Cell = row.createCell(12);
-                    FotoInspeccion fPrimary = fotosDespues.get(0);
-                    String freshUrl = s3StorageService.obtenerUrlFresca(fPrimary.getUrlFoto());
-                    if (freshUrl != null && !freshUrl.isEmpty()) {
-                        String label = fotosDespues.size() > 1 ? "Abrir Foto Después 1 (" + fotosDespues.size() + " fotos) ↗" : "Abrir Foto Después ↗";
-                        link2Cell.setCellValue(label);
-                        Hyperlink hLink = createHelper.createHyperlink(HyperlinkType.URL);
-                        hLink.setAddress(freshUrl);
-                        link2Cell.setHyperlink(hLink);
-                        link2Cell.setCellStyle(linkStyle);
+                    Cell thumbCell = row.createCell(colThumb);
+                    Cell linkCell = row.createCell(colLink);
+
+                    if (i < fotosDespues.size()) {
+                        FotoInspeccion f = fotosDespues.get(i);
+                        String freshUrl = s3StorageService.obtenerUrlFresca(f.getUrlFoto());
+
+                        byte[] thumb = getResizedThumbnailBytes(f, nombrePunto, 110, 75);
+                        if (thumb.length > 0) {
+                            int picIdx = workbook.addPicture(thumb, Workbook.PICTURE_TYPE_JPEG);
+                            ClientAnchor anchor = createHelper.createClientAnchor();
+                            anchor.setCol1(colThumb);
+                            anchor.setRow1(rowIdx);
+                            anchor.setCol2(colThumb + 1);
+                            anchor.setRow2(rowIdx + 1);
+
+                            drawing.createPicture(anchor, picIdx);
+                            hasPhoto = true;
+                        }
+
+                        if (freshUrl != null && !freshUrl.isEmpty()) {
+                            // Asignar hipervínculo estándar de POI a la celda de miniatura
+                            XSSFHyperlink hLinkThumb = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
+                            hLinkThumb.setAddress(freshUrl);
+                            thumbCell.setHyperlink(hLinkThumb);
+
+                            // Asignar hipervínculo estándar de POI a la celda de enlace HD
+                            String label = maxFotosDespues == 1 ? "🔗 Abrir Foto en S3 HD ↗" : "🔗 Abrir Foto " + (i + 1) + " en S3 HD ↗";
+                            linkCell.setCellValue(label);
+                            XSSFHyperlink hLinkText = (XSSFHyperlink) createHelper.createHyperlink(HyperlinkType.URL);
+                            hLinkText.setAddress(freshUrl);
+                            linkCell.setHyperlink(hLinkText);
+                            linkCell.setCellStyle(linkStyle);
+                        } else {
+                            linkCell.setCellValue("Sin URL");
+                        }
                     } else {
-                        link2Cell.setCellValue("Sin URL");
+                        thumbCell.setCellValue("-");
+                        linkCell.setCellValue("-");
                     }
-                } else {
-                    row.createCell(12).setCellValue("-");
                 }
 
                 if (hasPhoto) {
@@ -242,11 +307,13 @@ public class AdminReportService {
                 rowIdx++;
             }
 
-            for (int i = 0; i < headers.length; i++) {
-                if (i == 9 || i == 11) {
-                    sheet.setColumnWidth(i, 4800); // Columna de imagen
-                } else if (i == 10 || i == 12) {
-                    sheet.setColumnWidth(i, 7500); // Columna de enlaces S3
+            for (int i = 0; i < headersList.size(); i++) {
+                if (i >= 9) {
+                    if (i % 2 != 0) {
+                        sheet.setColumnWidth(i, 4500); // Columna miniatura
+                    } else {
+                        sheet.setColumnWidth(i, 7500); // Columna enlace HD
+                    }
                 } else {
                     sheet.autoSizeColumn(i);
                 }
@@ -349,26 +416,12 @@ public class AdminReportService {
         try {
             BufferedImage origImage = null;
             if (foto != null && foto.getUrlFoto() != null && !foto.getUrlFoto().trim().isEmpty()) {
-                String urlStr = foto.getUrlFoto().trim();
-                if (urlStr.startsWith("data:image/")) {
-                    try {
-                        String base64Data = urlStr.substring(urlStr.indexOf(",") + 1);
-                        byte[] rawBytes = Base64.getDecoder().decode(base64Data);
-                        origImage = ImageIO.read(new ByteArrayInputStream(rawBytes));
+                byte[] imageBytes = s3StorageService.obtenerBytesImagen(foto.getUrlFoto());
+                if (imageBytes != null && imageBytes.length > 0) {
+                    try (ByteArrayInputStream bais = new ByteArrayInputStream(imageBytes)) {
+                        origImage = ImageIO.read(bais);
                     } catch (Exception e) {
-                        log.warn("Error leyendo Base64 de foto id {}: {}", foto.getId(), e.getMessage());
-                    }
-                } else if (urlStr.startsWith("http://") || urlStr.startsWith("https://")) {
-                    try {
-                        java.net.URL url = new java.net.URI(urlStr).toURL();
-                        java.net.URLConnection conn = url.openConnection();
-                        conn.setConnectTimeout(5000);
-                        conn.setReadTimeout(5000);
-                        try (java.io.InputStream in = conn.getInputStream()) {
-                            origImage = ImageIO.read(in);
-                        }
-                    } catch (Exception e) {
-                        log.warn("Error descargando foto S3 id {} desde URL {}: {}", foto.getId(), urlStr, e.getMessage());
+                        log.warn("Error leyendo bytes de imagen de foto id {}: {}", foto.getId(), e.getMessage());
                     }
                 }
             }

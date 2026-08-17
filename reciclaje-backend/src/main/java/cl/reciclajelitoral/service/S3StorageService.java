@@ -1,5 +1,6 @@
 package cl.reciclajelitoral.service;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -7,11 +8,13 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.S3ClientBuilder;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
@@ -30,6 +33,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.UUID;
 
+@Slf4j
 @Service
 public class S3StorageService {
 
@@ -139,6 +143,69 @@ public class S3StorageService {
             return generarPresignedUrl(s3Key);
         }
         return cleaned;
+    }
+
+    /**
+     * Obtiene los bytes crudos de la imagen desde S3 (o Base64) directamente a través del SDK de AWS
+     * para incrustar miniaturas de forma ultra rápida y sin fallos de conexión HTTP en reportes Excel/PDF.
+     */
+    public byte[] obtenerBytesImagen(String urlOFotoKey) {
+        if (urlOFotoKey == null || urlOFotoKey.trim().isEmpty()) {
+            return new byte[0];
+        }
+        String cleaned = urlOFotoKey.trim();
+        if (cleaned.startsWith("data:image/")) {
+            try {
+                String base64Data = cleaned.substring(cleaned.indexOf(",") + 1);
+                return Base64.getDecoder().decode(base64Data);
+            } catch (Exception e) {
+                return new byte[0];
+            }
+        }
+
+        String s3Key = cleaned;
+        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+            try {
+                java.net.URI uri = new java.net.URI(cleaned);
+                String path = uri.getPath();
+                if (path != null && path.startsWith("/")) {
+                    path = path.substring(1);
+                }
+                if (StringUtils.hasText(path)) {
+                    s3Key = path;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (tieneCredencialesValidas()) {
+            try (S3Client s3 = crearS3Client()) {
+                GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                        .bucket(bucketName)
+                        .key(s3Key)
+                        .build();
+                ResponseBytes<GetObjectResponse> objectBytes = s3.getObjectAsBytes(getObjectRequest);
+                return objectBytes.asByteArray();
+            } catch (Exception e) {
+                log.warn("Aviso: No se pudo descargar bytes de S3 directamente para key {}: {}", s3Key, e.getMessage());
+            }
+        }
+
+        // Fallback vía HTTP si no hay credenciales SDK válidas
+        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+            try {
+                java.net.URL url = new java.net.URI(cleaned).toURL();
+                java.net.URLConnection conn = url.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                try (java.io.InputStream in = conn.getInputStream()) {
+                    return in.readAllBytes();
+                }
+            } catch (Exception e) {
+                log.warn("Fallback HTTP falló para foto URL {}: {}", cleaned, e.getMessage());
+            }
+        }
+
+        return new byte[0];
     }
 
     /**
