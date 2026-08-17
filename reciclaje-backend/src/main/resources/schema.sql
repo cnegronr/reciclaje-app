@@ -46,16 +46,16 @@ CREATE TABLE IF NOT EXISTS outbox_events (
 
 CREATE TABLE IF NOT EXISTS asignaciones_inspector (
     id BIGSERIAL PRIMARY KEY,
-    inspector_id BIGINT REFERENCES usuarios(id) ON DELETE CASCADE,
-    comuna_id BIGINT REFERENCES comunas(id) ON DELETE CASCADE,
+    inspector_id BIGINT REFERENCES usuarios(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    comuna_id BIGINT REFERENCES comunas(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
     UNIQUE(inspector_id, comuna_id)
 );
 
 CREATE TABLE IF NOT EXISTS inspecciones_semanales (
     id BIGSERIAL PRIMARY KEY,
-    comuna_id BIGINT REFERENCES comunas(id),
-    inspector_id BIGINT REFERENCES usuarios(id),
-    inspector_asociado_id BIGINT REFERENCES usuarios(id),
+    comuna_id BIGINT REFERENCES comunas(id) DEFERRABLE INITIALLY DEFERRED,
+    inspector_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
+    inspector_asociado_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
     tipo_ruta VARCHAR(20) DEFAULT 'INSPECTOR',
     semana_numero INT NOT NULL,
     anio INT NOT NULL,
@@ -66,10 +66,10 @@ CREATE TABLE IF NOT EXISTS inspecciones_semanales (
 
 CREATE TABLE IF NOT EXISTS detalle_inspecciones (
     id BIGSERIAL PRIMARY KEY,
-    inspeccion_semanal_id BIGINT REFERENCES inspecciones_semanales(id) ON DELETE CASCADE,
-    contenedor_id BIGINT REFERENCES contenedores(id),
-    creado_por_usuario_id BIGINT REFERENCES usuarios(id),
-    actualizado_por_usuario_id BIGINT REFERENCES usuarios(id),
+    inspeccion_semanal_id BIGINT REFERENCES inspecciones_semanales(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    contenedor_id BIGINT REFERENCES contenedores(id) DEFERRABLE INITIALLY DEFERRED,
+    creado_por_usuario_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
+    actualizado_por_usuario_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
     porcentaje_estimado NUMERIC(5,2) CHECK (porcentaje_estimado BETWEEN 0 AND 100),
     kilos_calculados NUMERIC(7,2) NOT NULL,
     porcentaje_estimado_inicial NUMERIC(5,2) CHECK (porcentaje_estimado_inicial BETWEEN 0 AND 100),
@@ -84,8 +84,8 @@ CREATE TABLE IF NOT EXISTS detalle_inspecciones (
 
 CREATE TABLE IF NOT EXISTS actualizaciones_detalle (
     id BIGSERIAL PRIMARY KEY,
-    detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE,
-    usuario_id BIGINT REFERENCES usuarios(id),
+    detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    usuario_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
     porcentaje_estimado NUMERIC(5,2) CHECK (porcentaje_estimado BETWEEN 0 AND 100),
     kilos_calculados NUMERIC(7,2) NOT NULL,
     observaciones TEXT,
@@ -94,9 +94,9 @@ CREATE TABLE IF NOT EXISTS actualizaciones_detalle (
 
 CREATE TABLE IF NOT EXISTS fotos_inspeccion (
     id BIGSERIAL PRIMARY KEY,
-    detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE,
-    actualizacion_detalle_id BIGINT REFERENCES actualizaciones_detalle(id) ON DELETE CASCADE,
-    usuario_id BIGINT REFERENCES usuarios(id),
+    detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    actualizacion_detalle_id BIGINT REFERENCES actualizaciones_detalle(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
+    usuario_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
     momento VARCHAR(25) CHECK (momento IN ('INICIAL_ANTES', 'INICIAL_DESPUES', 'ACTUALIZACION_ANTES', 'ACTUALIZACION_DESPUES')),
     url_foto TEXT NOT NULL,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP

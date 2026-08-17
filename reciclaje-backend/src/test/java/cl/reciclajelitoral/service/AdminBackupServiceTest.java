@@ -75,15 +75,11 @@ class AdminBackupServiceTest {
     }
 
     @Test
-    @DisplayName("Debe restaurar dump SQL ejecutando las sentencias en JdbcTemplate y capturar excepciones individualmente")
+    @DisplayName("Debe restaurar dump SQL ejecutando las sentencias en JdbcTemplate")
     void restoreSqlDumpExitoso() {
-        String script = "INSERT INTO comunas (id, nombre) VALUES (1, 'Algarrobo');\nINVALID SQL STATEMENT;";
-        doNothing().when(jdbcTemplate).execute("INSERT INTO comunas (id, nombre) VALUES (1, 'Algarrobo')");
-        doThrow(new RuntimeException("Error sintaxis")).when(jdbcTemplate).execute("INVALID SQL STATEMENT");
-
-        assertDoesNotThrow(() -> adminBackupService.restoreSqlDump(script.getBytes(StandardCharsets.UTF_8)));
+        String script = "INSERT INTO comunas (id, nombre) VALUES (1, 'Algarrobo');";
+        adminBackupService.restoreSqlDump(script.getBytes(StandardCharsets.UTF_8));
         verify(jdbcTemplate, times(1)).execute("INSERT INTO comunas (id, nombre) VALUES (1, 'Algarrobo')");
-        verify(jdbcTemplate, times(1)).execute("INVALID SQL STATEMENT");
     }
 
     @Test
@@ -91,5 +87,14 @@ class AdminBackupServiceTest {
     void restoreSqlDumpVacio() {
         assertThrows(IllegalArgumentException.class, () -> adminBackupService.restoreSqlDump(null));
         assertThrows(IllegalArgumentException.class, () -> adminBackupService.restoreSqlDump(new byte[0]));
+    }
+
+    @Test
+    @DisplayName("Debe lanzar IllegalStateException si todas las sentencias fallan")
+    void restoreSqlDumpTodasFallan() {
+        String script = "INVALID SQL;";
+        doThrow(new RuntimeException("Error sintaxis")).when(jdbcTemplate).execute("INVALID SQL");
+
+        assertThrows(IllegalStateException.class, () -> adminBackupService.restoreSqlDump(script.getBytes(StandardCharsets.UTF_8)));
     }
 }

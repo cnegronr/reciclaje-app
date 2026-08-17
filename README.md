@@ -133,6 +133,17 @@ npm run preview
 
 ---
 
+#### 5.- Desplegar cambios parciales en AWS via ssh
+```bash
+# 1. Conectarse por SSH a la instancia EC2
+ssh -i "tu-llave.pem" ubuntu@<IP-PUBLICA-EC2>
+# 2. Descargar los últimos cambios
+cd /var/www/reciclaje-app
+git pull origin main
+# 3. Reconstruir y reiniciar contenedores
+docker compose build --no-cache
+docker compose up -d --remove-orphans
+```
 ## 🌐 URLs de Acceso y Puertos
 
 | Servicio | URL de Acceso | Descripción |

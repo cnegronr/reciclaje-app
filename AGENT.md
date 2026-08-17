@@ -60,6 +60,10 @@ Run **only** the exact test class or method in quiet mode:
 - Always prefer targeted replacements (`replace_file_content` / diffs) over whole-file rewrites.
 - Preserve existing formatting, annotations, and comments.
 
+### 4. No Exception Swallowing
+- **NEVER** swallow exceptions in services, controllers, or database routines using silent try-catch blocks or logging-only catch blocks.
+- All database operations, data parsing, and restoration routines **MUST** fail fast and rethrow meaningful exceptions (`IllegalStateException` / `RuntimeException`) if any SQL statement or preparation step fails.
+
 ---
 
 ## 4. Final Empirical Verification (Run Once at Task Completion)

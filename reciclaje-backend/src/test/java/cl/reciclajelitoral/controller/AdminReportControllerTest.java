@@ -1,12 +1,14 @@
 package cl.reciclajelitoral.controller;
 
+import cl.reciclajelitoral.security.JwtAuthenticationFilter;
+import cl.reciclajelitoral.security.JwtTokenProvider;
 import cl.reciclajelitoral.service.AdminBackupService;
 import cl.reciclajelitoral.service.AdminReportService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -18,7 +20,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest
+@WebMvcTest(AdminReportController.class)
 @AutoConfigureMockMvc(addFilters = false)
 class AdminReportControllerTest {
 
@@ -30,6 +32,12 @@ class AdminReportControllerTest {
 
     @MockBean
     private AdminBackupService adminBackupService;
+
+    @MockBean
+    private JwtTokenProvider tokenProvider;
+
+    @MockBean
+    private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Test
     @DisplayName("Debe descargar reporte Excel ZIP")
