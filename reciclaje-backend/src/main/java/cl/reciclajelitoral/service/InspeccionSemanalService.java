@@ -29,25 +29,20 @@ public class InspeccionSemanalService {
     private final AsignacionInspectorRepository asignacionRepository;
     private final S3StorageService s3StorageService;
 
+    public static final java.time.ZoneId CHILE_ZONE = java.time.ZoneId.of("America/Santiago");
+
     public LocalDateTime calcularFechaLimiteSemanal() {
-        return calcularFechaLimiteSemanal(LocalDateTime.now());
+        return cl.reciclajelitoral.util.WeekDateUtils.calcularFechaLimiteSemanal(null);
     }
 
     public LocalDateTime calcularFechaLimiteSemanal(LocalDateTime ahora) {
-        LocalDateTime domingo20 = ahora.with(TemporalAdjusters.nextOrSame(DayOfWeek.SUNDAY))
-                .withHour(20).withMinute(0).withSecond(0).withNano(0);
-
-        if (ahora.isAfter(domingo20)) {
-            domingo20 = domingo20.plusWeeks(1);
-        }
-        return domingo20;
+        return cl.reciclajelitoral.util.WeekDateUtils.calcularFechaLimiteSemanal(ahora);
     }
 
     @Transactional
     public InspeccionSemanalDTO obtenerOCrearInspeccionSemanal(Long comunaId, Long inspectorId) {
-        LocalDateTime ahora = LocalDateTime.now();
-        int semanaNumero = ahora.get(WeekFields.of(Locale.getDefault()).weekOfWeekBasedYear());
-        int anio = ahora.getYear();
+        int semanaNumero = cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber();
+        int anio = cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear();
 
         Usuario usuarioActivo = usuarioRepository.findById(inspectorId).orElse(null);
         TipoRuta tipoRuta = (usuarioActivo != null && usuarioActivo.getRol() == Rol.CHOFER) ? TipoRuta.CHOFER : TipoRuta.INSPECTOR;
@@ -78,7 +73,7 @@ public class InspeccionSemanalService {
                     .tipoRuta(tipoRuta)
                     .semanaNumero(semanaNumero)
                     .anio(anio)
-                    .fechaLimite(calcularFechaLimiteSemanal(ahora))
+                    .fechaLimite(calcularFechaLimiteSemanal())
                     .estado(EstadoInspeccion.EN_PROGRESO)
                     .build();
 

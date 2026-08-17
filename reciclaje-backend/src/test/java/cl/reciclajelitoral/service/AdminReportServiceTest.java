@@ -1,9 +1,6 @@
 package cl.reciclajelitoral.service;
 
-import cl.reciclajelitoral.entity.Comuna;
-import cl.reciclajelitoral.entity.Contenedor;
-import cl.reciclajelitoral.entity.DetalleInspeccion;
-import cl.reciclajelitoral.entity.Usuario;
+import cl.reciclajelitoral.entity.*;
 import cl.reciclajelitoral.repository.DetalleInspeccionRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -38,9 +35,16 @@ class AdminReportServiceTest {
                 .comuna(comuna)
                 .build();
         Usuario user = Usuario.builder().id(5L).nombre("Inspector Juan").build();
+        InspeccionSemanal inspeccionSemanal = InspeccionSemanal.builder()
+                .id(1L)
+                .semanaNumero(33)
+                .anio(2026)
+                .comuna(comuna)
+                .build();
 
         detalle = DetalleInspeccion.builder()
                 .id(10L)
+                .inspeccionSemanal(inspeccionSemanal)
                 .contenedor(contenedor)
                 .creadoPorUsuario(user)
                 .visitado(true)
@@ -50,20 +54,20 @@ class AdminReportServiceTest {
     }
 
     @Test
-    void shouldGenerateValidExcelZipReport() throws Exception {
+    void shouldGenerateValidExcelReportWithWeekFilter() throws Exception {
         when(detalleRepository.findAll()).thenReturn(List.of(detalle));
 
-        byte[] zipBytes = adminReportService.generateExcelZipReport(null, null);
+        byte[] excelBytes = adminReportService.generateExcelReport(1L, 5L, 33, 2026);
 
-        assertNotNull(zipBytes);
-        assertTrue(zipBytes.length > 0);
+        assertNotNull(excelBytes);
+        assertTrue(excelBytes.length > 0);
     }
 
     @Test
-    void shouldGenerateValidPdfReport() throws Exception {
+    void shouldGenerateValidPdfReportWithWeekFilter() throws Exception {
         when(detalleRepository.findAll()).thenReturn(List.of(detalle));
 
-        byte[] pdfBytes = adminReportService.generatePdfReport(null, null);
+        byte[] pdfBytes = adminReportService.generatePdfReport(1L, 5L, 33, 2026);
 
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);

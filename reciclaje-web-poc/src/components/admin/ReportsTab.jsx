@@ -2,11 +2,29 @@ import React, { useState, useEffect } from 'react';
 import { adminService } from '../../services/adminService';
 import { comunaService } from '../../services/comunaService';
 
+// Helper para obtener el número de semana ISO actual
+const getCurrentISOWeek = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+};
+
 export default function ReportsTab() {
+  const currentWeekNumber = getCurrentISOWeek();
+  const currentYearNumber = new Date().getFullYear();
+
   const [comunas, setComunas] = useState([]);
   const [users, setUsers] = useState([]);
+  const [availableYears, setAvailableYears] = useState([currentYearNumber]);
+
   const [selectedComuna, setSelectedComuna] = useState('');
   const [selectedUser, setSelectedUser] = useState('');
+  const [filterByWeek, setFilterByWeek] = useState(true); // Checkbox para reporte semanal opcional (marcado por defecto)
+  const [selectedSemana, setSelectedSemana] = useState(currentWeekNumber.toString());
+  const [selectedAnio, setSelectedAnio] = useState(currentYearNumber.toString());
+
   const [downloadingExcel, setDownloadingExcel] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [downloadingDb, setDownloadingDb] = useState(false);
@@ -19,35 +37,43 @@ export default function ReportsTab() {
 
   const loadOptions = async () => {
     try {
-      const [cData, uData] = await Promise.all([
+      const [cData, uData, yData] = await Promise.all([
         comunaService.getComunas().catch(() => []),
-        adminService.getUsers().catch(() => [])
+        adminService.getUsers().catch(() => []),
+        adminService.getReportYears().catch(() => [currentYearNumber])
       ]);
       setComunas(cData || []);
       setUsers(uData || []);
+      if (yData && yData.length > 0) {
+        setAvailableYears(yData);
+      }
     } catch (err) {
-      console.error('Error al cargar opciones:', err);
+      console.error('Error al cargar opciones de reportes:', err);
     }
   };
 
-  const handleDownloadExcelZip = async () => {
+  const handleDownloadExcel = async () => {
     try {
       setDownloadingExcel(true);
       const params = {};
       if (selectedComuna) params.comunaId = selectedComuna;
       if (selectedUser) params.usuarioId = selectedUser;
+      if (filterByWeek) {
+        if (selectedSemana) params.semanaNumero = selectedSemana;
+        if (selectedAnio) params.anio = selectedAnio;
+      }
 
-      const blob = await adminService.downloadExcelZipReport(params);
+      const blob = await adminService.downloadExcelReport(params);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'Reporte_Consolidado_Reciclaje.zip';
+      a.download = 'Reporte_Consolidado_Reciclaje.xlsx';
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
     } catch (err) {
-      alert(err.message || 'Error al descargar el archivo ZIP de Excel.');
+      alert(err.message || 'Error al descargar el reporte Excel (.xlsx).');
     } finally {
       setDownloadingExcel(false);
     }
@@ -59,6 +85,10 @@ export default function ReportsTab() {
       const params = {};
       if (selectedComuna) params.comunaId = selectedComuna;
       if (selectedUser) params.usuarioId = selectedUser;
+      if (filterByWeek) {
+        if (selectedSemana) params.semanaNumero = selectedSemana;
+        if (selectedAnio) params.anio = selectedAnio;
+      }
 
       const blob = await adminService.downloadPdfReport(params);
       const url = window.URL.createObjectURL(blob);
@@ -122,9 +152,9 @@ export default function ReportsTab() {
   return (
     <div className="reports-tab">
       <div style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📁 Reportes y Respaldo de Base de Datos</h3>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📁 Reportes Consolidados y Respaldo de BD</h3>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          Generación de reportes de inspecciones y exportación/importación completa de la base de datos en formato **SQL Dump**.
+          Generación directa de reportes Excel (.xlsx) con fotos incrustadas e hipervínculos S3, reportes PDF y exportación/importación completa en formato SQL Dump.
         </p>
       </div>
 
@@ -132,8 +162,65 @@ export default function ReportsTab() {
         {/* Card 1: Reportes de Inspección */}
         <div className="calculation-card">
           <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            📊 Reportes Consolidados
+            📊 Reportes Consolidados de Inspección
           </h4>
+
+          {/* Checkbox y Filtros de Semana y Año */}
+          <div style={{ marginBottom: '1.25rem', padding: '0.85rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', color: '#f3f4f6', marginBottom: filterByWeek ? '0.75rem' : '0' }}>
+              <input
+                type="checkbox"
+                checked={filterByWeek}
+                onChange={e => setFilterByWeek(e.target.checked)}
+                style={{ width: '17px', height: '17px', accentColor: '#10b981', cursor: 'pointer' }}
+              />
+              <span>📅 Filtrar por Semana Específica</span>
+            </label>
+
+            {filterByWeek && (
+              <div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Semana:</label>
+                    <select
+                      className="select-control"
+                      value={selectedSemana}
+                      onChange={e => setSelectedSemana(e.target.value)}
+                    >
+                      <option value="">Todas las Semanas</option>
+                      {Array.from({ length: 52 }, (_, i) => i + 1).map(num => (
+                        <option key={num} value={num}>
+                          Semana {num} {num === currentWeekNumber ? ' (Semana Actual ⭐)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Año:</label>
+                    <select
+                      className="select-control"
+                      value={selectedAnio}
+                      onChange={e => setSelectedAnio(e.target.value)}
+                    >
+                      <option value="">Todos los Años</option>
+                      {availableYears.map(yr => (
+                        <option key={yr} value={yr}>
+                          {yr} {yr === currentYearNumber ? ' (Año Actual ⭐)' : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {selectedSemana === currentWeekNumber.toString() && (
+                  <div style={{ fontSize: '0.78rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '0.4rem', fontStyle: 'italic' }}>
+                    <span>💡</span>
+                    <span>Semana {currentWeekNumber} ({currentYearNumber}) seleccionada por defecto (Semana Actual)</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           <div style={{ marginBottom: '1rem' }}>
             <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Filtrar por Comuna (Opcional):</label>
@@ -167,10 +254,10 @@ export default function ReportsTab() {
             <button
               className="action-btn action-btn-primary"
               style={{ width: '100%', padding: '0.85rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
-              onClick={handleDownloadExcelZip}
+              onClick={handleDownloadExcel}
               disabled={downloadingExcel || downloadingPdf}
             >
-              {downloadingExcel ? '⏳ Generando Excel ZIP y Fotos...' : '📊 Descargar Reporte Excel (ZIP con Fotos)'}
+              {downloadingExcel ? '⏳ Generando Excel .xlsx...' : '📊 Descargar Reporte Excel (.xlsx Directo)'}
             </button>
 
             <button

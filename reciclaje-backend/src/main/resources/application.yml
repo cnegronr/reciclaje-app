@@ -5,6 +5,9 @@ spring:
   application:
     name: reciclaje-backend
 
+  jackson:
+    time-zone: America/Santiago
+
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/reciclaje_db}
     username: ${SPRING_DATASOURCE_USERNAME:reciclaje_user}

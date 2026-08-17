@@ -14,6 +14,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -37,24 +38,35 @@ class AdminReportControllerTest {
     private JwtTokenProvider tokenProvider;
 
     @MockBean
-    private JwtAuthenticationFilter jwtAuthenticationFilter;
+    private cl.reciclajelitoral.security.CustomUserDetailsService customUserDetailsService;
 
     @Test
-    @DisplayName("Debe descargar reporte Excel ZIP")
-    void downloadExcelZipReport() throws Exception {
-        when(adminReportService.generateExcelZipReport(any(), any())).thenReturn(new byte[]{1, 2, 3});
+    @DisplayName("Debe obtener lista de anos disponibles para reportes")
+    void getAvailableReportYears() throws Exception {
+        when(adminReportService.getAvailableReportYears()).thenReturn(List.of(2026, 2025));
 
-        mockMvc.perform(get("/api/admin/reports/excel-zip"))
+        mockMvc.perform(get("/api/admin/reports/years"))
                 .andExpect(status().isOk())
-                .andExpect(header().string("Content-Disposition", "attachment; filename=\"Reporte_Consolidado_Reciclaje.zip\""));
+                .andExpect(jsonPath("$[0]").value(2026))
+                .andExpect(jsonPath("$[1]").value(2025));
     }
 
     @Test
-    @DisplayName("Debe descargar reporte PDF")
-    void downloadPdfReport() throws Exception {
-        when(adminReportService.generatePdfReport(any(), any())).thenReturn(new byte[]{4, 5, 6});
+    @DisplayName("Debe descargar reporte Excel directo (.xlsx) con filtro de semana")
+    void downloadExcelReport() throws Exception {
+        when(adminReportService.generateExcelReport(any(), any(), any(), any())).thenReturn(new byte[]{1, 2, 3});
 
-        mockMvc.perform(get("/api/admin/reports/pdf"))
+        mockMvc.perform(get("/api/admin/reports/excel?semanaNumero=33&anio=2026"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"Reporte_Consolidado_Reciclaje.xlsx\""));
+    }
+
+    @Test
+    @DisplayName("Debe descargar reporte PDF con filtro de semana")
+    void downloadPdfReport() throws Exception {
+        when(adminReportService.generatePdfReport(any(), any(), any(), any())).thenReturn(new byte[]{4, 5, 6});
+
+        mockMvc.perform(get("/api/admin/reports/pdf?semanaNumero=33&anio=2026"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"Reporte_Consolidado_Reciclaje.pdf\""));
     }

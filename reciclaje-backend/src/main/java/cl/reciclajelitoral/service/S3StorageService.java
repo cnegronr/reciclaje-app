@@ -109,6 +109,39 @@ public class S3StorageService {
     }
 
     /**
+     * Extrae la clave (key) S3 y genera una nueva URL firmada fresca (presigned URL)
+     * para evitar errores de ExpiredToken al acceder a enlaces generados anteriormente.
+     */
+    public String obtenerUrlFresca(String urlOFotoKey) {
+        if (urlOFotoKey == null || urlOFotoKey.trim().isEmpty()) {
+            return null;
+        }
+        String cleaned = urlOFotoKey.trim();
+        if (cleaned.startsWith("data:image/")) {
+            return cleaned;
+        }
+
+        String s3Key = cleaned;
+        if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) {
+            try {
+                java.net.URI uri = new java.net.URI(cleaned);
+                String path = uri.getPath();
+                if (path != null && path.startsWith("/")) {
+                    path = path.substring(1);
+                }
+                if (StringUtils.hasText(path)) {
+                    s3Key = path;
+                }
+            } catch (Exception ignored) {}
+        }
+
+        if (tieneCredencialesValidas()) {
+            return generarPresignedUrl(s3Key);
+        }
+        return cleaned;
+    }
+
+    /**
      * Redimensiona (máximo 1280px) y comprime (75% calidad JPEG) la imagen para optimizar almacenamiento y transferencia.
      */
     public byte[] compresionarImagen(byte[] rawBytes) {

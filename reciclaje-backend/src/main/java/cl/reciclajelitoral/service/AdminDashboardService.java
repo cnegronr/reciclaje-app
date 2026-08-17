@@ -12,6 +12,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.temporal.WeekFields;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -20,19 +24,58 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class AdminDashboardService {
 
+    private static final ZoneId CHILE_ZONE = ZoneId.of("America/Santiago");
+
     private final UsuarioRepository usuarioRepository;
     private final ContenedorRepository contenedorRepository;
     private final DetalleInspeccionRepository detalleRepository;
     private final ComunaRepository comunaRepository;
     private final FotoInspeccionRepository fotoRepository;
 
+    private int getEffectiveWeekNumber(DetalleInspeccion d) {
+        LocalDateTime dt = d.getFechaHoraInicial() != null ? d.getFechaHoraInicial() :
+                (d.getFechaHoraActualizacion() != null ? d.getFechaHoraActualizacion() :
+                        (d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getCreadoEn() : null));
+        if (dt == null) {
+            return d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getSemanaNumero() : -1;
+        }
+        return cl.reciclajelitoral.util.WeekDateUtils.getWeekNumber(dt);
+    }
+
+    private int getEffectiveYear(DetalleInspeccion d) {
+        LocalDateTime dt = d.getFechaHoraInicial() != null ? d.getFechaHoraInicial() :
+                (d.getFechaHoraActualizacion() != null ? d.getFechaHoraActualizacion() :
+                        (d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getCreadoEn() : null));
+        if (dt == null) {
+            return d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getAnio() : -1;
+        }
+        return cl.reciclajelitoral.util.WeekDateUtils.getYear(dt);
+    }
+
     @Transactional(readOnly = true)
     public DashboardMetricsDTO getMetrics(String scope, String period, Long userId, Long comunaId, String role, String region) {
         List<Usuario> usuarios = usuarioRepository.findAll();
         List<Contenedor> contenedores = contenedorRepository.findAll();
+
+        ZonedDateTime ahoraChile = ZonedDateTime.now(CHILE_ZONE);
+        int currentWeek = ahoraChile.get(WeekFields.ISO.weekOfWeekBasedYear());
+        int currentYear = ahoraChile.getYear();
+
         List<DetalleInspeccion> detallesVisitados = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
+                .filter(d -> {
+                    if ("CURRENT_WEEK".equalsIgnoreCase(period)) {
+                        return getEffectiveWeekNumber(d) == currentWeek && getEffectiveYear(d) == currentYear;
+                    }
+                    if ("PAST_WEEK".equalsIgnoreCase(period)) {
+                        return getEffectiveWeekNumber(d) == (currentWeek - 1) && getEffectiveYear(d) == currentYear;
+                    }
+                    return true;
+                })
+                .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
+                .filter(d -> userId == null || (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(userId)) || (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(userId)))
                 .collect(Collectors.toList());
+
         List<Comuna> comunas = comunaRepository.findAll();
         long totalFotos = fotoRepository.count();
 

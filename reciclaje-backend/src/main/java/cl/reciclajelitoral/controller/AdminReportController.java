@@ -18,25 +18,34 @@ public class AdminReportController {
     private final AdminReportService adminReportService;
     private final AdminBackupService adminBackupService;
 
-    @GetMapping("/excel-zip")
-    public ResponseEntity<byte[]> downloadExcelZipReport(
+    @GetMapping("/years")
+    public ResponseEntity<java.util.List<Integer>> getAvailableReportYears() {
+        return ResponseEntity.ok(adminReportService.getAvailableReportYears());
+    }
+
+    @GetMapping({"/excel", "/excel-zip"})
+    public ResponseEntity<byte[]> downloadExcelReport(
             @RequestParam(required = false) Long comunaId,
-            @RequestParam(required = false) Long usuarioId
+            @RequestParam(required = false) Long usuarioId,
+            @RequestParam(required = false) Integer semanaNumero,
+            @RequestParam(required = false) Integer anio
     ) throws IOException {
-        byte[] zipBytes = adminReportService.generateExcelZipReport(comunaId, usuarioId);
+        byte[] excelBytes = adminReportService.generateExcelReport(comunaId, usuarioId, semanaNumero, anio);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.zip\"")
-                .contentType(MediaType.parseMediaType("application/zip"))
-                .body(zipBytes);
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.xlsx\"")
+                .contentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(excelBytes);
     }
 
     @GetMapping("/pdf")
     public ResponseEntity<byte[]> downloadPdfReport(
             @RequestParam(required = false) Long comunaId,
-            @RequestParam(required = false) Long usuarioId
+            @RequestParam(required = false) Long usuarioId,
+            @RequestParam(required = false) Integer semanaNumero,
+            @RequestParam(required = false) Integer anio
     ) throws Exception {
-        byte[] pdfBytes = adminReportService.generatePdfReport(comunaId, usuarioId);
+        byte[] pdfBytes = adminReportService.generatePdfReport(comunaId, usuarioId, semanaNumero, anio);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.pdf\"")

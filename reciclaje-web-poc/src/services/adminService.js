@@ -97,14 +97,28 @@ export const adminService = {
     return res.json();
   },
 
-  // Reportes Excel en formato ZIP
-  async downloadExcelZipReport(params = {}) {
-    const query = new URLSearchParams(params).toString();
-    const res = await fetch(`${API_BASE_URL}/admin/reports/excel-zip?${query}`, {
+  // Obtener años disponibles dinámicamente desde la BD
+  async getReportYears() {
+    const res = await fetch(`${API_BASE_URL}/admin/reports/years`, {
       headers: getAuthHeaders()
     });
-    if (!res.ok) throw new Error('Error al descargar reporte Excel ZIP');
+    if (!res.ok) throw new Error('Error al cargar años de reportes');
+    return res.json();
+  },
+
+  // Reporte Excel Directo (.xlsx) con fotos incrustadas e hipervínculos S3
+  async downloadExcelReport(params = {}) {
+    const query = new URLSearchParams(params).toString();
+    const res = await fetch(`${API_BASE_URL}/admin/reports/excel?${query}`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Error al descargar reporte Excel');
     return res.blob();
+  },
+
+  // Compatibilidad legacy
+  async downloadExcelZipReport(params = {}) {
+    return this.downloadExcelReport(params);
   },
 
   // Reportes en formato PDF
@@ -132,7 +146,7 @@ export const adminService = {
     formData.append('file', file);
 
     const headers = getAuthHeaders();
-    delete headers['Content-Type']; // Permite que el navegador establezca multipart boundary automáticamente
+    delete headers['Content-Type'];
 
     const res = await fetch(`${API_BASE_URL}/admin/reports/db-backup/import`, {
       method: 'POST',
