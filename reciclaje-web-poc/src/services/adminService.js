@@ -115,5 +115,35 @@ export const adminService = {
     });
     if (!res.ok) throw new Error('Error al descargar reporte PDF');
     return res.blob();
+  },
+
+  // Respaldo de Base de Datos Completa (SQL Dump)
+  async downloadDatabaseBackup() {
+    const res = await fetch(`${API_BASE_URL}/admin/reports/db-backup/export`, {
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Error al exportar el respaldo de base de datos SQL');
+    return res.blob();
+  },
+
+  // Restauración de Base de Datos Completa (SQL Dump)
+  async restoreDatabaseBackup(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const headers = getAuthHeaders();
+    delete headers['Content-Type']; // Permite que el navegador establezca multipart boundary automáticamente
+
+    const res = await fetch(`${API_BASE_URL}/admin/reports/db-backup/import`, {
+      method: 'POST',
+      headers,
+      body: formData
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Error al restaurar el respaldo de base de datos');
+    }
+    return res.json();
   }
 };
