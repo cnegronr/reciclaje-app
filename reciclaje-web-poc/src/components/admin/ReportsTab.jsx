@@ -253,20 +253,63 @@ export default function ReportsTab() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <button
               className="action-btn action-btn-primary"
-              style={{ width: '100%', padding: '0.85rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+              style={{
+                width: '100%',
+                padding: '0.85rem',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                opacity: downloadingExcel ? 0.75 : 1,
+                cursor: downloadingExcel || downloadingPdf ? 'not-allowed' : 'pointer'
+              }}
               onClick={handleDownloadExcel}
               disabled={downloadingExcel || downloadingPdf}
             >
-              {downloadingExcel ? '⏳ Generando Excel .xlsx...' : '📊 Descargar Reporte Excel (.xlsx Directo)'}
+              {downloadingExcel ? (
+                <>
+                  <span className="spinner-icon" style={{ fontSize: '1.1rem' }}>🌀</span>
+                  <span>Generando Excel .xlsx...</span>
+                </>
+              ) : (
+                <>
+                  <span>📊</span>
+                  <span>Descargar Reporte Excel (.xlsx Directo)</span>
+                </>
+              )}
             </button>
 
             <button
               className="action-btn action-btn-edit"
-              style={{ width: '100%', padding: '0.85rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+              style={{
+                width: '100%',
+                padding: '0.85rem',
+                fontSize: '0.9rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                background: 'rgba(239, 68, 68, 0.2)',
+                color: '#f87171',
+                borderColor: 'rgba(239, 68, 68, 0.4)',
+                opacity: downloadingPdf ? 0.75 : 1,
+                cursor: downloadingExcel || downloadingPdf ? 'not-allowed' : 'pointer'
+              }}
               onClick={handleDownloadPdf}
               disabled={downloadingExcel || downloadingPdf}
             >
-              {downloadingPdf ? '⏳ Generando Documento PDF...' : '📄 Descargar Reporte PDF Consolidado'}
+              {downloadingPdf ? (
+                <>
+                  <span className="spinner-icon" style={{ fontSize: '1.1rem' }}>🌀</span>
+                  <span>Generando Documento PDF...</span>
+                </>
+              ) : (
+                <>
+                  <span>📄</span>
+                  <span>Descargar Reporte PDF Consolidado</span>
+                </>
+              )}
             </button>
           </div>
         </div>
