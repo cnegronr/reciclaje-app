@@ -8,13 +8,25 @@ import java.util.List;
 import java.util.Optional;
 
 public interface InspeccionSemanalRepository extends JpaRepository<InspeccionSemanal, Long> {
-    Optional<InspeccionSemanal> findByComunaIdAndTipoRutaAndSemanaNumeroAndAnio(
+    Optional<InspeccionSemanal> findFirstByComunaIdAndTipoRutaAndSemanaNumeroAndAnioOrderByIdDesc(
             Long comunaId, TipoRuta tipoRuta, Integer semanaNumero, Integer anio
     );
 
-    Optional<InspeccionSemanal> findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(
+    default Optional<InspeccionSemanal> findByComunaIdAndTipoRutaAndSemanaNumeroAndAnio(
+            Long comunaId, TipoRuta tipoRuta, Integer semanaNumero, Integer anio
+    ) {
+        return findFirstByComunaIdAndTipoRutaAndSemanaNumeroAndAnioOrderByIdDesc(comunaId, tipoRuta, semanaNumero, anio);
+    }
+
+    Optional<InspeccionSemanal> findFirstByComunaIdAndInspectorIdAndSemanaNumeroAndAnioOrderByIdDesc(
             Long comunaId, Long inspectorId, Integer semanaNumero, Integer anio
     );
+
+    default Optional<InspeccionSemanal> findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(
+            Long comunaId, Long inspectorId, Integer semanaNumero, Integer anio
+    ) {
+        return findFirstByComunaIdAndInspectorIdAndSemanaNumeroAndAnioOrderByIdDesc(comunaId, inspectorId, semanaNumero, anio);
+    }
 
     Optional<InspeccionSemanal> findFirstByComunaIdAndInspectorIdOrderByAnioDescSemanaNumeroDesc(
             Long comunaId, Long inspectorId

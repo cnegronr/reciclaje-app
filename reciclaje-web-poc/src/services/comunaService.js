@@ -1,9 +1,10 @@
 import { API_BASE_URL, getAuthHeaders } from './apiConfig';
 
 export const comunaService = {
-  obtenerComunas: async () => {
+  obtenerComunas: async (usuarioId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/comunas`, {
+      const url = usuarioId ? `${API_BASE_URL}/comunas?usuarioId=${usuarioId}` : `${API_BASE_URL}/comunas`;
+      const response = await fetch(url, {
         headers: getAuthHeaders()
       });
 
@@ -16,6 +17,8 @@ export const comunaService = {
             backendId: c.id,
             nombre: c.nombre,
             region: c.codigoRegion === 'V' ? 'Litoral Central' : c.codigoRegion,
+            inspectorAsociadoId: c.inspectorAsociadoId,
+            inspectorAsociadoNombre: c.inspectorAsociadoNombre,
             contenedores: (c.contenedores || []).map((cont) => ({
               id: String(cont.id),
               backendId: cont.id,
@@ -36,7 +39,7 @@ export const comunaService = {
     }
     return [];
   },
-  getComunas: async function () {
-    return this.obtenerComunas();
+  getComunas: async function (usuarioId) {
+    return this.obtenerComunas(usuarioId);
   }
 };

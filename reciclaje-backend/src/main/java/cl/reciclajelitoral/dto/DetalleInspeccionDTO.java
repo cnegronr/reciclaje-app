@@ -17,8 +17,10 @@ public class DetalleInspeccionDTO {
     private Long contenedorId;
     private Long creadoPorUsuarioId;
     private String creadoPorUsuarioNombre;
+    private String creadoPorRol;
     private Long actualizadoPorUsuarioId;
     private String actualizadoPorUsuarioNombre;
+    private String actualizadoPorRol;
     private BigDecimal porcentajeEstimado;
     private BigDecimal kilosCalculados;
     private BigDecimal porcentajeEstimadoInicial;

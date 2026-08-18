@@ -16,7 +16,10 @@ public class ComunaController {
     private final ComunaService comunaService;
 
     @GetMapping
-    public ResponseEntity<List<ComunaDTO>> listarComunas() {
+    public ResponseEntity<List<ComunaDTO>> listarComunas(@RequestParam(required = false) Long usuarioId) {
+        if (usuarioId != null) {
+            return ResponseEntity.ok(comunaService.obtenerComunasParaUsuario(usuarioId));
+        }
         return ResponseEntity.ok(comunaService.listarTodasLasComunas());
     }
 

@@ -92,6 +92,31 @@ export default function UserManagementTab() {
   };
 
   const toggleComuna = (cId) => {
+    const isAdding = !formData.comunaIds.includes(cId);
+
+    if (isAdding) {
+      // Buscar si la comuna ya está asignada a otro inspector
+      const assignedUser = users.find(u =>
+        u.id !== editingUser?.id &&
+        u.comunaIds &&
+        u.comunaIds.includes(cId)
+      );
+
+      if (assignedUser) {
+        const comunaObj = comunas.find(c => (c.backendId || c.id) === cId);
+        const comunaNombre = comunaObj ? comunaObj.nombre : 'esta comuna';
+        const confirmReassign = window.confirm(
+          `⚠️ La comuna "${comunaNombre}" actualmente está asignada a ${assignedUser.nombre}.\n\n` +
+          `Al asignarla a este usuario, ${assignedUser.nombre} perderá la asignación de dicha comuna.\n\n` +
+          `¿Deseas continuar con la reasignación?`
+        );
+
+        if (!confirmReassign) {
+          return;
+        }
+      }
+    }
+
     setFormData(prev => {
       const exists = prev.comunaIds.includes(cId);
       return {
@@ -253,16 +278,27 @@ export default function UserManagementTab() {
                   {comunas.length === 0 ? (
                     <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cargando comunas...</span>
                   ) : (
-                    comunas.map(c => (
-                      <label key={c.id} style={{ fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <input
-                          type="checkbox"
-                          checked={formData.comunaIds.includes(c.backendId || c.id)}
-                          onChange={() => toggleComuna(c.backendId || c.id)}
-                        />
-                        📍 {c.nombre}
-                      </label>
-                    ))
+                    comunas.map(c => {
+                      const cId = c.backendId || c.id;
+                      const assignedUser = users.find(u => u.id !== editingUser?.id && u.comunaIds && u.comunaIds.includes(cId));
+                      return (
+                        <label key={c.id} style={{ fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <input
+                              type="checkbox"
+                              checked={formData.comunaIds.includes(cId)}
+                              onChange={() => toggleComuna(cId)}
+                            />
+                            📍 {c.nombre}
+                          </span>
+                          {assignedUser && (
+                            <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>
+                              (Asignada a: {assignedUser.nombre})
+                            </span>
+                          )}
+                        </label>
+                      );
+                    })
                   )}
                 </div>
               </div>

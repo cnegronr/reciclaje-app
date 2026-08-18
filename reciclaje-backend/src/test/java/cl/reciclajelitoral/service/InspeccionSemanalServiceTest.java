@@ -737,6 +737,7 @@ class InspeccionSemanalServiceTest {
                 .build();
         inspeccionSemanalMock.getDetalles().add(detVisitado);
 
+        usuarioMock.setRol(Rol.ADMIN);
         lenient().when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
         lenient().when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
         lenient().when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
@@ -755,6 +756,7 @@ class InspeccionSemanalServiceTest {
     @Test
     @DisplayName("Debe permitir traspaso si la semana actual está limpia y copiar las visitas de la semana previa")
     void debePermitirYAplicarTraspasoCuandoSemanaActualEstaLimpia() {
+        usuarioMock.setRol(Rol.ADMIN);
         int semAct = cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber();
         int anioAct = cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear();
 

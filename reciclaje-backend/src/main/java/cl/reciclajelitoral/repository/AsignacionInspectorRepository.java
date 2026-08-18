@@ -7,4 +7,5 @@ import java.util.List;
 public interface AsignacionInspectorRepository extends JpaRepository<AsignacionInspector, Long> {
     List<AsignacionInspector> findByInspectorId(Long inspectorId);
     List<AsignacionInspector> findByComunaId(Long comunaId);
+    void deleteByComunaId(Long comunaId);
 }

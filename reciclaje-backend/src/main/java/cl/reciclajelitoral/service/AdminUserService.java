@@ -53,6 +53,7 @@ public class AdminUserService {
         if (req.getComunaIds() != null && !req.getComunaIds().isEmpty()) {
             List<Comuna> comunas = comunaRepository.findAllById(req.getComunaIds());
             for (Comuna c : comunas) {
+                asignacionRepository.deleteByComunaId(c.getId());
                 AsignacionInspector asignacion = AsignacionInspector.builder()
                         .inspector(saved)
                         .comuna(c)
@@ -93,6 +94,7 @@ public class AdminUserService {
 
             List<Comuna> comunas = comunaRepository.findAllById(req.getComunaIds());
             for (Comuna c : comunas) {
+                asignacionRepository.deleteByComunaId(c.getId());
                 AsignacionInspector asignacion = AsignacionInspector.builder()
                         .inspector(updated)
                         .comuna(c)

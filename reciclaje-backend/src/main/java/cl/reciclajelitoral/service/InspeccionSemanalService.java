@@ -52,9 +52,19 @@ public class InspeccionSemanalService {
         Usuario usuarioActivo = usuarioRepository.findById(inspectorId).orElse(null);
         TipoRuta tipoRuta = (usuarioActivo != null && usuarioActivo.getRol() == Rol.CHOFER) ? TipoRuta.CHOFER : TipoRuta.INSPECTOR;
 
+        // Buscar el Inspector primario asignado a la comuna
+        Usuario inspectorAsociado = asignacionRepository.findByComunaId(comunaId).stream()
+                .map(AsignacionInspector::getInspector)
+                .filter(u -> u != null && u.getRol() == Rol.INSPECTOR)
+                .findFirst()
+                .orElse(usuarioActivo);
+
         InspeccionSemanal inspeccion = (tipoRuta == TipoRuta.CHOFER)
                 ? inspeccionRepository.findByComunaIdAndTipoRutaAndSemanaNumeroAndAnio(comunaId, TipoRuta.CHOFER, semanaNumero, anio).orElse(null)
-                : inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(comunaId, inspectorId, semanaNumero, anio).orElse(null);
+                : inspeccionRepository.findByComunaIdAndTipoRutaAndSemanaNumeroAndAnio(comunaId, TipoRuta.INSPECTOR, semanaNumero, anio)
+                .orElseGet(() -> (inspectorAsociado != null)
+                        ? inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(comunaId, inspectorAsociado.getId(), semanaNumero, anio).orElse(null)
+                        : inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(comunaId, inspectorId, semanaNumero, anio).orElse(null));
 
         if (inspeccion == null) {
             Comuna comuna = comunaRepository.findById(comunaId)
@@ -64,16 +74,11 @@ public class InspeccionSemanalService {
                 throw new IllegalArgumentException("Inspector no encontrado: " + inspectorId);
             }
 
-            // Buscar el Inspector primario asignado a la comuna para vincularlo a las inspecciones del CHOFER
-            Usuario inspectorAsociado = asignacionRepository.findByComunaId(comunaId).stream()
-                    .map(AsignacionInspector::getInspector)
-                    .filter(u -> u.getRol() == Rol.INSPECTOR)
-                    .findFirst()
-                    .orElse(usuarioActivo);
+            Usuario inspectorPrincipal = (tipoRuta == TipoRuta.CHOFER) ? usuarioActivo : ((inspectorAsociado != null) ? inspectorAsociado : usuarioActivo);
 
             InspeccionSemanal nuevaInspeccion = InspeccionSemanal.builder()
                     .comuna(comuna)
-                    .inspector(usuarioActivo)
+                    .inspector(inspectorPrincipal)
                     .inspectorAsociado(inspectorAsociado)
                     .tipoRuta(tipoRuta)
                     .semanaNumero(semanaNumero)
@@ -318,8 +323,10 @@ public class InspeccionSemanalService {
                             .contenedorId(d.getContenedor().getId())
                             .creadoPorUsuarioId(Optional.ofNullable(creador).map(Usuario::getId).orElse(null))
                             .creadoPorUsuarioNombre(Optional.ofNullable(creador).map(Usuario::getNombre).orElse(null))
+                            .creadoPorRol(Optional.ofNullable(creador).map(u -> u.getRol().name()).orElse(null))
                             .actualizadoPorUsuarioId(Optional.ofNullable(actualizador).map(Usuario::getId).orElse(null))
                             .actualizadoPorUsuarioNombre(Optional.ofNullable(actualizador).map(Usuario::getNombre).orElse(null))
+                            .actualizadoPorRol(Optional.ofNullable(actualizador).map(u -> u.getRol().name()).orElse(null))
                             .porcentajeEstimado(d.getPorcentajeEstimado())
                             .kilosCalculados(d.getKilosCalculados())
                             .porcentajeEstimadoInicial(Optional.ofNullable(d.getPorcentajeEstimadoInicial()).orElse(d.getPorcentajeEstimado()))
@@ -367,6 +374,20 @@ public class InspeccionSemanalService {
 
     @Transactional(readOnly = true)
     public TraspasoPreviewDTO obtenerPreviewTraspasoVisitadas(Long comunaId, Long inspectorId) {
+        Usuario ejecutor = usuarioRepository.findById(inspectorId).orElse(null);
+        if (ejecutor != null && ejecutor.getRol() != Rol.ADMIN) {
+            return TraspasoPreviewDTO.builder()
+                    .semanaOrigen(-1)
+                    .anioOrigen(-1)
+                    .semanaDestino(cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber())
+                    .anioDestino(cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear())
+                    .permitidoTraspaso(false)
+                    .mensajeValidacion("Solamente los usuarios administradores pueden traspasar visitas previas.")
+                    .totalVisitadasOrigen(0)
+                    .totalVisitadasDestinoActual(0)
+                    .detallesVisitados(List.of())
+                    .build();
+        }
         int semanaActual = cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber();
         int anioActual = cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear();
 

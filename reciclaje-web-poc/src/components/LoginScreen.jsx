@@ -87,7 +87,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           <p className="test-title">🧪 Credenciales de Prueba (Inspector, Admin, Choferes):</p>
           <div className="credentials-code">
             <span><strong>Admin:</strong> admin@reciclajelitoral.cl</span>
-            <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl</span>
+            <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl (Carlos Negrón)</span>
             <span><strong>Chofer 1:</strong> chofer@reciclajelitoral.cl (Pedro)</span>
             <span><strong>Chofer 2:</strong> chofer2@reciclajelitoral.cl (Juan)</span>
             <span><strong>Clave:</strong> Password123!</span>
@@ -97,7 +97,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               🛡️ Admin
             </button>
             <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
-              📋 Inspector
+              📋 Inspector (Carlos Negrón)
             </button>
             <button onClick={fillChofer1Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
               🚛 Chofer 1 (Pedro)

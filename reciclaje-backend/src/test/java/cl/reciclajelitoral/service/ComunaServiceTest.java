@@ -25,6 +25,12 @@ class ComunaServiceTest {
     @Mock
     private ComunaRepository comunaRepository;
 
+    @Mock
+    private cl.reciclajelitoral.repository.UsuarioRepository usuarioRepository;
+
+    @Mock
+    private cl.reciclajelitoral.repository.AsignacionInspectorRepository asignacionRepository;
+
     @InjectMocks
     private ComunaService comunaService;
 

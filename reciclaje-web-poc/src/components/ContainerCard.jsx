@@ -27,6 +27,33 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
         <h3 className="container-title">{contenedor.nombrePunto}</h3>
         <p className="container-address">📍 {contenedor.ubicacion}</p>
 
+        {(() => {
+          const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
+          const isAdmin = currentUser?.rol === 'ADMIN';
+          const creador = detalleInspeccion?.creadoPorUsuarioNombre || contenedor.inspectorAsociadoNombre || 'Carlos Negrón';
+          const actualizador = detalleInspeccion?.actualizadoPorUsuarioNombre;
+          const actRol = detalleInspeccion?.actualizadoPorRol;
+
+          let inspectorLabel = `👤 Inspector: ${creador}`;
+          if (isVisited && actualizador && actualizador !== creador) {
+            if (actRol === 'ADMIN') {
+              if (isAdmin) {
+                inspectorLabel = `👤 Creado por: ${creador} | Actualizado por: ${actualizador} (Admin)`;
+              } else {
+                inspectorLabel = `👤 Inspector: ${creador}`;
+              }
+            } else {
+              inspectorLabel = `👤 Creado por: ${creador} | Actualizado por: ${actualizador}`;
+            }
+          }
+
+          return (
+            <div style={{ marginTop: '0.35rem', marginBottom: '0.5rem', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
+              {inspectorLabel}
+            </div>
+          );
+        })()}
+
         {isVisited && (
           <div className="inspection-result-box">
             <div className="result-metric">

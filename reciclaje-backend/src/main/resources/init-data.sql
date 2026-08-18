@@ -6,8 +6,8 @@ VALUES ('Administrador General', 'admin@reciclajelitoral.cl', '$2a$10$WE2R8JlMw9
 ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
 INSERT INTO usuarios (nombre, email, password_hash, rol)
-VALUES ('John Doe', 'inspector@reciclajelitoral.cl', '$2a$10$WE2R8JlMw93G6PpO2ySRuOaBCewDrYqBYdojHvq2mM6dtuT6SRMam', 'INSPECTOR')
-ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
+VALUES ('Carlos Negrón', 'inspector@reciclajelitoral.cl', '$2a$10$WE2R8JlMw93G6PpO2ySRuOaBCewDrYqBYdojHvq2mM6dtuT6SRMam', 'INSPECTOR')
+ON CONFLICT (email) DO UPDATE SET nombre = 'Carlos Negrón', password_hash = EXCLUDED.password_hash;
 
 INSERT INTO usuarios (nombre, email, password_hash, rol)
 VALUES ('Pedro Chofer', 'chofer@reciclajelitoral.cl', '$2a$10$WE2R8JlMw93G6PpO2ySRuOaBCewDrYqBYdojHvq2mM6dtuT6SRMam', 'CHOFER')
@@ -21,10 +21,10 @@ ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 INSERT INTO comunas (nombre, codigo_region) VALUES ('El Quisco', 'V') ON CONFLICT (nombre) DO NOTHING;
 INSERT INTO comunas (nombre, codigo_region) VALUES ('Algarrobo', 'V') ON CONFLICT (nombre) DO NOTHING;
 
--- 3. Asignación de Comunas al Inspector y Choferes
+-- 3. Asignación Única de Comunas al Inspector
 INSERT INTO asignaciones_inspector (inspector_id, comuna_id)
 SELECT u.id, c.id FROM usuarios u, comunas c
-WHERE u.email IN ('inspector@reciclajelitoral.cl', 'chofer@reciclajelitoral.cl', 'chofer2@reciclajelitoral.cl')
+WHERE u.email = 'inspector@reciclajelitoral.cl'
   AND c.nombre IN ('El Quisco', 'Algarrobo')
 ON CONFLICT DO NOTHING;
 

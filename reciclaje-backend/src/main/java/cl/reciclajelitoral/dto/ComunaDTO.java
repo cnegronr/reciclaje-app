@@ -14,5 +14,7 @@ public class ComunaDTO {
     private Long id;
     private String nombre;
     private String codigoRegion;
+    private Long inspectorAsociadoId;
+    private String inspectorAsociadoNombre;
     private List<ContenedorDTO> contenedores;
 }

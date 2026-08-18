@@ -31,9 +31,9 @@ export function App() {
       setCurrentUser(user);
     }
 
-    const cargarComunasData = async () => {
+    const cargarComunasData = async (uId) => {
       setLoadingComunas(true);
-      const dataComunas = await comunaService.obtenerComunas();
+      const dataComunas = await comunaService.obtenerComunas(uId);
       setComunas(dataComunas);
       if (dataComunas && dataComunas.length > 0) {
         setSelectedComunaId(dataComunas[0].id);
@@ -41,8 +41,12 @@ export function App() {
       setLoadingComunas(false);
     };
 
-    cargarComunasData();
-  }, []);
+    if (currentUser) {
+      cargarComunasData(currentUser.id);
+    } else {
+      cargarComunasData(null);
+    }
+  }, [currentUser?.id]);
 
   // Cargar registro de inspección semanal desde PostgreSQL cuando cambie la comuna o usuario
   const reloadInspeccion = async () => {
@@ -286,15 +290,17 @@ export function App() {
               </div>
 
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                <button
-                  type="button"
-                  onClick={handleAbrirTraspasoModal}
-                  disabled={loadingTraspaso || loadingLimpieza}
-                  className="action-btn action-btn-edit"
-                  style={{ background: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf', border: '1px solid rgba(45, 212, 191, 0.3)' }}
-                >
-                  📋 Traspasar Visitas Previas
-                </button>
+                {currentUser?.rol === 'ADMIN' && (
+                  <button
+                    type="button"
+                    onClick={handleAbrirTraspasoModal}
+                    disabled={loadingTraspaso || loadingLimpieza}
+                    className="action-btn action-btn-edit"
+                    style={{ background: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf', border: '1px solid rgba(45, 212, 191, 0.3)' }}
+                  >
+                    📋 Traspasar Visitas Previas
+                  </button>
+                )}
 
                 <button
                   type="button"
