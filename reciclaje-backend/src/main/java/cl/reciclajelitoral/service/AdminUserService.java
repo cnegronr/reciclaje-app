@@ -136,7 +136,7 @@ public class AdminUserService {
         jdbcTemplate.update("UPDATE inspecciones_semanales SET inspector_id = NULL WHERE inspector_id = ?", id);
         jdbcTemplate.update("UPDATE inspecciones_semanales SET inspector_asociado_id = NULL WHERE inspector_asociado_id = ?", id);
         jdbcTemplate.update("UPDATE actualizaciones_detalle SET usuario_id = NULL WHERE usuario_id = ?", id);
-        jdbcTemplate.update("UPDATE fotos_inspeccion SET subido_por_usuario_id = NULL WHERE subido_por_usuario_id = ?", id);
+        jdbcTemplate.update("UPDATE fotos_inspeccion SET usuario_id = NULL WHERE usuario_id = ?", id);
 
         // 3. Eliminar usuario de la base de datos
         usuarioRepository.delete(usuario);

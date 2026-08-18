@@ -49,7 +49,10 @@ export const adminService = {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
-    if (!res.ok) throw new Error('Error al eliminar definitivamente el usuario');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || 'Error al eliminar definitivamente el usuario');
+    }
   },
 
   // Manejo de contenedores
