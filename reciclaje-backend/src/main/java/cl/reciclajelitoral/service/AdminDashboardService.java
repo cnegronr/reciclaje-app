@@ -56,19 +56,19 @@ public class AdminDashboardService {
     }
 
     private int getWeekOfDetalle(DetalleInspeccion d) {
-        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getSemanaNumero() != null && d.getInspeccionSemanal().getSemanaNumero() > 0) {
-            return d.getInspeccionSemanal().getSemanaNumero();
-        }
         LocalDateTime dt = getEffectiveLocalDateTime(d);
-        return dt != null ? WeekDateUtils.getWeekNumber(dt) : -1;
+        if (dt != null) {
+            return WeekDateUtils.getWeekNumber(dt);
+        }
+        return d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getSemanaNumero() != null ? d.getInspeccionSemanal().getSemanaNumero() : -1;
     }
 
     private int getYearOfDetalle(DetalleInspeccion d) {
-        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getAnio() != null && d.getInspeccionSemanal().getAnio() > 0) {
-            return d.getInspeccionSemanal().getAnio();
-        }
         LocalDateTime dt = getEffectiveLocalDateTime(d);
-        return dt != null ? WeekDateUtils.getYear(dt) : -1;
+        if (dt != null) {
+            return WeekDateUtils.getYear(dt);
+        }
+        return d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getAnio() != null ? d.getInspeccionSemanal().getAnio() : -1;
     }
 
     @Transactional(readOnly = true)

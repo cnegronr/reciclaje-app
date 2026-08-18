@@ -106,4 +106,44 @@ class AdminDashboardServiceTest {
         assertNotNull(emptyUserDto);
         assertEquals(0L, emptyUserDto.getTotalInspecciones());
     }
+
+    @Test
+    @DisplayName("Debe clasificar correctamente inspeccion de la semana pasada basandose en fechaHoraInicial")
+    void shouldClassifyPastWeekInspectionByEffectiveTimestamp() {
+        // Simular inspeccion realizada hace 7 dias (semana pasada)
+        LocalDateTime pastWeekDate = LocalDateTime.now().minusDays(7);
+        InspeccionSemanal semanaActiva = InspeccionSemanal.builder()
+                .id(2L)
+                .semanaNumero(WeekDateUtils.getCurrentWeekNumber()) // semanaNumero = 34
+                .anio(WeekDateUtils.getCurrentYear())
+                .build();
+
+        DetalleInspeccion detPastWeek = DetalleInspeccion.builder()
+                .id(200L)
+                .visitado(true)
+                .fechaHoraInicial(pastWeekDate) // fechaHoraInicial = semana 33 (hace 7 dias)
+                .inspeccionSemanal(semanaActiva)
+                .creadoPorUsuario(user)
+                .actualizadoPorUsuario(user)
+                .contenedor(cont)
+                .porcentajeEstimado(BigDecimal.valueOf(80))
+                .kilosCalculados(BigDecimal.valueOf(400))
+                .build();
+
+        when(detalleRepository.findAll()).thenReturn(List.of(detPastWeek));
+
+        // En la semana actual (WEEK) y hoy (DAY) debe retornar 0
+        DashboardMetricsDTO weekDto = adminDashboardService.getMetrics("ALL", "WEEK", 1L, null, null, null);
+        assertEquals(0L, weekDto.getTotalInspecciones());
+
+        DashboardMetricsDTO dayDto = adminDashboardService.getMetrics("ALL", "DAY", 1L, null, null, null);
+        assertEquals(0L, dayDto.getTotalInspecciones());
+
+        // En la semana anterior (PAST_WEEK) e historico debe retornar 1
+        DashboardMetricsDTO pastWeekDto = adminDashboardService.getMetrics("ALL", "PAST_WEEK", 1L, null, null, null);
+        assertEquals(1L, pastWeekDto.getTotalInspecciones());
+
+        DashboardMetricsDTO historicDto = adminDashboardService.getMetrics("ALL", "HISTORIC", 1L, null, null, null);
+        assertEquals(1L, historicDto.getTotalInspecciones());
+    }
 }

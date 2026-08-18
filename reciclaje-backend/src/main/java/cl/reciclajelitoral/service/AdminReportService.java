@@ -82,7 +82,10 @@ public class AdminReportService {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
-                .filter(d -> usuarioId == null || (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(usuarioId)) || (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(usuarioId)))
+                .filter(d -> usuarioId == null ||
+                        (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(usuarioId)) ||
+                        (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(usuarioId)) ||
+                        (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null && d.getInspeccionSemanal().getInspector().getId().equals(usuarioId)))
                 .filter(d -> semanaNumero == null || semanaNumero.equals(getEffectiveWeekNumber(d)))
                 .filter(d -> anio == null || anio.equals(getEffectiveYear(d)))
                 .toList();
@@ -334,7 +337,10 @@ public class AdminReportService {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
-                .filter(d -> usuarioId == null || (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(usuarioId)) || (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(usuarioId)))
+                .filter(d -> usuarioId == null ||
+                        (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(usuarioId)) ||
+                        (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(usuarioId)) ||
+                        (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null && d.getInspeccionSemanal().getInspector().getId().equals(usuarioId)))
                 .filter(d -> semanaNumero == null || semanaNumero.equals(getEffectiveWeekNumber(d)))
                 .filter(d -> anio == null || anio.equals(getEffectiveYear(d)))
                 .toList();

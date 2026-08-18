@@ -94,15 +94,22 @@ export default function MetricsDashboardTab() {
           </select>
         </div>
 
-        {filters.scope === 'INDIVIDUAL' && (
+        {(filters.scope === 'INDIVIDUAL' || filters.scope === 'ALL') && (
           <div>
-            <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Usuario:</label>
+            <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Usuario / Inspector:</label>
             <select
               className="select-control"
               value={filters.userId}
-              onChange={e => setFilters({ ...filters, userId: e.target.value })}
+              onChange={e => {
+                const uVal = e.target.value;
+                setFilters({
+                  ...filters,
+                  userId: uVal,
+                  scope: uVal ? 'INDIVIDUAL' : 'ALL'
+                });
+              }}
             >
-              <option value="">Seleccione Usuario</option>
+              <option value="">Todos los Usuarios</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
               ))}
