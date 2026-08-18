@@ -18,11 +18,18 @@ Aplicación web y microservicio REST para el registro, georreferenciación, insp
 
 ## 🔑 Credenciales de Prueba (Entorno Inicial)
 
-Al iniciar la base de datos por primera vez mediante `init-data.sql`, el sistema cuenta con el siguiente usuario registrado:
+Al iniciar la base de datos por primera vez mediante `init-data.sql`, el sistema cuenta con usuarios de prueba precargados.
+
+> 💡 **Ocultar Credenciales en AWS/Producción**: Por defecto las credenciales de prueba se ocultan en compilaciones de producción. Para controlar su visibilidad en el login, configura la variable de entorno `VITE_SHOW_TEST_CREDENTIALS`:
+> - `VITE_SHOW_TEST_CREDENTIALS=true`: Muestra el cuadro de credenciales y botones de auto-llenado (Entorno de Desarrollo).
+> - `VITE_SHOW_TEST_CREDENTIALS=false`: Oculta el cuadro de credenciales y deja vacíos los campos de login (Entorno AWS / Producción).
 
 | Rol | Email / Usuario | Contraseña |
 | :--- | :--- | :--- |
+| **ADMIN** | `admin@reciclajelitoral.cl` | `Password123!` |
 | **INSPECTOR** | `inspector@reciclajelitoral.cl` | `Password123!` |
+| **CHOFER 1** | `chofer@reciclajelitoral.cl` | `Password123!` |
+| **CHOFER 2** | `chofer2@reciclajelitoral.cl` | `Password123!` |
 
 ---
 

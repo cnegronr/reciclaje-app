@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
+ARG VITE_SHOW_TEST_CREDENTIALS=false
+ENV VITE_SHOW_TEST_CREDENTIALS=$VITE_SHOW_TEST_CREDENTIALS
 RUN npm run build
 
 FROM nginx:alpine

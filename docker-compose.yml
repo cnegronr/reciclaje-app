@@ -52,6 +52,8 @@ services:
     build:
       context: ./reciclaje-web-poc
       dockerfile: Dockerfile
+      args:
+        VITE_SHOW_TEST_CREDENTIALS: ${VITE_SHOW_TEST_CREDENTIALS:-false}
     container_name: reciclaje_frontend
     restart: always
     depends_on:

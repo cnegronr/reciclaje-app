@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('inspector@reciclajelitoral.cl');
-  const [password, setPassword] = useState('Password123!');
+  const showTestCredentials = import.meta.env.VITE_SHOW_TEST_CREDENTIALS === 'true';
+
+  const [email, setEmail] = useState(showTestCredentials ? 'inspector@reciclajelitoral.cl' : '');
+  const [password, setPassword] = useState(showTestCredentials ? 'Password123!' : '');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -83,30 +85,32 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           </button>
         </form>
 
-        <div className="test-credentials-box">
-          <p className="test-title">🧪 Credenciales de Prueba (Inspector, Admin, Choferes):</p>
-          <div className="credentials-code">
-            <span><strong>Admin:</strong> admin@reciclajelitoral.cl</span>
-            <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl (Carlos Negrón)</span>
-            <span><strong>Chofer 1:</strong> chofer@reciclajelitoral.cl (Pedro)</span>
-            <span><strong>Chofer 2:</strong> chofer2@reciclajelitoral.cl (Juan)</span>
-            <span><strong>Clave:</strong> Password123!</span>
+        {showTestCredentials && (
+          <div className="test-credentials-box">
+            <p className="test-title">🧪 Credenciales de Prueba (Inspector, Admin, Choferes):</p>
+            <div className="credentials-code">
+              <span><strong>Admin:</strong> admin@reciclajelitoral.cl</span>
+              <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl (Carlos Negrón)</span>
+              <span><strong>Chofer 1:</strong> chofer@reciclajelitoral.cl (Pedro)</span>
+              <span><strong>Chofer 2:</strong> chofer2@reciclajelitoral.cl (Juan)</span>
+              <span><strong>Clave:</strong> Password123!</span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+              <button onClick={fillAdminCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px', background: '#ffebee', color: '#c62828', borderColor: '#ef9a9a' }}>
+                🛡️ Admin
+              </button>
+              <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
+                📋 Inspector (Carlos Negrón)
+              </button>
+              <button onClick={fillChofer1Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
+                🚛 Chofer 1 (Pedro)
+              </button>
+              <button onClick={fillChofer2Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
+                🚛 Chofer 2 (Juan)
+              </button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-            <button onClick={fillAdminCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px', background: '#ffebee', color: '#c62828', borderColor: '#ef9a9a' }}>
-              🛡️ Admin
-            </button>
-            <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
-              📋 Inspector (Carlos Negrón)
-            </button>
-            <button onClick={fillChofer1Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
-              🚛 Chofer 1 (Pedro)
-            </button>
-            <button onClick={fillChofer2Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
-              🚛 Chofer 2 (Juan)
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );
