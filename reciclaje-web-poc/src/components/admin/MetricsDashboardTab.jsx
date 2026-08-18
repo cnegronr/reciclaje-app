@@ -10,7 +10,7 @@ export default function MetricsDashboardTab() {
 
   const [filters, setFilters] = useState({
     scope: 'ALL',
-    period: 'HISTORIC',
+    period: 'WEEK',
     userId: '',
     comunaId: '',
     role: '',
@@ -85,11 +85,12 @@ export default function MetricsDashboardTab() {
             value={filters.period}
             onChange={e => setFilters({ ...filters, period: e.target.value })}
           >
-            <option value="HISTORIC">Histórico Total</option>
-            <option value="DAY">Hoy (Día)</option>
             <option value="WEEK">Esta Semana</option>
+            <option value="PAST_WEEK">Semana Anterior</option>
+            <option value="DAY">Hoy (Día)</option>
             <option value="MONTH">Este Mes</option>
             <option value="YEAR">Este Año</option>
+            <option value="HISTORIC">Histórico Total</option>
           </select>
         </div>
 

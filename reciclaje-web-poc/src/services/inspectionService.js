@@ -326,5 +326,72 @@ export const inspectionService = {
     localStorage.setItem(INSPECTIONS_STORAGE_KEY, JSON.stringify(inspections));
 
     return record;
+  },
+
+  getPreviewTraspaso: async (comunaId, inspectorId = 1, backendComunaId = null) => {
+    const comunaIdQuery = backendComunaId 
+      ? inspectionService.parseBackendComunaId(backendComunaId) 
+      : inspectionService.parseBackendComunaId(comunaId);
+
+    const res = await fetch(`${API_BASE_URL}/inspecciones/comuna/${comunaIdQuery}/preview-traspaso?inspectorId=${inspectorId}`, {
+      headers: getAuthHeaders()
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Error al consultar preview' }));
+      throw new Error(err.message || 'Error al obtener preview del traspaso');
+    }
+    return await res.json();
+  },
+
+  aplicarTraspaso: async (comunaId, inspectorId = 1, backendComunaId = null) => {
+    const comunaIdQuery = backendComunaId 
+      ? inspectionService.parseBackendComunaId(backendComunaId) 
+      : inspectionService.parseBackendComunaId(comunaId);
+
+    const res = await fetch(`${API_BASE_URL}/inspecciones/comuna/${comunaIdQuery}/aplicar-traspaso?inspectorId=${inspectorId}`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Error al aplicar traspaso' }));
+      throw new Error(err.message || 'No se pudo aplicar el traspaso');
+    }
+    return await res.json();
+  },
+
+  limpiarSemanaActual: async (comunaId, inspectorId = 1, backendComunaId = null) => {
+    const comunaIdQuery = backendComunaId 
+      ? inspectionService.parseBackendComunaId(backendComunaId) 
+      : inspectionService.parseBackendComunaId(comunaId);
+
+    const res = await fetch(`${API_BASE_URL}/inspecciones/comuna/${comunaIdQuery}/limpiar-actual?inspectorId=${inspectorId}`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Error al limpiar semana actual' }));
+      throw new Error(err.message || 'No se pudo limpiar la semana actual');
+    }
+    return await res.json();
+  },
+
+  revertirLimpieza: async (comunaId, inspectorId = 1, backendComunaId = null) => {
+    const comunaIdQuery = backendComunaId 
+      ? inspectionService.parseBackendComunaId(backendComunaId) 
+      : inspectionService.parseBackendComunaId(comunaId);
+
+    const res = await fetch(`${API_BASE_URL}/inspecciones/comuna/${comunaIdQuery}/revertir-limpieza?inspectorId=${inspectorId}`, {
+      method: 'POST',
+      headers: getAuthHeaders()
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ message: 'Error al revertir limpieza' }));
+      throw new Error(err.message || 'No se pudo revertir la limpieza');
+    }
+    return await res.json();
   }
 };

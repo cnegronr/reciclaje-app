@@ -123,7 +123,7 @@ public class AdminBackupService {
         sql.append("-- 5. Tabla: inspecciones_semanales (%d registros)\n".formatted(inspecciones.size()));
         for (InspeccionSemanal ins : inspecciones) {
             sql.append("""
-                    INSERT INTO inspecciones_semanales (id, comuna_id, inspector_id, inspector_asociado_id, tipo_ruta, semana_numero, anio, fecha_limite, estado, creado_en) VALUES (%d, %s, %s, %s, %s, %d, %d, %s, %s, %s) ON CONFLICT (id) DO UPDATE SET comuna_id = EXCLUDED.comuna_id, inspector_id = EXCLUDED.inspector_id, inspector_asociado_id = EXCLUDED.inspector_asociado_id, tipo_ruta = EXCLUDED.tipo_ruta, semana_numero = EXCLUDED.semana_numero, anio = EXCLUDED.anio, fecha_limite = EXCLUDED.fecha_limite, estado = EXCLUDED.estado, creado_en = EXCLUDED.creado_en;
+                    INSERT INTO inspecciones_semanales (id, comuna_id, inspector_id, inspector_asociado_id, tipo_ruta, semana_numero, anio, fecha_limite, estado, respaldo_estado_previo, tiene_respaldo_limpieza, creado_en) VALUES (%d, %s, %s, %s, %s, %d, %d, %s, %s, %s, %b, %s) ON CONFLICT (id) DO UPDATE SET comuna_id = EXCLUDED.comuna_id, inspector_id = EXCLUDED.inspector_id, inspector_asociado_id = EXCLUDED.inspector_asociado_id, tipo_ruta = EXCLUDED.tipo_ruta, semana_numero = EXCLUDED.semana_numero, anio = EXCLUDED.anio, fecha_limite = EXCLUDED.fecha_limite, estado = EXCLUDED.estado, respaldo_estado_previo = EXCLUDED.respaldo_estado_previo, tiene_respaldo_limpieza = EXCLUDED.tiene_respaldo_limpieza, creado_en = EXCLUDED.creado_en;
                     """.formatted(
                     ins.getId(),
                     ins.getComuna() != null ? ins.getComuna().getId().toString() : "NULL",
@@ -134,6 +134,8 @@ public class AdminBackupService {
                     ins.getAnio(),
                     escapeTimestamp(ins.getFechaLimite()),
                     escapeSql(ins.getEstado() != null ? ins.getEstado().name() : "EN_PROGRESO"),
+                    escapeSql(ins.getRespaldoEstadoPrevio()),
+                    Boolean.TRUE.equals(ins.getTieneRespaldoLimpieza()),
                     escapeTimestamp(ins.getCreadoEn())
             ));
         }

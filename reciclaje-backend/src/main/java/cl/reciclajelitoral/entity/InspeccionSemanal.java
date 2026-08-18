@@ -52,6 +52,13 @@ public class InspeccionSemanal {
     @Column(name = "creado_en")
     private LocalDateTime creadoEn = LocalDateTime.now();
 
+    @Column(name = "respaldo_estado_previo", columnDefinition = "TEXT")
+    private String respaldoEstadoPrevio;
+
+    @Column(name = "tiene_respaldo_limpieza")
+    @Builder.Default
+    private Boolean tieneRespaldoLimpieza = false;
+
     @OneToMany(mappedBy = "inspeccionSemanal", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<DetalleInspeccion> detalles = new ArrayList<>();

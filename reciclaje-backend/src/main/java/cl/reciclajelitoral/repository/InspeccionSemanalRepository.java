@@ -16,6 +16,26 @@ public interface InspeccionSemanalRepository extends JpaRepository<InspeccionSem
             Long comunaId, Long inspectorId, Integer semanaNumero, Integer anio
     );
 
+    Optional<InspeccionSemanal> findFirstByComunaIdAndInspectorIdOrderByAnioDescSemanaNumeroDesc(
+            Long comunaId, Long inspectorId
+    );
+
+    List<InspeccionSemanal> findByComunaIdAndSemanaNumeroAndAnio(
+            Long comunaId, Integer semanaNumero, Integer anio
+    );
+
+    @Query("""
+        SELECT i FROM InspeccionSemanal i 
+        WHERE i.comuna.id = :comunaId 
+          AND (i.anio < :anioActual OR (i.anio = :anioActual AND i.semanaNumero < :semanaActual))
+        ORDER BY i.anio DESC, i.semanaNumero DESC
+    """)
+    List<InspeccionSemanal> findInspeccionesPreviasByComuna(
+            @org.springframework.data.repository.query.Param("comunaId") Long comunaId,
+            @org.springframework.data.repository.query.Param("semanaActual") Integer semanaActual,
+            @org.springframework.data.repository.query.Param("anioActual") Integer anioActual
+    );
+
     @Query("SELECT DISTINCT i.anio FROM InspeccionSemanal i WHERE i.anio IS NOT NULL ORDER BY i.anio DESC")
     List<Integer> findDistinctAnios();
 }

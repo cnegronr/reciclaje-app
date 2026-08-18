@@ -7,6 +7,7 @@ import { Header } from './components/Header';
 import { MapView } from './components/MapView';
 import { ContainerCard } from './components/ContainerCard';
 import { InspectionModal } from './components/InspectionModal';
+import TraspasoVisitasModal from './components/admin/TraspasoVisitasModal';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -16,6 +17,12 @@ export function App() {
   const [activeModalContenedor, setActiveModalContenedor] = useState(null);
   const [loadingComunas, setLoadingComunas] = useState(true);
   const [activeView, setActiveView] = useState('inspection'); // 'inspection' | 'admin'
+
+  // Estados para Traspaso de Visitas y Limpieza con Respaldo
+  const [isTraspasoModalOpen, setIsTraspasoModalOpen] = useState(false);
+  const [traspasoPreviewData, setTraspasoPreviewData] = useState(null);
+  const [loadingTraspaso, setLoadingTraspaso] = useState(false);
+  const [loadingLimpieza, setLoadingLimpieza] = useState(false);
 
   // Inicializar autenticación y cargar comunas desde el backend Spring Boot
   useEffect(() => {
@@ -38,22 +45,21 @@ export function App() {
   }, []);
 
   // Cargar registro de inspección semanal desde PostgreSQL cuando cambie la comuna o usuario
-  useEffect(() => {
+  const reloadInspeccion = async () => {
     if (currentUser && selectedComunaId) {
       const selectedComuna = comunas.find((c) => c.id === selectedComunaId);
       const backendComunaId = selectedComuna?.backendId || null;
-
-      const cargarInspeccion = async () => {
-        const record = await inspectionService.getInspeccionSemanal(
-          selectedComunaId,
-          currentUser.id,
-          backendComunaId
-        );
-        setInspeccionSemanal(record);
-      };
-
-      cargarInspeccion();
+      const record = await inspectionService.getInspeccionSemanal(
+        selectedComunaId,
+        currentUser.id,
+        backendComunaId
+      );
+      setInspeccionSemanal(record);
     }
+  };
+
+  useEffect(() => {
+    reloadInspeccion();
   }, [selectedComunaId, currentUser, comunas]);
 
   if (!currentUser) {
@@ -123,6 +129,81 @@ export function App() {
     alert('✅ ¡Ruta semanal finalizada exitosamente!');
   };
 
+  const handleAbrirTraspasoModal = async () => {
+    try {
+      setLoadingTraspaso(true);
+      const preview = await inspectionService.getPreviewTraspaso(
+        selectedComunaId,
+        currentUser.id,
+        selectedComuna.backendId
+      );
+      setTraspasoPreviewData(preview);
+      setIsTraspasoModalOpen(true);
+    } catch (err) {
+      alert(err.message || 'Error al obtener resumen de traspaso');
+    } finally {
+      setLoadingTraspaso(false);
+    }
+  };
+
+  const handleConfirmarTraspaso = async () => {
+    try {
+      setLoadingTraspaso(true);
+      await inspectionService.aplicarTraspaso(
+        selectedComunaId,
+        currentUser.id,
+        selectedComuna.backendId
+      );
+      await reloadInspeccion();
+      setIsTraspasoModalOpen(false);
+      alert('✅ Inspecciones de la semana previa traspasadas exitosamente.');
+    } catch (err) {
+      alert(err.message || 'Error al traspasar inspecciones');
+    } finally {
+      setLoadingTraspaso(false);
+    }
+  };
+
+  const handleLimpiarSemanaActual = async () => {
+    if (!window.confirm(`⚠️ ¿Estás seguro de que deseas limpiar todas las inspecciones de la semana actual en ${selectedComuna.nombre}?\n\nSe creará un respaldo automático que podrás revertir en cualquier momento.`)) {
+      return;
+    }
+    try {
+      setLoadingLimpieza(true);
+      await inspectionService.limpiarSemanaActual(
+        selectedComunaId,
+        currentUser.id,
+        selectedComuna.backendId
+      );
+      await reloadInspeccion();
+      alert('🧹 Semana actual limpiada exitosamente. Se guardó un respaldo para revertir si lo requieres.');
+    } catch (err) {
+      alert(err.message || 'Error al limpiar la semana actual');
+    } finally {
+      setLoadingLimpieza(false);
+    }
+  };
+
+  const handleRevertirLimpieza = async () => {
+    if (!window.confirm(`⏪ ¿Deseas deshacer la última limpieza realizada y restaurar el estado anterior de las inspecciones y fotos?`)) {
+      return;
+    }
+    try {
+      setLoadingLimpieza(true);
+      await inspectionService.revertirLimpieza(
+        selectedComunaId,
+        currentUser.id,
+        selectedComuna.backendId
+      );
+      await reloadInspeccion();
+      alert('⏪ Estado de la semana restaurado exitosamente desde el respaldo.');
+    } catch (err) {
+      alert(err.message || 'Error al revertir la limpieza');
+    } finally {
+      setLoadingLimpieza(false);
+    }
+  };
+
   return (
     <div className="app-main-layout">
       <Header
@@ -188,19 +269,52 @@ export function App() {
 
           {/* LISTADO DE CONTENEDORES DE LA COMUNA */}
           <section className="containers-section">
-            <div className="section-header-bar">
+            <div className="section-header-bar flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="section-title">📦 Contenedores en {selectedComuna.nombre}</h2>
                 <p className="section-subtitle">Categorías: EMPRESA (Máx 500kg) | MUNICIPAL (Máx 1000kg)</p>
               </div>
 
-              {inspeccionSemanal?.estado !== 'FINALIZADO' ? (
-                <button onClick={handleFinalizarRuta} className="finish-route-btn">
-                  🏁 Confirmar y Finalizar Ruta Semanal
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  onClick={handleAbrirTraspasoModal}
+                  disabled={loadingTraspaso || loadingLimpieza}
+                  className="action-btn action-btn-edit"
+                  style={{ background: 'rgba(20, 184, 166, 0.15)', color: '#2dd4bf', border: '1px solid rgba(45, 212, 191, 0.3)' }}
+                >
+                  📋 Traspasar Visitas Previas
                 </button>
-              ) : (
-                <span className="route-completed-badge">🔒 Ruta Confirmada (Editable en modo actualización)</span>
-              )}
+
+                <button
+                  type="button"
+                  onClick={handleLimpiarSemanaActual}
+                  disabled={loadingLimpieza}
+                  className="action-btn action-btn-delete"
+                >
+                  🧹 Limpiar Semana Actual
+                </button>
+
+                {inspeccionSemanal?.tieneRespaldoLimpieza && (
+                  <button
+                    type="button"
+                    onClick={handleRevertirLimpieza}
+                    disabled={loadingLimpieza}
+                    className="action-btn action-btn-primary"
+                    style={{ background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', border: '1px solid rgba(192, 132, 252, 0.4)' }}
+                  >
+                    ⏪ Revertir Limpieza
+                  </button>
+                )}
+
+                {inspeccionSemanal?.estado !== 'FINALIZADO' ? (
+                  <button onClick={handleFinalizarRuta} className="finish-route-btn">
+                    🏁 Confirmar y Finalizar Ruta Semanal
+                  </button>
+                ) : (
+                  <span className="route-completed-badge">🔒 Ruta Confirmada</span>
+                )}
+              </div>
             </div>
 
             <div className="containers-grid">
@@ -226,6 +340,15 @@ export function App() {
           onSave={handleSaveInspection}
         />
       )}
+
+      {/* MODAL DE TRASPASO DE VISITAS DE SEMANA PREVIA */}
+      <TraspasoVisitasModal
+        isOpen={isTraspasoModalOpen}
+        onClose={() => setIsTraspasoModalOpen(false)}
+        previewData={traspasoPreviewData}
+        loading={loadingTraspaso}
+        onConfirmTraspaso={handleConfirmarTraspaso}
+      />
     </div>
   );
 }

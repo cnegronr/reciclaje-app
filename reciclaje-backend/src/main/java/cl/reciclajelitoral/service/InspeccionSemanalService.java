@@ -12,8 +12,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.temporal.TemporalAdjusters;
 import java.time.temporal.WeekFields;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -28,6 +31,7 @@ public class InspeccionSemanalService {
     private final UsuarioRepository usuarioRepository;
     private final AsignacionInspectorRepository asignacionRepository;
     private final S3StorageService s3StorageService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public static final java.time.ZoneId CHILE_ZONE = java.time.ZoneId.of("America/Santiago");
 
@@ -355,11 +359,355 @@ public class InspeccionSemanalService {
                 .anio(i.getAnio())
                 .fechaLimite(i.getFechaLimite())
                 .estado(i.getEstado().name())
+                .tieneRespaldoLimpieza(Boolean.TRUE.equals(i.getTieneRespaldoLimpieza()))
                 .detalles(detallesDTO)
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public TraspasoPreviewDTO obtenerPreviewTraspasoVisitadas(Long comunaId, Long inspectorId) {
+        int semanaActual = cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber();
+        int anioActual = cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear();
+
+        int semanaOrigen = semanaActual > 1 ? semanaActual - 1 : 52;
+        int anioOrigen = semanaActual > 1 ? anioActual : anioActual - 1;
+
+        InspeccionSemanalDTO destDTO = obtenerOCrearInspeccionSemanal(comunaId, inspectorId);
+        InspeccionSemanal rutaDestino = inspeccionRepository.findById(destDTO.getId()).orElse(null);
+
+        long totalVisitadasDestinoActual = (rutaDestino != null)
+                ? rutaDestino.getDetalles().stream().filter(d -> Boolean.TRUE.equals(d.getVisitado())).count()
+                : 0L;
+
+        boolean permitido = totalVisitadasDestinoActual == 0;
+        String mensajeValidacion = permitido ?
+                "Traspaso permitido. La semana actual no tiene inspecciones ingresadas." :
+                "La semana actual ya contiene " + totalVisitadasDestinoActual + " inspección(es) ingresada(s). Debe limpiar la semana actual primero antes de traspasar desde la semana previa.";
+
+        // Buscar inspecciones origen de la semana previa considerando fecha efectiva
+        List<DetalleInspeccion> todasVisitadasComuna = detalleRepository.findVisitadasByComunaId(comunaId);
+
+        int targetSemana = semanaOrigen;
+        int targetAnio = anioOrigen;
+
+        List<DetalleInspeccion> visitadasOrigen = todasVisitadasComuna.stream()
+                .filter(d -> getEffectiveWeekNumber(d) == targetSemana && getEffectiveYear(d) == targetAnio)
+                .toList();
+
+        if (visitadasOrigen.isEmpty()) {
+            visitadasOrigen = todasVisitadasComuna.stream()
+                    .filter(d -> d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getSemanaNumero() == targetSemana && d.getInspeccionSemanal().getAnio() == targetAnio)
+                    .toList();
+        }
+
+        if (visitadasOrigen.isEmpty()) {
+            // Fallback: buscar la semana previa más reciente que SÍ contenga registros
+            List<DetalleInspeccion> previasComuna = todasVisitadasComuna.stream()
+                    .filter(d -> {
+                        int w = getEffectiveWeekNumber(d);
+                        int y = getEffectiveYear(d);
+                        return y < anioActual || (y == anioActual && w < semanaActual);
+                    })
+                    .sorted((a, b) -> {
+                        int cmpY = Integer.compare(getEffectiveYear(b), getEffectiveYear(a));
+                        if (cmpY != 0) return cmpY;
+                        return Integer.compare(getEffectiveWeekNumber(b), getEffectiveWeekNumber(a));
+                    })
+                    .toList();
+
+            if (!previasComuna.isEmpty()) {
+                DetalleInspeccion masReciente = previasComuna.get(0);
+                semanaOrigen = getEffectiveWeekNumber(masReciente);
+                anioOrigen = getEffectiveYear(masReciente);
+                int sO = semanaOrigen;
+                int aO = anioOrigen;
+                visitadasOrigen = previasComuna.stream()
+                        .filter(d -> getEffectiveWeekNumber(d) == sO && getEffectiveYear(d) == aO)
+                        .toList();
+            }
+        }
+
+        Map<Long, DetalleInspeccion> mapByContenedor = new HashMap<>();
+        for (DetalleInspeccion d : visitadasOrigen) {
+            if (d.getContenedor() != null && d.getContenedor().getId() != null) {
+                mapByContenedor.put(d.getContenedor().getId(), d);
+            }
+        }
+        List<DetalleInspeccion> visitadasUnicas = new ArrayList<>(mapByContenedor.values());
+
+        List<TraspasoPreviewDTO.DetalleItemPreview> itemsPreview = visitadasUnicas.stream()
+                .map(d -> TraspasoPreviewDTO.DetalleItemPreview.builder()
+                        .detalleId(d.getId())
+                        .contenedorId(d.getContenedor() != null ? d.getContenedor().getId() : null)
+                        .contenedorNombre(d.getContenedor() != null ? d.getContenedor().getNombrePunto() : "Contenedor")
+                        .comunaNombre(d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A")
+                        .categoria(d.getContenedor() != null && d.getContenedor().getCategoria() != null ? d.getContenedor().getCategoria().name() : "N/A")
+                        .porcentajeEstimado(d.getPorcentajeEstimado())
+                        .kilosCalculados(d.getKilosCalculados())
+                        .inspectorNombre(d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getNombre() : (d.getCreadoPorUsuario() != null ? d.getCreadoPorUsuario().getNombre() : "Sistema"))
+                        .fechaHoraInicial(d.getFechaHoraInicial())
+                        .observaciones(d.getObservaciones())
+                        .build())
+                .collect(Collectors.toList());
+
+        return TraspasoPreviewDTO.builder()
+                .semanaOrigen(semanaOrigen)
+                .anioOrigen(anioOrigen)
+                .semanaDestino(semanaActual)
+                .anioDestino(anioActual)
+                .permitidoTraspaso(permitido)
+                .mensajeValidacion(mensajeValidacion)
+                .totalVisitadasOrigen(itemsPreview.size())
+                .totalVisitadasDestinoActual(totalVisitadasDestinoActual)
+                .detallesVisitados(itemsPreview)
+                .build();
+    }
+
+    @Transactional
+    public InspeccionSemanalDTO aplicarTraspasoVisitadas(Long comunaId, Long inspectorId) {
+        TraspasoPreviewDTO preview = obtenerPreviewTraspasoVisitadas(comunaId, inspectorId);
+        if (!preview.isPermitidoTraspaso()) {
+            throw new IllegalStateException(preview.getMensajeValidacion());
+        }
+
+        InspeccionSemanalDTO rutaDestinoDTO = obtenerOCrearInspeccionSemanal(comunaId, inspectorId);
+        InspeccionSemanal rutaDestino = inspeccionRepository.findById(rutaDestinoDTO.getId()).orElseThrow();
+
+        List<DetalleInspeccion> todasVisitadasComuna = detalleRepository.findVisitadasByComunaId(comunaId);
+        int targetSemana = preview.getSemanaOrigen();
+        int targetAnio = preview.getAnioOrigen();
+
+        List<DetalleInspeccion> visitadasOrigen = todasVisitadasComuna.stream()
+                .filter(d -> (getEffectiveWeekNumber(d) == targetSemana && getEffectiveYear(d) == targetAnio) ||
+                             (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getSemanaNumero() == targetSemana && d.getInspeccionSemanal().getAnio() == targetAnio))
+                .toList();
+
+        Map<Long, DetalleInspeccion> mapByContenedor = new HashMap<>();
+        for (DetalleInspeccion d : visitadasOrigen) {
+            if (d.getContenedor() != null && d.getContenedor().getId() != null) {
+                mapByContenedor.put(d.getContenedor().getId(), d);
+            }
+        }
+
+        for (DetalleInspeccion dOrig : mapByContenedor.values()) {
+            Optional<DetalleInspeccion> dDestOpt = rutaDestino.getDetalles().stream()
+                    .filter(d -> d.getContenedor() != null && d.getContenedor().getId().equals(dOrig.getContenedor().getId()))
+                    .findFirst();
+
+            if (dDestOpt.isPresent()) {
+                DetalleInspeccion dDest = dDestOpt.get();
+                LocalDateTime ahora = LocalDateTime.now();
+                Usuario inspectorDestino = rutaDestino.getInspector();
+                dDest.setVisitado(true);
+                dDest.setPorcentajeEstimado(dOrig.getPorcentajeEstimado());
+                dDest.setKilosCalculados(dOrig.getKilosCalculados());
+                dDest.setPorcentajeEstimadoInicial(dOrig.getPorcentajeEstimadoInicial());
+                dDest.setKilosCalculadosInicial(dOrig.getKilosCalculadosInicial());
+                dDest.setObservaciones(dOrig.getObservaciones());
+                dDest.setObservacionesInicial(dOrig.getObservacionesInicial());
+                dDest.setFechaHoraInicial(ahora);
+                dDest.setFechaHoraActualizacion(ahora);
+                dDest.setCreadoPorUsuario(inspectorDestino != null ? inspectorDestino : dOrig.getCreadoPorUsuario());
+                dDest.setActualizadoPorUsuario(inspectorDestino != null ? inspectorDestino : dOrig.getActualizadoPorUsuario());
+
+                if (dOrig.getFotos() != null) {
+                    for (FotoInspeccion fOrig : dOrig.getFotos()) {
+                        boolean fotoExiste = dDest.getFotos().stream().anyMatch(f -> f.getUrlFoto() != null && f.getUrlFoto().equals(fOrig.getUrlFoto()));
+                        if (!fotoExiste) {
+                            FotoInspeccion nuevaFoto = FotoInspeccion.builder()
+                                    .detalleInspeccion(dDest)
+                                    .momento(fOrig.getMomento())
+                                    .urlFoto(fOrig.getUrlFoto())
+                                    .creadoEn(fOrig.getCreadoEn())
+                                    .usuario(fOrig.getUsuario())
+                                    .build();
+                            dDest.getFotos().add(nuevaFoto);
+                        }
+                    }
+                }
+            }
+        }
+
+        InspeccionSemanal guardada = inspeccionRepository.save(rutaDestino);
+        return convertirADTO(guardada);
+    }
+
+    public int getEffectiveWeekNumber(DetalleInspeccion d) {
+        LocalDateTime dt = getEffectiveLocalDateTime(d);
+        if (dt == null) {
+            return d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getSemanaNumero() : -1;
+        }
+        return cl.reciclajelitoral.util.WeekDateUtils.getWeekNumber(dt);
+    }
+
+    public int getEffectiveYear(DetalleInspeccion d) {
+        LocalDateTime dt = getEffectiveLocalDateTime(d);
+        if (dt == null) {
+            return d.getInspeccionSemanal() != null ? d.getInspeccionSemanal().getAnio() : -1;
+        }
+        return cl.reciclajelitoral.util.WeekDateUtils.getYear(dt);
+    }
+
+    private LocalDateTime getEffectiveLocalDateTime(DetalleInspeccion d) {
+        if (d.getFechaHoraInicial() != null) return d.getFechaHoraInicial();
+        if (d.getFechaHoraActualizacion() != null) return d.getFechaHoraActualizacion();
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getCreadoEn() != null) {
+            return d.getInspeccionSemanal().getCreadoEn();
+        }
+        return null;
+    }
+
+    @Transactional
+    public InspeccionSemanalDTO limpiarSemanaActualConRespaldo(Long comunaId, Long inspectorId) {
+        InspeccionSemanalDTO rutaDTO = obtenerOCrearInspeccionSemanal(comunaId, inspectorId);
+        InspeccionSemanal ruta = inspeccionRepository.findById(rutaDTO.getId()).orElseThrow();
+
+        try {
+            List<SnapshotItem> itemsSnapshot = ruta.getDetalles().stream()
+                    .map(d -> SnapshotItem.builder()
+                            .contenedorId(d.getContenedor() != null ? d.getContenedor().getId() : null)
+                            .visitado(d.getVisitado())
+                            .porcentajeEstimado(d.getPorcentajeEstimado())
+                            .kilosCalculados(d.getKilosCalculados())
+                            .porcentajeEstimadoInicial(d.getPorcentajeEstimadoInicial())
+                            .kilosCalculadosInicial(d.getKilosCalculadosInicial())
+                            .observaciones(d.getObservaciones())
+                            .observacionesInicial(d.getObservacionesInicial())
+                            .fechaHoraInicial(d.getFechaHoraInicial())
+                            .fechaHoraActualizacion(d.getFechaHoraActualizacion())
+                            .creadoPorUsuarioId(d.getCreadoPorUsuario() != null ? d.getCreadoPorUsuario().getId() : null)
+                            .actualizadoPorUsuarioId(d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getId() : null)
+                            .fotos(d.getFotos() != null ? d.getFotos().stream()
+                                    .map(f -> FotoSnapshotItem.builder()
+                                            .momento(f.getMomento() != null ? f.getMomento().name() : null)
+                                            .urlFoto(f.getUrlFoto())
+                                            .creadoEn(f.getCreadoEn())
+                                            .usuarioId(f.getUsuario() != null ? f.getUsuario().getId() : null)
+                                            .build())
+                                    .collect(Collectors.toList()) : List.of())
+                            .build())
+                    .collect(Collectors.toList());
+
+            String jsonSnapshot = objectMapper.writeValueAsString(itemsSnapshot);
+            ruta.setRespaldoEstadoPrevio(jsonSnapshot);
+            ruta.setTieneRespaldoLimpieza(true);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al generar el respaldo pre-limpieza: " + e.getMessage(), e);
+        }
+
+        for (DetalleInspeccion d : ruta.getDetalles()) {
+            d.setVisitado(false);
+            d.setPorcentajeEstimado(BigDecimal.ZERO);
+            d.setKilosCalculados(BigDecimal.ZERO);
+            d.setPorcentajeEstimadoInicial(null);
+            d.setKilosCalculadosInicial(null);
+            d.setObservaciones(null);
+            d.setObservacionesInicial(null);
+            d.setFechaHoraInicial(null);
+            d.setFechaHoraActualizacion(null);
+            d.getFotos().clear();
+        }
+
+        InspeccionSemanal guardada = inspeccionRepository.save(ruta);
+        return convertirADTO(guardada);
+    }
+
+    @Transactional
+    public InspeccionSemanalDTO revertirLimpiezaSemanaActual(Long comunaId, Long inspectorId) {
+        InspeccionSemanalDTO rutaDTO = obtenerOCrearInspeccionSemanal(comunaId, inspectorId);
+        InspeccionSemanal ruta = inspeccionRepository.findById(rutaDTO.getId()).orElseThrow();
+
+        if (!Boolean.TRUE.equals(ruta.getTieneRespaldoLimpieza()) || ruta.getRespaldoEstadoPrevio() == null) {
+            throw new IllegalStateException("No existe un respaldo pre-limpieza disponible para revertir.");
+        }
+
+        try {
+            List<SnapshotItem> items = objectMapper.readValue(ruta.getRespaldoEstadoPrevio(),
+                    objectMapper.getTypeFactory().constructCollectionType(List.class, SnapshotItem.class));
+
+            for (SnapshotItem item : items) {
+                Optional<DetalleInspeccion> dOpt = ruta.getDetalles().stream()
+                        .filter(d -> d.getContenedor() != null && d.getContenedor().getId().equals(item.getContenedorId()))
+                        .findFirst();
+
+                if (dOpt.isPresent()) {
+                    DetalleInspeccion d = dOpt.get();
+                    d.setVisitado(Boolean.TRUE.equals(item.getVisitado()));
+                    d.setPorcentajeEstimado(item.getPorcentajeEstimado());
+                    d.setKilosCalculados(item.getKilosCalculados());
+                    d.setPorcentajeEstimadoInicial(item.getPorcentajeEstimadoInicial());
+                    d.setKilosCalculadosInicial(item.getKilosCalculadosInicial());
+                    d.setObservaciones(item.getObservaciones());
+                    d.setObservacionesInicial(item.getObservacionesInicial());
+                    d.setFechaHoraInicial(item.getFechaHoraInicial());
+                    d.setFechaHoraActualizacion(item.getFechaHoraActualizacion());
+
+                    if (item.getCreadoPorUsuarioId() != null) {
+                        usuarioRepository.findById(item.getCreadoPorUsuarioId()).ifPresent(d::setCreadoPorUsuario);
+                    }
+                    if (item.getActualizadoPorUsuarioId() != null) {
+                        usuarioRepository.findById(item.getActualizadoPorUsuarioId()).ifPresent(d::setActualizadoPorUsuario);
+                    }
+
+                    d.getFotos().clear();
+                    if (item.getFotos() != null) {
+                        for (FotoSnapshotItem fSnap : item.getFotos()) {
+                            Usuario uFoto = fSnap.getUsuarioId() != null ? usuarioRepository.findById(fSnap.getUsuarioId()).orElse(null) : null;
+                            FotoInspeccion f = FotoInspeccion.builder()
+                                    .detalleInspeccion(d)
+                                    .momento(fSnap.getMomento() != null ? MomentoFoto.valueOf(fSnap.getMomento()) : MomentoFoto.INICIAL_ANTES)
+                                    .urlFoto(fSnap.getUrlFoto())
+                                    .creadoEn(fSnap.getCreadoEn() != null ? fSnap.getCreadoEn() : LocalDateTime.now())
+                                    .usuario(uFoto)
+                                    .build();
+                            d.getFotos().add(f);
+                        }
+                    }
+                }
+            }
+
+            ruta.setTieneRespaldoLimpieza(false);
+            ruta.setRespaldoEstadoPrevio(null);
+
+            InspeccionSemanal guardada = inspeccionRepository.save(ruta);
+            return convertirADTO(guardada);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al revertir la limpieza: " + e.getMessage(), e);
+        }
+    }
+
     private boolean tieneFotosLista(List<String> fotos) {
         return Optional.ofNullable(fotos).map(l -> !l.isEmpty()).orElse(false);
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class SnapshotItem {
+        private Long contenedorId;
+        private Boolean visitado;
+        private BigDecimal porcentajeEstimado;
+        private BigDecimal kilosCalculados;
+        private BigDecimal porcentajeEstimadoInicial;
+        private BigDecimal kilosCalculadosInicial;
+        private String observaciones;
+        private String observacionesInicial;
+        private LocalDateTime fechaHoraInicial;
+        private LocalDateTime fechaHoraActualizacion;
+        private Long creadoPorUsuarioId;
+        private Long actualizadoPorUsuarioId;
+        private List<FotoSnapshotItem> fotos;
+    }
+
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class FotoSnapshotItem {
+        private String momento;
+        private String urlFoto;
+        private LocalDateTime creadoEn;
+        private Long usuarioId;
     }
 }

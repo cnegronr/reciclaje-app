@@ -22,5 +22,6 @@ public class InspeccionSemanalDTO {
     private Integer anio;
     private LocalDateTime fechaLimite;
     private String estado;
+    private Boolean tieneRespaldoLimpieza;
     private List<DetalleInspeccionDTO> detalles;
 }

@@ -61,8 +61,13 @@ CREATE TABLE IF NOT EXISTS inspecciones_semanales (
     anio INT NOT NULL,
     fecha_limite TIMESTAMP NOT NULL,
     estado VARCHAR(20) DEFAULT 'EN_PROGRESO',
+    respaldo_estado_previo TEXT,
+    tiene_respaldo_limpieza BOOLEAN DEFAULT FALSE,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE inspecciones_semanales ADD COLUMN IF NOT EXISTS respaldo_estado_previo TEXT;
+ALTER TABLE inspecciones_semanales ADD COLUMN IF NOT EXISTS tiene_respaldo_limpieza BOOLEAN DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS detalle_inspecciones (
     id BIGSERIAL PRIMARY KEY,

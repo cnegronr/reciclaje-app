@@ -47,4 +47,36 @@ public class InspeccionController {
         InspeccionSemanalDTO resultado = inspeccionService.finalizarRutaSemanal(inspeccionId);
         return ResponseEntity.ok(resultado);
     }
+
+    @GetMapping("/comuna/{comunaId}/preview-traspaso")
+    public ResponseEntity<cl.reciclajelitoral.dto.TraspasoPreviewDTO> obtenerPreviewTraspaso(
+            @PathVariable Long comunaId,
+            @RequestParam(defaultValue = "1") Long inspectorId
+    ) {
+        return ResponseEntity.ok(inspeccionService.obtenerPreviewTraspasoVisitadas(comunaId, inspectorId));
+    }
+
+    @PostMapping("/comuna/{comunaId}/aplicar-traspaso")
+    public ResponseEntity<InspeccionSemanalDTO> aplicarTraspaso(
+            @PathVariable Long comunaId,
+            @RequestParam(defaultValue = "1") Long inspectorId
+    ) {
+        return ResponseEntity.ok(inspeccionService.aplicarTraspasoVisitadas(comunaId, inspectorId));
+    }
+
+    @PostMapping("/comuna/{comunaId}/limpiar-actual")
+    public ResponseEntity<InspeccionSemanalDTO> limpiarSemanaActual(
+            @PathVariable Long comunaId,
+            @RequestParam(defaultValue = "1") Long inspectorId
+    ) {
+        return ResponseEntity.ok(inspeccionService.limpiarSemanaActualConRespaldo(comunaId, inspectorId));
+    }
+
+    @PostMapping("/comuna/{comunaId}/revertir-limpieza")
+    public ResponseEntity<InspeccionSemanalDTO> revertirLimpiezaSemanaActual(
+            @PathVariable Long comunaId,
+            @RequestParam(defaultValue = "1") Long inspectorId
+    ) {
+        return ResponseEntity.ok(inspeccionService.revertirLimpiezaSemanaActual(comunaId, inspectorId));
+    }
 }

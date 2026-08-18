@@ -15,7 +15,10 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -29,6 +32,15 @@ public class AdminDashboardService {
     private final ComunaRepository comunaRepository;
     private final FotoInspeccionRepository fotoRepository;
 
+    private Usuario getUsuarioRelacionado(DetalleInspeccion d) {
+        if (d.getActualizadoPorUsuario() != null) return d.getActualizadoPorUsuario();
+        if (d.getCreadoPorUsuario() != null) return d.getCreadoPorUsuario();
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null) {
+            return d.getInspeccionSemanal().getInspector();
+        }
+        return null;
+    }
+
     private LocalDateTime getEffectiveLocalDateTime(DetalleInspeccion d) {
         if (d.getFechaHoraInicial() != null) return d.getFechaHoraInicial();
         if (d.getFechaHoraActualizacion() != null) return d.getFechaHoraActualizacion();
@@ -41,6 +53,22 @@ public class AdminDashboardService {
     private ZonedDateTime getEffectiveZonedDateTime(DetalleInspeccion d) {
         LocalDateTime dt = getEffectiveLocalDateTime(d);
         return dt != null ? dt.atZone(WeekDateUtils.CHILE_ZONE) : null;
+    }
+
+    private int getWeekOfDetalle(DetalleInspeccion d) {
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getSemanaNumero() != null && d.getInspeccionSemanal().getSemanaNumero() > 0) {
+            return d.getInspeccionSemanal().getSemanaNumero();
+        }
+        LocalDateTime dt = getEffectiveLocalDateTime(d);
+        return dt != null ? WeekDateUtils.getWeekNumber(dt) : -1;
+    }
+
+    private int getYearOfDetalle(DetalleInspeccion d) {
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getAnio() != null && d.getInspeccionSemanal().getAnio() > 0) {
+            return d.getInspeccionSemanal().getAnio();
+        }
+        LocalDateTime dt = getEffectiveLocalDateTime(d);
+        return dt != null ? WeekDateUtils.getYear(dt) : -1;
     }
 
     @Transactional(readOnly = true)
@@ -60,34 +88,38 @@ public class AdminDashboardService {
                     if (period == null || "HISTORIC".equalsIgnoreCase(period) || "ALL".equalsIgnoreCase(period)) {
                         return true;
                     }
-                    ZonedDateTime zdt = getEffectiveZonedDateTime(d);
-                    if (zdt == null) return false;
 
-                    if ("DAY".equalsIgnoreCase(period) || "TODAY".equalsIgnoreCase(period)) {
-                        return zdt.toLocalDate().equals(ahoraChile.toLocalDate());
-                    }
+                    int week = getWeekOfDetalle(d);
+                    int year = getYearOfDetalle(d);
+
                     if ("WEEK".equalsIgnoreCase(period) || "CURRENT_WEEK".equalsIgnoreCase(period)) {
-                        int week = WeekDateUtils.getWeekNumber(zdt.toLocalDateTime());
-                        int year = WeekDateUtils.getYear(zdt.toLocalDateTime());
                         return week == currentWeek && year == currentYear;
                     }
                     if ("PAST_WEEK".equalsIgnoreCase(period)) {
-                        int week = WeekDateUtils.getWeekNumber(zdt.toLocalDateTime());
-                        int year = WeekDateUtils.getYear(zdt.toLocalDateTime());
-                        return week == (currentWeek - 1) && year == currentYear;
+                        int pastWeek = currentWeek > 1 ? currentWeek - 1 : 52;
+                        int pastYear = currentWeek > 1 ? currentYear : currentYear - 1;
+                        return week == pastWeek && year == pastYear;
+                    }
+
+                    ZonedDateTime zdt = getEffectiveZonedDateTime(d);
+
+                    if ("DAY".equalsIgnoreCase(period) || "TODAY".equalsIgnoreCase(period)) {
+                        if (week == currentWeek && year == currentYear) return true;
+                        return zdt != null && zdt.toLocalDate().equals(ahoraChile.toLocalDate());
                     }
                     if ("MONTH".equalsIgnoreCase(period)) {
-                        return zdt.getMonth() == ahoraChile.getMonth() && zdt.getYear() == ahoraChile.getYear();
+                        if (week == currentWeek && year == currentYear) return true;
+                        return zdt != null && zdt.getMonth() == ahoraChile.getMonth() && zdt.getYear() == ahoraChile.getYear();
                     }
                     if ("YEAR".equalsIgnoreCase(period)) {
-                        return zdt.getYear() == ahoraChile.getYear();
+                        return year == currentYear;
                     }
                     return true;
                 })
                 .filter(d -> {
                     if (userId == null) return true;
-                    return (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(userId)) ||
-                           (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(userId));
+                    Usuario u = getUsuarioRelacionado(d);
+                    return u != null && u.getId().equals(userId);
                 })
                 .filter(d -> {
                     if (comunaId == null) return true;
@@ -95,7 +127,7 @@ public class AdminDashboardService {
                 })
                 .filter(d -> {
                     if (role == null || role.trim().isEmpty()) return true;
-                    Usuario u = d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario() : d.getCreadoPorUsuario();
+                    Usuario u = getUsuarioRelacionado(d);
                     return u != null && u.getRol() != null && u.getRol().name().equalsIgnoreCase(role.trim());
                 })
                 .filter(d -> {
@@ -105,11 +137,24 @@ public class AdminDashboardService {
                 })
                 .collect(Collectors.toList());
 
-        BigDecimal sumKilos = detallesVisitados.stream()
+        // Deduplicar detalles por contenedor, semana y año para evitar conteos dobles dentro del mismo periodo
+        Map<String, DetalleInspeccion> mapUnicos = new HashMap<>();
+        for (DetalleInspeccion d : detallesVisitados) {
+            Long contId = (d.getContenedor() != null) ? d.getContenedor().getId() : null;
+            if (contId != null) {
+                int week = getWeekOfDetalle(d);
+                int year = getYearOfDetalle(d);
+                String key = contId + "_" + week + "_" + year;
+                mapUnicos.put(key, d);
+            }
+        }
+        final List<DetalleInspeccion> detallesUnicos = new ArrayList<>(mapUnicos.values());
+
+        BigDecimal sumKilos = detallesUnicos.stream()
                 .map(d -> Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        double avgPorcentajeDouble = detallesVisitados.stream()
+        double avgPorcentajeDouble = detallesUnicos.stream()
                 .mapToDouble(d -> Optional.ofNullable(d.getPorcentajeEstimado()).map(BigDecimal::doubleValue).orElse(0.0))
                 .average()
                 .orElse(0.0);
@@ -120,14 +165,18 @@ public class AdminDashboardService {
                 .filter(u -> userId == null || u.getId().equals(userId))
                 .filter(u -> role == null || role.trim().isEmpty() || (u.getRol() != null && u.getRol().name().equalsIgnoreCase(role.trim())))
                 .map(u -> {
-                    long countInsp = detallesVisitados.stream()
-                            .filter(d -> (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(u.getId())) ||
-                                    (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(u.getId())))
+                    long countInsp = detallesUnicos.stream()
+                            .filter(d -> {
+                                Usuario uRel = getUsuarioRelacionado(d);
+                                return uRel != null && uRel.getId().equals(u.getId());
+                            })
                             .count();
 
-                    BigDecimal uKilos = detallesVisitados.stream()
-                            .filter(d -> (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(u.getId())) ||
-                                    (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(u.getId())))
+                    BigDecimal uKilos = detallesUnicos.stream()
+                            .filter(d -> {
+                                Usuario uRel = getUsuarioRelacionado(d);
+                                return uRel != null && uRel.getId().equals(u.getId());
+                            })
                             .map(d -> Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO))
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -138,7 +187,9 @@ public class AdminDashboardService {
                             .inspeccionesRealizadas(countInsp)
                             .kilosAcumulados(uKilos)
                             .build();
-                }).collect(Collectors.toList());
+                })
+                .filter(um -> userId != null || um.getInspeccionesRealizadas() > 0)
+                .collect(Collectors.toList());
 
         // Desglose por comuna
         List<DashboardMetricsDTO.ComunaMetricItem> comunaMetrics = comunas.stream()
@@ -149,7 +200,7 @@ public class AdminDashboardService {
                             .filter(cont -> cont.getComuna() != null && cont.getComuna().getId().equals(c.getId()))
                             .count();
 
-                    List<DetalleInspeccion> detallesComuna = detallesVisitados.stream()
+                    List<DetalleInspeccion> detallesComuna = detallesUnicos.stream()
                             .filter(d -> d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(c.getId()))
                             .collect(Collectors.toList());
 
@@ -171,14 +222,16 @@ public class AdminDashboardService {
                             .kilosRecolectados(cKilos)
                             .porcentajeLlenadoPromedio(BigDecimal.valueOf(cAvgPorc).setScale(2, RoundingMode.HALF_UP))
                             .build();
-                }).collect(Collectors.toList());
+                })
+                .filter(cm -> comunaId != null || cm.getInspeccionesCompletadas() > 0)
+                .collect(Collectors.toList());
 
         return DashboardMetricsDTO.builder()
                 .scope(scope != null ? scope : "ALL")
                 .period(period != null ? period : "HISTORIC")
                 .totalUsuarios((long) userMetrics.size())
                 .totalContenedores((long) contenedores.size())
-                .totalInspecciones((long) detallesVisitados.size())
+                .totalInspecciones((long) detallesUnicos.size())
                 .totalKilosCalculados(sumKilos)
                 .promedioPorcentajeLlenado(avgPorcentaje)
                 .totalFotosCargadas(totalFotos)

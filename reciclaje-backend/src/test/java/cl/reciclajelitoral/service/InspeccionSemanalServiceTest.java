@@ -47,6 +47,9 @@ class InspeccionSemanalServiceTest {
     @Mock
     private S3StorageService s3StorageService;
 
+    @org.mockito.Spy
+    private com.fasterxml.jackson.databind.ObjectMapper objectMapper = new com.fasterxml.jackson.databind.ObjectMapper().findAndRegisterModules();
+
     @InjectMocks
     private InspeccionSemanalService inspeccionService;
 
@@ -717,5 +720,144 @@ class InspeccionSemanalServiceTest {
         assertNull(dto.getDetalles().get(0).getActualizadoPorUsuarioNombre());
         assertNull(dto.getDetalles().get(0).getFotos().get(0).getUsuarioId());
         assertNull(dto.getDetalles().get(0).getFotos().get(0).getUsuarioNombre());
+    }
+
+    @Test
+    @DisplayName("Debe denegar traspaso si la semana actual ya contiene inspecciones visitadas")
+    void debeDenegarTraspasoSiSemanaActualTieneVisitas() {
+        int semAct = cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber();
+        int anioAct = cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear();
+        inspeccionSemanalMock.setSemanaNumero(semAct);
+        inspeccionSemanalMock.setAnio(anioAct);
+
+        DetalleInspeccion detVisitado = DetalleInspeccion.builder()
+                .id(101L)
+                .visitado(true)
+                .contenedor(contenedorEmpresaMock)
+                .build();
+        inspeccionSemanalMock.getDetalles().add(detVisitado);
+
+        lenient().when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
+        lenient().when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
+        lenient().when(inspeccionRepository.findById(1L)).thenReturn(Optional.of(inspeccionSemanalMock));
+        lenient().when(inspeccionRepository.findByComunaIdAndSemanaNumeroAndAnio(anyLong(), anyInt(), anyInt()))
+                .thenReturn(List.of(inspeccionSemanalMock));
+        lenient().when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(inspeccionSemanalMock));
+
+        cl.reciclajelitoral.dto.TraspasoPreviewDTO preview = inspeccionService.obtenerPreviewTraspasoVisitadas(1L, 1L);
+
+        assertNotNull(preview);
+        assertFalse(preview.isPermitidoTraspaso());
+        assertTrue(preview.getMensajeValidacion().contains("ya contiene"));
+    }
+
+    @Test
+    @DisplayName("Debe permitir traspaso si la semana actual está limpia y copiar las visitas de la semana previa")
+    void debePermitirYAplicarTraspasoCuandoSemanaActualEstaLimpia() {
+        int semAct = cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber();
+        int anioAct = cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear();
+
+        // Semana Destino (limpia)
+        InspeccionSemanal semanaDestino = InspeccionSemanal.builder()
+                .id(2L)
+                .comuna(comunaMock)
+                .inspector(usuarioMock)
+                .semanaNumero(semAct)
+                .anio(anioAct)
+                .estado(EstadoInspeccion.EN_PROGRESO)
+                .detalles(new ArrayList<>(List.of(
+                        DetalleInspeccion.builder().id(201L).visitado(false).contenedor(contenedorEmpresaMock).fotos(new ArrayList<>()).build()
+                )))
+                .build();
+
+        DetalleInspeccion detOrigen = DetalleInspeccion.builder()
+                .id(101L)
+                .visitado(true)
+                .contenedor(contenedorEmpresaMock)
+                .porcentajeEstimado(BigDecimal.valueOf(80))
+                .kilosCalculados(BigDecimal.valueOf(400))
+                .fotos(new ArrayList<>())
+                .build();
+
+        InspeccionSemanal rutaOrigenMock = InspeccionSemanal.builder()
+                .id(1L)
+                .comuna(comunaMock)
+                .inspector(usuarioMock)
+                .semanaNumero(semAct - 1)
+                .anio(anioAct)
+                .detalles(new ArrayList<>(List.of(detOrigen)))
+                .build();
+        detOrigen.setInspeccionSemanal(rutaOrigenMock);
+
+        lenient().when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(1L, 1L, semAct, anioAct))
+                .thenReturn(Optional.of(semanaDestino));
+        lenient().when(inspeccionRepository.findByComunaIdAndSemanaNumeroAndAnio(1L, semAct, anioAct))
+                .thenReturn(List.of(semanaDestino));
+        lenient().when(inspeccionRepository.findByComunaIdAndSemanaNumeroAndAnio(1L, semAct - 1, anioAct))
+                .thenReturn(List.of(rutaOrigenMock));
+        lenient().when(inspeccionRepository.findInspeccionesPreviasByComuna(anyLong(), anyInt(), anyInt()))
+                .thenReturn(List.of(rutaOrigenMock));
+        lenient().when(detalleRepository.findVisitadasByComunaId(anyLong()))
+                .thenReturn(List.of(detOrigen));
+        lenient().when(inspeccionRepository.findById(2L)).thenReturn(Optional.of(semanaDestino));
+        lenient().when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
+        lenient().when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
+        lenient().when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        cl.reciclajelitoral.dto.TraspasoPreviewDTO preview = inspeccionService.obtenerPreviewTraspasoVisitadas(1L, 1L);
+        assertTrue(preview.isPermitidoTraspaso());
+        assertEquals(1, preview.getTotalVisitadasOrigen());
+
+        InspeccionSemanalDTO result = inspeccionService.aplicarTraspasoVisitadas(1L, 1L);
+
+        assertNotNull(result);
+        assertTrue(result.getDetalles().get(0).getVisitado());
+        assertEquals(BigDecimal.valueOf(80), result.getDetalles().get(0).getPorcentajeEstimado());
+    }
+
+    @Test
+    @DisplayName("Debe limpiar la semana actual generando un respaldo y luego revertir exitosamente")
+    void debeLimpiarConRespaldoYRevertir() {
+        DetalleInspeccion detPrevio = DetalleInspeccion.builder()
+                .id(301L)
+                .visitado(true)
+                .contenedor(contenedorEmpresaMock)
+                .porcentajeEstimado(BigDecimal.valueOf(60))
+                .kilosCalculados(BigDecimal.valueOf(300))
+                .observaciones("Previo a limpiar")
+                .fotos(new ArrayList<>())
+                .build();
+
+        InspeccionSemanal rutaActual = InspeccionSemanal.builder()
+                .id(3L)
+                .comuna(comunaMock)
+                .inspector(usuarioMock)
+                .semanaNumero(cl.reciclajelitoral.util.WeekDateUtils.getCurrentWeekNumber())
+                .anio(cl.reciclajelitoral.util.WeekDateUtils.getCurrentYear())
+                .estado(EstadoInspeccion.EN_PROGRESO)
+                .detalles(new ArrayList<>(List.of(detPrevio)))
+                .build();
+
+        lenient().when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
+        lenient().when(comunaRepository.findById(1L)).thenReturn(Optional.of(comunaMock));
+        lenient().when(inspeccionRepository.findByComunaIdAndInspectorIdAndSemanaNumeroAndAnio(anyLong(), anyLong(), anyInt(), anyInt()))
+                .thenReturn(Optional.of(rutaActual));
+        lenient().when(inspeccionRepository.findById(3L)).thenReturn(Optional.of(rutaActual));
+        lenient().when(inspeccionRepository.save(any(InspeccionSemanal.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // 1. Limpiar semana actual con respaldo
+        InspeccionSemanalDTO limpiaDTO = inspeccionService.limpiarSemanaActualConRespaldo(1L, 1L);
+        assertNotNull(limpiaDTO);
+        assertFalse(limpiaDTO.getDetalles().get(0).getVisitado());
+        assertTrue(limpiaDTO.getTieneRespaldoLimpieza());
+
+        // 2. Revertir la limpieza
+        InspeccionSemanalDTO revertidaDTO = inspeccionService.revertirLimpiezaSemanaActual(1L, 1L);
+        assertNotNull(revertidaDTO);
+        assertTrue(revertidaDTO.getDetalles().get(0).getVisitado());
+        assertEquals(BigDecimal.valueOf(60), revertidaDTO.getDetalles().get(0).getPorcentajeEstimado());
+        assertEquals("Previo a limpiar", revertidaDTO.getDetalles().get(0).getObservaciones());
+        assertFalse(revertidaDTO.getTieneRespaldoLimpieza());
     }
 }
