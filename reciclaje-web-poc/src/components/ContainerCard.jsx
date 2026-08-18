@@ -19,6 +19,11 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
       </div>
 
       <div className="card-body">
+        {contenedor.sector && (
+          <span className="sector-tag" style={{ display: 'inline-block', fontSize: '0.75rem', fontWeight: '600', padding: '0.2rem 0.5rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', marginBottom: '0.5rem' }}>
+            🚩 {contenedor.sector}
+          </span>
+        )}
         <h3 className="container-title">{contenedor.nombrePunto}</h3>
         <p className="container-address">📍 {contenedor.ubicacion}</p>
 

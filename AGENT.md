@@ -9,7 +9,8 @@ This document provides architectural context, routing directives, and strict ope
 ### Directory Structure
 - **`/reciclaje-backend`**: Java 21, Spring Boot 3.2.3 (Maven)
     - REST APIs: Auth, weekly inspection management, container tracking, S3 image upload.
-    - Database: PostgreSQL 16 (H2 / Mockito for unit testing).
+    - Database: PostgreSQL 16 (H2 / Mockito for unit testing) with Flyway migrations (`src/main/resources/db/migration/`).
+    - Data Model: Containers include `sector` grouping per comuna (e.g. ALGARROBO SUR, EL TOTORAL, etc.).
     - Code Quality: Mandatory **100.00% JaCoCo instruction & branch coverage**.
 - **`/reciclaje-web-poc`**: React (JSX), Vite, Vanilla CSS
     - Field Web App for Inspectors and Choferes (Leaflet/MapLibre, camera, local storage).

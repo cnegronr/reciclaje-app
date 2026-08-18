@@ -16,6 +16,7 @@ public class ContainerAdminDTO {
     private Long id;
     private Long comunaId;
     private String comunaNombre;
+    private String sector;
     private String nombrePunto;
     private String ubicacionDescripcion;
     private CategoriaContenedor categoria;
@@ -28,6 +29,7 @@ public class ContainerAdminDTO {
     public Long getId() { return id; }
     public Long getComunaId() { return comunaId; }
     public String getComunaNombre() { return comunaNombre; }
+    public String getSector() { return sector; }
     public String getNombrePunto() { return nombrePunto; }
     public String getUbicacionDescripcion() { return ubicacionDescripcion; }
     public CategoriaContenedor getCategoria() { return categoria; }

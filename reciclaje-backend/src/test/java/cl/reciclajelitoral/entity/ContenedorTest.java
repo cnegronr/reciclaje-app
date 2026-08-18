@@ -62,4 +62,12 @@ class ContenedorTest {
 
         assertEquals(BigDecimal.ZERO, resultado);
     }
+
+    @Test
+    @DisplayName("Debe asignar y obtener el sector correctamente")
+    void getAndSetSector() {
+        Contenedor contenedor = new Contenedor();
+        contenedor.setSector("ALGARROBO SUR");
+        assertEquals("ALGARROBO SUR", contenedor.getSector());
+    }
 }

@@ -19,6 +19,7 @@ export const comunaService = {
             contenedores: (c.contenedores || []).map((cont) => ({
               id: String(cont.id),
               backendId: cont.id,
+              sector: cont.sector,
               nombrePunto: cont.nombrePunto,
               ubicacion: cont.ubicacionDescripcion,
               categoria: cont.categoria,

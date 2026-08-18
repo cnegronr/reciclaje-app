@@ -17,6 +17,9 @@ public class Contenedor {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "sector", length = 100)
+    private String sector;
+
     @Column(name = "nombre_punto", nullable = false, length = 150)
     private String nombrePunto;
 
@@ -57,6 +60,8 @@ public class Contenedor {
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
+    public String getSector() { return sector; }
+    public void setSector(String s) { this.sector = s; }
     public String getNombrePunto() { return nombrePunto; }
     public void setNombrePunto(String nombrePunto) { this.nombrePunto = nombrePunto; }
     public String getUbicacionDescripcion() { return ubicacionDescripcion; }

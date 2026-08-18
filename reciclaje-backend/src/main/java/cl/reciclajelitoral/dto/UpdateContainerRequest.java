@@ -18,6 +18,8 @@ public class UpdateContainerRequest {
     @NotNull(message = "La comuna es requerida")
     private Long comunaId;
 
+    private String sector;
+
     @NotBlank(message = "El nombre del punto es requerido")
     private String nombrePunto;
 
@@ -37,6 +39,7 @@ public class UpdateContainerRequest {
     private Boolean activo;
 
     public Long getComunaId() { return comunaId; }
+    public String getSector() { return sector; }
     public String getNombrePunto() { return nombrePunto; }
     public String getUbicacionDescripcion() { return ubicacionDescripcion; }
     public CategoriaContenedor getCategoria() { return categoria; }

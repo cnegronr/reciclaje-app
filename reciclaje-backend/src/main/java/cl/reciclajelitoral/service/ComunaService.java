@@ -32,6 +32,7 @@ public class ComunaService {
         List<ContenedorDTO> contenedoresDTO = c.getContenedores().stream()
                 .map(cont -> ContenedorDTO.builder()
                         .id(cont.getId())
+                        .sector(cont.getSector())
                         .nombrePunto(cont.getNombrePunto())
                         .ubicacionDescripcion(cont.getUbicacionDescripcion())
                         .categoria(cont.getCategoria().name())

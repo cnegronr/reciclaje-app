@@ -33,6 +33,7 @@ class ComunaServiceTest {
     void listarTodasLasComunas() {
         Contenedor contenedorMock = Contenedor.builder()
                 .id(100L)
+                .sector("EL TOTORAL")
                 .nombrePunto("Punto El Totoral")
                 .categoria(CategoriaContenedor.MUNICIPAL)
                 .kilosMaximos(BigDecimal.valueOf(1000))
@@ -53,6 +54,7 @@ class ComunaServiceTest {
         assertEquals(1, resultado.size());
         assertEquals("El Quisco", resultado.get(0).getNombre());
         assertEquals(1, resultado.get(0).getContenedores().size());
+        assertEquals("EL TOTORAL", resultado.get(0).getContenedores().get(0).getSector());
         assertEquals("Punto El Totoral", resultado.get(0).getContenedores().get(0).getNombrePunto());
     }
 

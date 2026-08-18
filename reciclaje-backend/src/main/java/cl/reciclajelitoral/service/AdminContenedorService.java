@@ -51,6 +51,7 @@ public class AdminContenedorService {
 
         Contenedor contenedor = Contenedor.builder()
                 .comuna(comuna)
+                .sector(req.getSector())
                 .nombrePunto(req.getNombrePunto())
                 .ubicacionDescripcion(req.getUbicacionDescripcion())
                 .categoria(req.getCategoria())
@@ -84,6 +85,7 @@ public class AdminContenedorService {
                 .orElseThrow(() -> new IllegalArgumentException("Comuna no encontrada con ID: " + req.getComunaId()));
 
         contenedor.setComuna(comuna);
+        if (req.getSector() != null) contenedor.setSector(req.getSector());
         contenedor.setNombrePunto(req.getNombrePunto());
         contenedor.setUbicacionDescripcion(req.getUbicacionDescripcion());
         contenedor.setCategoria(req.getCategoria());
@@ -136,6 +138,7 @@ public class AdminContenedorService {
                 .id(c.getId())
                 .comunaId(c.getComuna() != null ? c.getComuna().getId() : null)
                 .comunaNombre(c.getComuna() != null ? c.getComuna().getNombre() : null)
+                .sector(c.getSector())
                 .nombrePunto(c.getNombrePunto())
                 .ubicacionDescripcion(c.getUbicacionDescripcion())
                 .categoria(c.getCategoria())

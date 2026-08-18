@@ -7,7 +7,8 @@ Aplicación web y microservicio REST para el registro, georreferenciación, insp
 ## 🛠️ Arquitectura y Tecnologías
 
 * **Backend:** Java 21, Spring Boot 3.2.3, Spring Security (JWT Stateless Authentication), Spring Data JPA, Hibernate.
-* **Base de Datos:** PostgreSQL 16 (persistencia de usuarios, comunas, contenedores, inspecciones semanales y registros fotográficos).
+* **Base de Datos & Migraciones:** PostgreSQL 16 con Flyway para control de versiones de BD (`db/migration/`) e inicialización automática vía `init-data.sql`.
+* **Organización de Contenedores:** Clasificación por comuna y agrupamiento por `sector` (Algarrobo: 43 contenedores georreferenciados en 5 sectores; El Quisco: 67 contenedores en 7 sectores).
 * **Almacenamiento de Fotos:** Amazon S3 con URLs Firmadas Presignadas (`S3Presigner` HMAC-SHA256 7 días) y compresión automática de imágenes (JPEG 75% max 1280px). Modo de simulación local Base64 cuando no se proveen credenciales de AWS.
 * **Frontend:** React 18, Vite 8, CSS3 Vanilla (Diseño adaptable glassmorphic).
 * **Contenedorización & Orquestación:** Docker, Docker Compose, Nginx (Proxy inverso).

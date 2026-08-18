@@ -1,4 +1,4 @@
--- Esquema DDL SQL de Inicialización para Reciclaje Litoral
+-- V1__initial_schema.sql: Esquema DDL inicial para Reciclaje Litoral
 
 CREATE TABLE IF NOT EXISTS usuarios (
     id BIGSERIAL PRIMARY KEY,
@@ -10,8 +10,6 @@ CREATE TABLE IF NOT EXISTS usuarios (
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;
-
 CREATE TABLE IF NOT EXISTS comunas (
     id BIGSERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
@@ -21,7 +19,6 @@ CREATE TABLE IF NOT EXISTS comunas (
 CREATE TABLE IF NOT EXISTS contenedores (
     id BIGSERIAL PRIMARY KEY,
     comuna_id BIGINT REFERENCES comunas(id) ON DELETE CASCADE,
-    sector VARCHAR(100),
     nombre_punto VARCHAR(150) NOT NULL,
     ubicacion_descripcion TEXT,
     categoria VARCHAR(20) CHECK (categoria IN ('EMPRESA', 'MUNICIPAL')),
@@ -32,9 +29,6 @@ CREATE TABLE IF NOT EXISTS contenedores (
     activo BOOLEAN DEFAULT TRUE,
     CONSTRAINT unique_contenedor_comuna_punto UNIQUE (comuna_id, nombre_punto, ubicacion_descripcion)
 );
-
-ALTER TABLE contenedores ADD COLUMN IF NOT EXISTS activo BOOLEAN DEFAULT TRUE;
-ALTER TABLE contenedores ADD COLUMN IF NOT EXISTS sector VARCHAR(100);
 
 CREATE TABLE IF NOT EXISTS outbox_events (
     id BIGSERIAL PRIMARY KEY,
@@ -67,9 +61,6 @@ CREATE TABLE IF NOT EXISTS inspecciones_semanales (
     tiene_respaldo_limpieza BOOLEAN DEFAULT FALSE,
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
-ALTER TABLE inspecciones_semanales ADD COLUMN IF NOT EXISTS respaldo_estado_previo TEXT;
-ALTER TABLE inspecciones_semanales ADD COLUMN IF NOT EXISTS tiene_respaldo_limpieza BOOLEAN DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS detalle_inspecciones (
     id BIGSERIAL PRIMARY KEY,

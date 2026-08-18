@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class ContenedorDTO {
     private Long id;
+    private String sector;
     private String nombrePunto;
     private String ubicacionDescripcion;
     private String categoria;

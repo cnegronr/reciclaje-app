@@ -99,6 +99,16 @@ export function App() {
     .filter((d) => d.visitado)
     .reduce((sum, d) => sum + (d.kilosCalculados || 0), 0);
 
+  // Agrupar contenedores por sector manteniendo el orden
+  const groupedContenedores = (selectedComuna.contenedores || []).reduce((acc, contenedor) => {
+    const secName = contenedor.sector || 'Sin Sector';
+    if (!acc[secName]) {
+      acc[secName] = [];
+    }
+    acc[secName].push(contenedor);
+    return acc;
+  }, {});
+
   const handleSaveInspection = async (contenedorId, inspectionData, isEditing) => {
     const backendContenedorId = activeModalContenedor?.backendId || contenedorId;
 
@@ -317,16 +327,42 @@ export function App() {
               </div>
             </div>
 
-            <div className="containers-grid">
-              {(selectedComuna.contenedores || []).map((contenedor) => (
-                <ContainerCard
-                  key={contenedor.id}
-                  contenedor={contenedor}
-                  detalleInspeccion={detallesMap[contenedor.id]}
-                  onInspect={(c) => setActiveModalContenedor(c)}
-                />
-              ))}
-            </div>
+            {Object.entries(groupedContenedores).map(([sectorName, items]) => (
+              <div key={sectorName} className="sector-group-block" style={{ marginBottom: '2.5rem' }}>
+                <div
+                  className="sector-header-banner"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.75rem 1.25rem',
+                    margin: '1.25rem 0 1rem 0',
+                    borderRadius: '8px',
+                    background: 'rgba(59, 130, 246, 0.1)',
+                    borderLeft: '4px solid #3b82f6',
+                    color: 'var(--text-main, #1e293b)'
+                  }}
+                >
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: '600' }}>
+                    📍 Sector: {sectorName}
+                  </h3>
+                  <span style={{ fontSize: '0.9rem', fontWeight: '500', opacity: 0.85 }}>
+                    {items.length} {items.length === 1 ? 'contenedor' : 'contenedores'}
+                  </span>
+                </div>
+
+                <div className="containers-grid">
+                  {items.map((contenedor) => (
+                    <ContainerCard
+                      key={contenedor.id}
+                      contenedor={contenedor}
+                      detalleInspeccion={detallesMap[contenedor.id]}
+                      onInspect={(c) => setActiveModalContenedor(c)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
           </section>
         </main>
       )}
