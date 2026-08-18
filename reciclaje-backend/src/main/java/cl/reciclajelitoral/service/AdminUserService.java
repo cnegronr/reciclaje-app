@@ -26,10 +26,18 @@ public class AdminUserService {
     private final ComunaRepository comunaRepository;
     private final AsignacionInspectorRepository asignacionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
     @Transactional(readOnly = true)
     public List<UserAdminDTO> getAllUsers() {
         return usuarioRepository.findAll().stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserAdminDTO> getActiveUsers() {
+        return usuarioRepository.findByActivoTrue().stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -112,6 +120,26 @@ public class AdminUserService {
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
         usuario.setActivo(false);
         usuarioRepository.save(usuario);
+    }
+
+    @Transactional
+    public void hardDeleteUser(Long id) {
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+
+        // 1. Eliminar asignaciones de inspector asociadas
+        asignacionRepository.deleteByInspectorId(id);
+
+        // 2. Desvincular claves foráneas en tablas relacionadas desvinculando el FK sin eliminar registros de inspección históricos
+        jdbcTemplate.update("UPDATE detalle_inspecciones SET creado_por_usuario_id = NULL WHERE creado_por_usuario_id = ?", id);
+        jdbcTemplate.update("UPDATE detalle_inspecciones SET actualizado_por_usuario_id = NULL WHERE actualizado_por_usuario_id = ?", id);
+        jdbcTemplate.update("UPDATE inspecciones_semanales SET inspector_id = NULL WHERE inspector_id = ?", id);
+        jdbcTemplate.update("UPDATE inspecciones_semanales SET inspector_asociado_id = NULL WHERE inspector_asociado_id = ?", id);
+        jdbcTemplate.update("UPDATE actualizaciones_detalle SET usuario_id = NULL WHERE usuario_id = ?", id);
+        jdbcTemplate.update("UPDATE fotos_inspeccion SET subido_por_usuario_id = NULL WHERE subido_por_usuario_id = ?", id);
+
+        // 3. Eliminar usuario de la base de datos
+        usuarioRepository.delete(usuario);
     }
 
     private UserAdminDTO toDTO(Usuario u) {

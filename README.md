@@ -158,13 +158,27 @@ docker compose up -d --remove-orphans
 
 ## 📋 Reglas de Negocio Integradas
 
-1. **Categorías de Contenedores:**
+1. **Asignación Única de Inspectores por Comuna:**
+   * Cada comuna posee a lo sumo **un único inspector asignado** (`CONSTRAINT unique_comuna_inspector UNIQUE (comuna_id)`).
+   * Los inspectores acceden únicamente a sus comunas asignadas (ej. Carlos Negrón en *El Quisco* y *Algarrobo*).
+   * Los administradores y choferes tienen acceso global a todas las comunas y contenedores.
+
+2. **Categorías de Contenedores:**
    * `EMPRESA`: Capacidad máxima de 500 kg. Cálculo: `(porcentaje / 100) * 500.0`.
    * `MUNICIPAL`: Capacidad máxima de 1000 kg. Cálculo: `(porcentaje / 100) * 1000.0`.
 
-2. **Georreferenciación & Navegación GPS:**
+3. **Georreferenciación & Navegación GPS:**
    * En la ficha de cada contenedor y en el **Mapa de Georreferenciación**, el botón **`🚘 Manejar hacia ubicación`** abre Google Maps Directions (`/maps/dir/?api=1&destination={lat},{lng}&travelmode=driving`), calculando la ruta en tiempo real desde la ubicación GPS del dispositivo.
 
-3. **Historial de Inspección y Fotos:**
-   * Cada actualización registra una entrada discreta con su fecha/hora en `actualizacionesHistorial`.
-   * Si en una actualización no se suben fotos nuevas, el registro conserva las fotografías de la actualización previa sin sobrescribirlas.
+4. **Traspaso de Visitas y Limpieza de Semana:**
+   * Solamente los usuarios con **`ROL = ADMIN`** pueden ejecutar y previsualizar el traspaso de visitas previas a la semana actual.
+   * Los Inspectores disponen de las funciones de limpieza de semana actual y de la acción de reversión inmediata (**`⏪ Deshacer ÚLTIMA Acción`**).
+
+5. **Gestión de Usuarios y Borrado Definitivo (Hard Delete):**
+   * En la vista de administración de usuarios, la reasignación de comunas presenta distintivos y advertencias de confirmación antes de transferir comunas de un inspector a otro.
+   * Los usuarios inactivos pueden ser **eliminados definitivamente de la base de datos** (`hard-delete`), desvinculando de forma segura las claves foráneas en historiales sin alterar o perder los registros de inspección, kilos recolectados o fotografías históricas.
+
+6. **Dashboard de Métricas Simplificado & Filtros:**
+   * Interfaz simplificada y amigable con filtros por periodo (Esta Semana, Semana Anterior, Hoy, Este Mes, Histórico), inspector activo y comuna.
+   * Omite la visualización de usuarios inactivos en todos los selectores de filtro del sistema.
+

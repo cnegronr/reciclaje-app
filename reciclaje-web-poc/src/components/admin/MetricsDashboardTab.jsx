@@ -57,29 +57,14 @@ export default function MetricsDashboardTab() {
   return (
     <div className="metrics-dashboard">
       <div style={{ marginBottom: '1.25rem' }}>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📈 Dashboard de Métricas Configurables</h3>
-        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Filtre métricas consolidadas por periodo de tiempo, comuna, tipo de usuario o región.</p>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📈 Dashboard de Métricas</h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Resumen consolidado de inspecciones y volumen recolectado por periodo e inspector.</p>
       </div>
 
-      {/* Filtros de Consolidado y Período */}
-      <div className="filter-grid" style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1.25rem' }}>
-        <div>
-          <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Agrupación / Scope:</label>
-          <select
-            className="select-control"
-            value={filters.scope}
-            onChange={e => setFilters({ ...filters, scope: e.target.value })}
-          >
-            <option value="ALL">Todos los Usuarios</option>
-            <option value="INDIVIDUAL">Usuario Individual</option>
-            <option value="COMUNA">Por Comuna</option>
-            <option value="ROLE">Por Tipo (ROL)</option>
-            <option value="REGION">Por Región</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Período de Tiempo:</label>
+      {/* Controles de Filtro Simplificados */}
+      <div className="filter-grid" style={{ background: 'rgba(15, 23, 42, 0.6)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', padding: '1rem', display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ flex: '1', minWidth: '180px' }}>
+          <label className="field-label" style={{ marginBottom: '0.35rem', display: 'block', fontSize: '0.8rem' }}>🗓️ Período de Tiempo:</label>
           <select
             className="select-control"
             value={filters.period}
@@ -94,60 +79,47 @@ export default function MetricsDashboardTab() {
           </select>
         </div>
 
-        {(filters.scope === 'INDIVIDUAL' || filters.scope === 'ALL') && (
-          <div>
-            <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Usuario / Inspector:</label>
-            <select
-              className="select-control"
-              value={filters.userId}
-              onChange={e => {
-                const uVal = e.target.value;
-                setFilters({
-                  ...filters,
-                  userId: uVal,
-                  scope: uVal ? 'INDIVIDUAL' : 'ALL'
-                });
-              }}
-            >
-              <option value="">Todos los Usuarios</option>
-              {users.map(u => (
-                <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
-              ))}
-            </select>
-          </div>
-        )}
+        <div style={{ flex: '1', minWidth: '180px' }}>
+          <label className="field-label" style={{ marginBottom: '0.35rem', display: 'block', fontSize: '0.8rem' }}>👤 Inspector / Usuario:</label>
+          <select
+            className="select-control"
+            value={filters.userId}
+            onChange={e => {
+              const uVal = e.target.value;
+              setFilters({
+                ...filters,
+                userId: uVal,
+                scope: uVal ? 'INDIVIDUAL' : filters.comunaId ? 'COMUNA' : 'ALL'
+              });
+            }}
+          >
+            <option value="">Todos los Usuarios Activos</option>
+            {users.filter(u => u.activo).map(u => (
+              <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
+            ))}
+          </select>
+        </div>
 
-        {filters.scope === 'COMUNA' && (
-          <div>
-            <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Comuna:</label>
-            <select
-              className="select-control"
-              value={filters.comunaId}
-              onChange={e => setFilters({ ...filters, comunaId: e.target.value })}
-            >
-              <option value="">Todas las Comunas</option>
-              {comunas.map(c => (
-                <option key={c.id} value={c.backendId || c.id}>{c.nombre}</option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {filters.scope === 'ROLE' && (
-          <div>
-            <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Rol:</label>
-            <select
-              className="select-control"
-              value={filters.role}
-              onChange={e => setFilters({ ...filters, role: e.target.value })}
-            >
-              <option value="">Todos los Roles</option>
-              <option value="INSPECTOR">INSPECTOR</option>
-              <option value="CHOFER">CHOFER</option>
-              <option value="ADMIN">ADMIN</option>
-            </select>
-          </div>
-        )}
+        <div style={{ flex: '1', minWidth: '180px' }}>
+          <label className="field-label" style={{ marginBottom: '0.35rem', display: 'block', fontSize: '0.8rem' }}>📍 Comuna:</label>
+          <select
+            className="select-control"
+            value={filters.comunaId}
+            onChange={e => {
+              const cVal = e.target.value;
+              setFilters({
+                ...filters,
+                comunaId: cVal,
+                scope: cVal ? 'COMUNA' : filters.userId ? 'INDIVIDUAL' : 'ALL'
+              });
+            }}
+          >
+            <option value="">Todas las Comunas</option>
+            {comunas.map(c => (
+              <option key={c.id} value={c.backendId || c.id}>{c.nombre}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {loading ? (

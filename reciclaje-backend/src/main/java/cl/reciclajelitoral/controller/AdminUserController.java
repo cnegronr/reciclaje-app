@@ -20,7 +20,10 @@ public class AdminUserController {
     private final AdminUserService adminUserService;
 
     @GetMapping
-    public ResponseEntity<List<UserAdminDTO>> getAllUsers() {
+    public ResponseEntity<List<UserAdminDTO>> getAllUsers(@RequestParam(required = false) Boolean activeOnly) {
+        if (Boolean.TRUE.equals(activeOnly)) {
+            return ResponseEntity.ok(adminUserService.getActiveUsers());
+        }
         return ResponseEntity.ok(adminUserService.getAllUsers());
     }
 
@@ -37,6 +40,12 @@ public class AdminUserController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         adminUserService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @DeleteMapping("/{id}/hard-delete")
+    public ResponseEntity<Void> hardDeleteUser(@PathVariable Long id) {
+        adminUserService.hardDeleteUser(id);
         return ResponseEntity.noContent().build();
     }
 }

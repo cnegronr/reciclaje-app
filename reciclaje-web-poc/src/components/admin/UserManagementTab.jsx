@@ -91,6 +91,17 @@ export default function UserManagementTab() {
     }
   };
 
+  const handleHardDelete = async (id, nombre) => {
+    if (window.confirm(`⚠️ ¿Deseas eliminar DEFINITIVAMENTE al usuario "${nombre}" de la base de datos?\n\nLos registros históricos de inspección se mantendrán intactos. Esta acción no se puede deshacer.`)) {
+      try {
+        await adminService.hardDeleteUser(id);
+        loadData();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  };
+
   const toggleComuna = (cId) => {
     const isAdding = !formData.comunaIds.includes(cId);
 
@@ -186,9 +197,13 @@ export default function UserManagementTab() {
                       <button className="action-btn action-btn-edit" onClick={() => handleOpenModal(u)}>
                         ✏️ Editar
                       </button>
-                      {u.activo && (
+                      {u.activo ? (
                         <button className="action-btn action-btn-delete" onClick={() => handleDelete(u.id)}>
                           🚫 Desactivar
+                        </button>
+                      ) : (
+                        <button className="action-btn action-btn-delete" style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)' }} onClick={() => handleHardDelete(u.id, u.nombre)}>
+                          🗑️ Eliminar Definitivamente
                         </button>
                       )}
                     </div>

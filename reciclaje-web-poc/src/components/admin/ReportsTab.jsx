@@ -243,8 +243,8 @@ export default function ReportsTab() {
               value={selectedUser}
               onChange={e => setSelectedUser(e.target.value)}
             >
-              <option value="">Todos los Usuarios</option>
-              {users.map(u => (
+              <option value="">Todos los Usuarios Activos</option>
+              {users.filter(u => u.activo).map(u => (
                 <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
               ))}
             </select>

@@ -37,6 +37,9 @@ class AdminUserServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
+    @Mock
+    private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
     @InjectMocks
     private AdminUserService adminUserService;
 
@@ -60,6 +63,18 @@ class AdminUserServiceTest {
         when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
 
         List<UserAdminDTO> result = adminUserService.getAllUsers();
+
+        assertNotNull(result);
+        assertEquals(1, result.size());
+        assertEquals("Admin Test", result.get(0).getNombre());
+    }
+
+    @Test
+    void shouldGetActiveUsers() {
+        when(usuarioRepository.findByActivoTrue()).thenReturn(List.of(adminUser));
+        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+
+        List<UserAdminDTO> result = adminUserService.getActiveUsers();
 
         assertNotNull(result);
         assertEquals(1, result.size());
@@ -93,5 +108,85 @@ class AdminUserServiceTest {
         assertNotNull(dto);
         assertEquals("Nuevo Inspector", dto.getNombre());
         verify(usuarioRepository).save(any(Usuario.class));
+    }
+
+    @Test
+    void shouldThrowWhenCreateUserEmailExists() {
+        CreateUserRequest req = CreateUserRequest.builder()
+                .nombre("Nuevo Inspector")
+                .email("existente@test.cl")
+                .password("Pass123!")
+                .rol(Rol.INSPECTOR)
+                .build();
+
+        when(usuarioRepository.existsByEmail("existente@test.cl")).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> adminUserService.createUser(req));
+    }
+
+    @Test
+    void shouldUpdateUserSuccessfully() {
+        cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                .nombre("Admin Modificado")
+                .email("admin@test.cl")
+                .password("NewPass123!")
+                .rol(Rol.ADMIN)
+                .activo(true)
+                .comunaIds(List.of(10L))
+                .build();
+
+        Comuna comuna = Comuna.builder().id(10L).nombre("El Quisco").build();
+
+        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(passwordEncoder.encode("NewPass123!")).thenReturn("newEncodedPass");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+        when(comunaRepository.findAllById(List.of(10L))).thenReturn(List.of(comuna));
+        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+
+        UserAdminDTO dto = adminUserService.updateUser(1L, req);
+
+        assertNotNull(dto);
+        assertEquals("Admin Modificado", dto.getNombre());
+    }
+
+    @Test
+    void shouldThrowWhenUpdateUserDuplicateEmail() {
+        cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                .nombre("Admin Modificado")
+                .email("otro@test.cl")
+                .build();
+
+        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(usuarioRepository.existsByEmail("otro@test.cl")).thenReturn(true);
+
+        assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(1L, req));
+    }
+
+    @Test
+    void shouldDeleteUserSoftly() {
+        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+
+        adminUserService.deleteUser(1L);
+
+        assertFalse(adminUser.getActivo());
+        verify(usuarioRepository).save(adminUser);
+    }
+
+    @Test
+    void shouldHardDeleteUserSuccessfully() {
+        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+
+        adminUserService.hardDeleteUser(1L);
+
+        verify(asignacionRepository).deleteByInspectorId(1L);
+        verify(jdbcTemplate, times(6)).update(anyString(), eq(1L));
+        verify(usuarioRepository).delete(adminUser);
+    }
+
+    @Test
+    void shouldThrowWhenHardDeleteUserNotFound() {
+        when(usuarioRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+
+        assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(999L));
     }
 }

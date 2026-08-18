@@ -104,11 +104,9 @@ public class AdminDashboardService {
                     ZonedDateTime zdt = getEffectiveZonedDateTime(d);
 
                     if ("DAY".equalsIgnoreCase(period) || "TODAY".equalsIgnoreCase(period)) {
-                        if (week == currentWeek && year == currentYear) return true;
                         return zdt != null && zdt.toLocalDate().equals(ahoraChile.toLocalDate());
                     }
                     if ("MONTH".equalsIgnoreCase(period)) {
-                        if (week == currentWeek && year == currentYear) return true;
                         return zdt != null && zdt.getMonth() == ahoraChile.getMonth() && zdt.getYear() == ahoraChile.getYear();
                     }
                     if ("YEAR".equalsIgnoreCase(period)) {
@@ -159,6 +157,15 @@ public class AdminDashboardService {
                 .average()
                 .orElse(0.0);
         BigDecimal avgPorcentaje = BigDecimal.valueOf(avgPorcentajeDouble).setScale(2, RoundingMode.HALF_UP);
+
+        List<Contenedor> contenedoresFiltrados = contenedores.stream()
+                .filter(cont -> comunaId == null || (cont.getComuna() != null && cont.getComuna().getId().equals(comunaId)))
+                .filter(cont -> region == null || region.trim().isEmpty() || (cont.getComuna() != null && region.equalsIgnoreCase(cont.getComuna().getCodigoRegion())))
+                .collect(Collectors.toList());
+
+        long countFotosFiltradas = detallesUnicos.stream()
+                .mapToLong(d -> d.getFotos() != null ? d.getFotos().size() : 0L)
+                .sum();
 
         // Desglose por usuario
         List<DashboardMetricsDTO.UserMetricItem> userMetrics = usuarios.stream()
@@ -230,11 +237,11 @@ public class AdminDashboardService {
                 .scope(scope != null ? scope : "ALL")
                 .period(period != null ? period : "HISTORIC")
                 .totalUsuarios((long) userMetrics.size())
-                .totalContenedores((long) contenedores.size())
+                .totalContenedores((long) contenedoresFiltrados.size())
                 .totalInspecciones((long) detallesUnicos.size())
                 .totalKilosCalculados(sumKilos)
                 .promedioPorcentajeLlenado(avgPorcentaje)
-                .totalFotosCargadas(totalFotos)
+                .totalFotosCargadas(countFotosFiltradas > 0 ? countFotosFiltradas : totalFotos)
                 .userMetrics(userMetrics)
                 .comunaMetrics(comunaMetrics)
                 .build();

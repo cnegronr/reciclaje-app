@@ -8,4 +8,5 @@ public interface AsignacionInspectorRepository extends JpaRepository<AsignacionI
     List<AsignacionInspector> findByInspectorId(Long inspectorId);
     List<AsignacionInspector> findByComunaId(Long comunaId);
     void deleteByComunaId(Long comunaId);
+    void deleteByInspectorId(Long inspectorId);
 }

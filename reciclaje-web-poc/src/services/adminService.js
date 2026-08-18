@@ -44,6 +44,14 @@ export const adminService = {
     if (!res.ok) throw new Error('Error al desactivar usuario');
   },
 
+  async hardDeleteUser(id) {
+    const res = await fetch(`${API_BASE_URL}/admin/users/${id}/hard-delete`, {
+      method: 'DELETE',
+      headers: getAuthHeaders()
+    });
+    if (!res.ok) throw new Error('Error al eliminar definitivamente el usuario');
+  },
+
   // Manejo de contenedores
   async getContainers() {
     const res = await fetch(`${API_BASE_URL}/admin/containers`, {
