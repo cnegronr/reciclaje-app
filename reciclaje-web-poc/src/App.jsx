@@ -195,7 +195,7 @@ export function App() {
   };
 
   const handleRevertirLimpieza = async () => {
-    if (!window.confirm(`⏪ ¿Deseas deshacer la última limpieza realizada y restaurar el estado anterior de las inspecciones y fotos?`)) {
+    if (!window.confirm(`⏪ ¿Deseas deshacer la última acción (limpieza o traspaso) y restaurar el estado anterior de las inspecciones y fotos?`)) {
       return;
     }
     try {
@@ -208,7 +208,7 @@ export function App() {
       await reloadInspeccion();
       alert('⏪ Estado de la semana restaurado exitosamente desde el respaldo.');
     } catch (err) {
-      alert(err.message || 'Error al revertir la limpieza');
+      alert(err.message || 'Error al revertir la última acción');
     } finally {
       setLoadingLimpieza(false);
     }
@@ -299,8 +299,9 @@ export function App() {
                 <button
                   type="button"
                   onClick={handleLimpiarSemanaActual}
-                  disabled={loadingLimpieza}
+                  disabled={loadingLimpieza || visitadosCount === 0}
                   className="action-btn action-btn-delete"
+                  style={{ opacity: loadingLimpieza || visitadosCount === 0 ? 0.5 : 1 }}
                 >
                   🧹 Limpiar Semana Actual
                 </button>
@@ -313,7 +314,7 @@ export function App() {
                     className="action-btn action-btn-primary"
                     style={{ background: 'rgba(168, 85, 247, 0.2)', color: '#c084fc', border: '1px solid rgba(192, 132, 252, 0.4)' }}
                   >
-                    ⏪ Revertir Limpieza
+                    ⏪ Deshacer ÚLTIMA Acción
                   </button>
                 )}
 

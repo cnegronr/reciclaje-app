@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+@lombok.extern.slf4j.Slf4j
 @Service
 @RequiredArgsConstructor
 public class InspeccionSemanalService {
@@ -472,6 +473,40 @@ public class InspeccionSemanalService {
 
         InspeccionSemanalDTO rutaDestinoDTO = obtenerOCrearInspeccionSemanal(comunaId, inspectorId);
         InspeccionSemanal rutaDestino = inspeccionRepository.findById(rutaDestinoDTO.getId()).orElseThrow();
+
+        // Generar respaldo de seguridad del estado previo al traspaso
+        try {
+            List<SnapshotItem> itemsSnapshot = rutaDestino.getDetalles().stream()
+                    .map(d -> SnapshotItem.builder()
+                            .contenedorId(d.getContenedor() != null ? d.getContenedor().getId() : null)
+                            .visitado(d.getVisitado())
+                            .porcentajeEstimado(d.getPorcentajeEstimado())
+                            .kilosCalculados(d.getKilosCalculados())
+                            .porcentajeEstimadoInicial(d.getPorcentajeEstimadoInicial())
+                            .kilosCalculadosInicial(d.getKilosCalculadosInicial())
+                            .observaciones(d.getObservaciones())
+                            .observacionesInicial(d.getObservacionesInicial())
+                            .fechaHoraInicial(d.getFechaHoraInicial())
+                            .fechaHoraActualizacion(d.getFechaHoraActualizacion())
+                            .creadoPorUsuarioId(d.getCreadoPorUsuario() != null ? d.getCreadoPorUsuario().getId() : null)
+                            .actualizadoPorUsuarioId(d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getId() : null)
+                            .fotos(d.getFotos() != null ? d.getFotos().stream()
+                                    .map(f -> FotoSnapshotItem.builder()
+                                            .momento(f.getMomento() != null ? f.getMomento().name() : null)
+                                            .urlFoto(f.getUrlFoto())
+                                            .creadoEn(f.getCreadoEn())
+                                            .usuarioId(f.getUsuario() != null ? f.getUsuario().getId() : null)
+                                            .build())
+                                    .collect(Collectors.toList()) : List.of())
+                            .build())
+                    .collect(Collectors.toList());
+
+            String jsonSnapshot = objectMapper.writeValueAsString(itemsSnapshot);
+            rutaDestino.setRespaldoEstadoPrevio(jsonSnapshot);
+            rutaDestino.setTieneRespaldoLimpieza(true);
+        } catch (Exception e) {
+            log.warn("Aviso: no se pudo guardar el respaldo pre-traspaso: {}", e.getMessage());
+        }
 
         List<DetalleInspeccion> todasVisitadasComuna = detalleRepository.findVisitadasByComunaId(comunaId);
         int targetSemana = preview.getSemanaOrigen();

@@ -814,6 +814,7 @@ class InspeccionSemanalServiceTest {
         assertNotNull(result);
         assertTrue(result.getDetalles().get(0).getVisitado());
         assertEquals(BigDecimal.valueOf(80), result.getDetalles().get(0).getPorcentajeEstimado());
+        assertTrue(result.getTieneRespaldoLimpieza());
     }
 
     @Test
