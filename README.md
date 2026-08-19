@@ -24,12 +24,13 @@ Al iniciar la base de datos por primera vez mediante `init-data.sql`, el sistema
 > - `VITE_SHOW_TEST_CREDENTIALS=true`: Muestra el cuadro de credenciales y botones de auto-llenado (Entorno de Desarrollo).
 > - `VITE_SHOW_TEST_CREDENTIALS=false`: Oculta el cuadro de credenciales y deja vacíos los campos de login (Entorno AWS / Producción).
 
-| Rol | Email / Usuario | Contraseña |
-| :--- | :--- | :--- |
-| **ADMIN** | `admin@reciclajelitoral.cl` | `Password123!` |
-| **INSPECTOR** | `inspector@reciclajelitoral.cl` | `Password123!` |
-| **CHOFER 1** | `chofer@reciclajelitoral.cl` | `Password123!` |
-| **CHOFER 2** | `chofer2@reciclajelitoral.cl` | `Password123!` |
+| Rol            | Email / Usuario | Contraseña |
+|:---------------| :--- | :--- |
+| **ADMIN**      | `admin@reciclajelitoral.cl` | `<YourSecurePassword>` |
+| **REPORTERIA** | `reporteria@reciclajelitoral.cl` | `<YourSecurePassword>` |
+| **INSPECTOR**  | `inspector@reciclajelitoral.cl` | `<YourSecurePassword>` |
+| **CHOFER 1**   | `chofer@reciclajelitoral.cl` | `<YourSecurePassword>` |
+| **CHOFER 2**   | `chofer2@reciclajelitoral.cl` | `<YourSecurePassword>` |
 
 ---
 
