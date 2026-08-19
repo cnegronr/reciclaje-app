@@ -74,3 +74,10 @@ Only after all unit tests pass cleanly via targeted execution, run the final ver
 - **Backend Changes:**
   ```bash
   mvn clean verify -q
+  ```
+
+---
+
+## 5. Commit Message Protocol
+
+At the end of every response where task execution, code modifications, or bug fixes have been completed, you **MUST** automatically include a proposed Git commit message in Conventional Commits format (including scope, short summary, and bulleted details).
