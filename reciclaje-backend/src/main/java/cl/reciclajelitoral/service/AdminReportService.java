@@ -346,72 +346,292 @@ public class AdminReportService {
                 .toList();
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        com.lowagie.text.Document document = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4.rotate());
-        com.lowagie.text.pdf.PdfWriter.getInstance(document, baos);
+        com.lowagie.text.Document document = new com.lowagie.text.Document(com.lowagie.text.PageSize.A4.rotate(), 36, 36, 36, 45);
+        com.lowagie.text.pdf.PdfWriter writer = com.lowagie.text.pdf.PdfWriter.getInstance(document, baos);
+        writer.setPageEvent(new HeaderFooterPageEvent());
 
         document.open();
 
-        // Título del PDF
-        com.lowagie.text.Font titleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 18, java.awt.Color.BLUE);
-        com.lowagie.text.Paragraph title = new com.lowagie.text.Paragraph("♻️ Reciclaje Litoral - Reporte Consolidado", titleFont);
-        title.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-        document.add(title);
+        // Timestamp in Chile Timezone (America/Santiago)
+        java.time.ZonedDateTime ahoraChile = java.time.ZonedDateTime.now(java.time.ZoneId.of("America/Santiago"));
+        String fechaChileStr = ahoraChile.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
 
-        String filtroSemana = (semanaNumero != null && anio != null) ? " | Semana " + semanaNumero + " (" + anio + ")" : "";
-        com.lowagie.text.Font subtitleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 10, java.awt.Color.GRAY);
-        com.lowagie.text.Paragraph subtitle = new com.lowagie.text.Paragraph("Generado el: " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) + filtroSemana + " | Sistema de Monitoreo", subtitleFont);
-        subtitle.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-        subtitle.setSpacingAfter(15f);
-        document.add(subtitle);
+        // Header Table (Width 100%, 2 columns: 60% / 40%)
+        com.lowagie.text.pdf.PdfPTable headerTable = new com.lowagie.text.pdf.PdfPTable(2);
+        headerTable.setWidthPercentage(100);
+        headerTable.setWidths(new float[]{6.0f, 4.0f});
 
-        // Tabla de Detalle
+        // Left Column: Brand & Title
+        com.lowagie.text.pdf.PdfPCell leftHeaderCell = new com.lowagie.text.pdf.PdfPCell();
+        leftHeaderCell.setBorder(com.lowagie.text.pdf.PdfPCell.NO_BORDER);
+        leftHeaderCell.setPadding(0);
+
+        com.lowagie.text.Font titleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 18, new java.awt.Color(15, 23, 42));
+        com.lowagie.text.Font subtitleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10, new java.awt.Color(16, 185, 129));
+
+        leftHeaderCell.addElement(new com.lowagie.text.Paragraph("♻️ RECICLAJE LITORAL", titleFont));
+        leftHeaderCell.addElement(new com.lowagie.text.Paragraph("Reporte Consolidado de Inspección de Vidrio", subtitleFont));
+
+        // Right Column: Document Info (Chile Time)
+        com.lowagie.text.pdf.PdfPCell rightHeaderCell = new com.lowagie.text.pdf.PdfPCell();
+        rightHeaderCell.setBorder(com.lowagie.text.pdf.PdfPCell.NO_BORDER);
+        rightHeaderCell.setPadding(0);
+        rightHeaderCell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+
+        com.lowagie.text.Font metaLabelFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8, new java.awt.Color(100, 116, 139));
+        com.lowagie.text.Font metaValFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, new java.awt.Color(15, 23, 42));
+
+        com.lowagie.text.Paragraph metaP1 = new com.lowagie.text.Paragraph("DOCUMENTO OFICIAL DE MONITOREO", metaLabelFont);
+        metaP1.setAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+
+        com.lowagie.text.Paragraph metaP2 = new com.lowagie.text.Paragraph("Generado el: " + fechaChileStr + " (Hora Chile)", metaValFont);
+        metaP2.setAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+
+        String filtroTexto = "Filtro: ";
+        if (semanaNumero != null && anio != null) {
+            filtroTexto += "Semana " + semanaNumero + " (" + anio + ")";
+        } else {
+            filtroTexto += "Todas las Semanas";
+        }
+        if (comunaId != null && !detalles.isEmpty() && detalles.get(0).getContenedor() != null && detalles.get(0).getContenedor().getComuna() != null) {
+            filtroTexto += " | Comuna: " + detalles.get(0).getContenedor().getComuna().getNombre();
+        }
+        com.lowagie.text.Paragraph metaP3 = new com.lowagie.text.Paragraph(filtroTexto, metaValFont);
+        metaP3.setAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+
+        rightHeaderCell.addElement(metaP1);
+        rightHeaderCell.addElement(metaP2);
+        rightHeaderCell.addElement(metaP3);
+
+        headerTable.addCell(leftHeaderCell);
+        headerTable.addCell(rightHeaderCell);
+        document.add(headerTable);
+
+        // Divider spacing
+        com.lowagie.text.Paragraph gap = new com.lowagie.text.Paragraph(" ");
+        gap.setSpacingBefore(6f);
+        document.add(gap);
+
+        // KPI Calculations
+        double totalKilos = 0;
+        double totalPorcentaje = 0;
+        int totalPuntos = detalles.size();
+
+        for (DetalleInspeccion d : detalles) {
+            double kg = d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0;
+            totalKilos += kg;
+            if (d.getPorcentajeEstimado() != null) {
+                totalPorcentaje += d.getPorcentajeEstimado().doubleValue();
+            }
+        }
+        double promedioLlenado = totalPuntos > 0 ? (totalPorcentaje / totalPuntos) : 0;
+
+        // KPI Summary Box (3 columns)
+        com.lowagie.text.pdf.PdfPTable kpiTable = new com.lowagie.text.pdf.PdfPTable(3);
+        kpiTable.setWidthPercentage(100);
+        kpiTable.setWidths(new float[]{1f, 1f, 1f});
+        kpiTable.setSpacingAfter(10f);
+
+        com.lowagie.text.Font kpiValFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 12, new java.awt.Color(5, 150, 105));
+        com.lowagie.text.Font kpiLblFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, new java.awt.Color(100, 116, 139));
+
+        kpiTable.addCell(createKpiCell("Total Puntos Inspeccionados", String.valueOf(totalPuntos), kpiLblFont, kpiValFont));
+        kpiTable.addCell(createKpiCell("Total Kilos Recolectados", String.format("%.1f kg", totalKilos), kpiLblFont, kpiValFont));
+        kpiTable.addCell(createKpiCell("Promedio % Llenado", String.format("%.1f%%", promedioLlenado), kpiLblFont, kpiValFont));
+        document.add(kpiTable);
+
+        // Main Table
         com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(8);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{1.2f, 2.5f, 3.5f, 2.0f, 2.0f, 2.2f, 2.5f, 4.0f});
+        table.setWidths(new float[]{1.0f, 2.2f, 3.8f, 1.8f, 1.8f, 2.0f, 2.4f, 4.0f});
 
-        com.lowagie.text.Font headFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 9, java.awt.Color.WHITE);
+        com.lowagie.text.Font headFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8.5f, java.awt.Color.WHITE);
         String[] headers = {"ID", "Comuna", "Punto Limpio", "Categoría", "% Llenado", "Kilos (kg)", "Inspector", "Observaciones"};
 
-        for (String h : headers) {
-            com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(h, headFont));
-            cell.setBackgroundColor(new java.awt.Color(30, 144, 255));
+        for (int i = 0; i < headers.length; i++) {
+            com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(headers[i], headFont));
+            cell.setBackgroundColor(new java.awt.Color(30, 41, 59));
+            cell.setBorderColor(new java.awt.Color(51, 65, 85));
             cell.setPadding(6f);
-            cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+            if (i == 4 || i == 5) {
+                cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+            } else if (i == 0 || i == 3) {
+                cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+            } else {
+                cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+            }
             table.addCell(cell);
         }
 
-        com.lowagie.text.Font bodyFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, java.awt.Color.BLACK);
-        double totalKilos = 0;
+        com.lowagie.text.Font bodyFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, new java.awt.Color(51, 65, 85));
+        com.lowagie.text.Font bodyFontBold = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8, new java.awt.Color(15, 23, 42));
+        com.lowagie.text.Font catFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 7.5f, new java.awt.Color(2, 132, 199));
 
+        java.awt.Color lightBg = new java.awt.Color(248, 250, 252);
+        java.awt.Color whiteBg = java.awt.Color.WHITE;
+        java.awt.Color borderColor = new java.awt.Color(226, 232, 240);
+
+        int rowIndex = 0;
         for (DetalleInspeccion d : detalles) {
-            table.addCell(new com.lowagie.text.Phrase(String.valueOf(d.getId()), bodyFont));
-            table.addCell(new com.lowagie.text.Phrase(d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A", bodyFont));
-            table.addCell(new com.lowagie.text.Phrase(d.getContenedor() != null ? d.getContenedor().getNombrePunto() : "-", bodyFont));
-            table.addCell(new com.lowagie.text.Phrase(d.getContenedor() != null && d.getContenedor().getCategoria() != null ? d.getContenedor().getCategoria().name() : "-", bodyFont));
-            table.addCell(new com.lowagie.text.Phrase((d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado() : "0") + "%", bodyFont));
+            java.awt.Color currentBg = (rowIndex % 2 == 1) ? lightBg : whiteBg;
+            rowIndex++;
 
+            // ID
+            com.lowagie.text.pdf.PdfPCell cId = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.valueOf(d.getId()), bodyFont));
+            cId.setBackgroundColor(currentBg);
+            cId.setBorderColor(borderColor);
+            cId.setPadding(5f);
+            cId.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+            table.addCell(cId);
+
+            // Comuna
+            String comunaNombre = d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A";
+            com.lowagie.text.pdf.PdfPCell cComuna = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(comunaNombre, bodyFontBold));
+            cComuna.setBackgroundColor(currentBg);
+            cComuna.setBorderColor(borderColor);
+            cComuna.setPadding(5f);
+            table.addCell(cComuna);
+
+            // Punto Limpio
+            String puntoNombre = d.getContenedor() != null ? d.getContenedor().getNombrePunto() : "-";
+            com.lowagie.text.pdf.PdfPCell cPunto = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(puntoNombre, bodyFont));
+            cPunto.setBackgroundColor(currentBg);
+            cPunto.setBorderColor(borderColor);
+            cPunto.setPadding(5f);
+            table.addCell(cPunto);
+
+            // Categoria
+            String cat = d.getContenedor() != null && d.getContenedor().getCategoria() != null ? d.getContenedor().getCategoria().name() : "-";
+            com.lowagie.text.pdf.PdfPCell cCat = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(cat, catFont));
+            cCat.setBackgroundColor(currentBg);
+            cCat.setBorderColor(borderColor);
+            cCat.setPadding(5f);
+            cCat.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+            table.addCell(cCat);
+
+            // % Llenado
+            String pctStr = String.format("%.0f%%", d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado().doubleValue() : 0.0);
+            com.lowagie.text.pdf.PdfPCell cPct = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(pctStr, bodyFontBold));
+            cPct.setBackgroundColor(currentBg);
+            cPct.setBorderColor(borderColor);
+            cPct.setPadding(5f);
+            cPct.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+            table.addCell(cPct);
+
+            // Kilos
             double kg = d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0;
-            totalKilos += kg;
-            table.addCell(new com.lowagie.text.Phrase(String.format("%.1f", kg), bodyFont));
+            com.lowagie.text.pdf.PdfPCell cKg = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f", kg), bodyFontBold));
+            cKg.setBackgroundColor(currentBg);
+            cKg.setBorderColor(borderColor);
+            cKg.setPadding(5f);
+            cKg.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+            table.addCell(cKg);
 
+            // Inspector
             String userNombre = d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getNombre() :
                     (d.getCreadoPorUsuario() != null ? d.getCreadoPorUsuario().getNombre() : "Sistema");
-            table.addCell(new com.lowagie.text.Phrase(userNombre, bodyFont));
-            table.addCell(new com.lowagie.text.Phrase(d.getObservaciones() != null ? d.getObservaciones() : "", bodyFont));
+            com.lowagie.text.pdf.PdfPCell cUser = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(userNombre, bodyFont));
+            cUser.setBackgroundColor(currentBg);
+            cUser.setBorderColor(borderColor);
+            cUser.setPadding(5f);
+            table.addCell(cUser);
+
+            // Observaciones
+            String obs = d.getObservaciones() != null ? d.getObservaciones() : "";
+            com.lowagie.text.pdf.PdfPCell cObs = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(obs, bodyFont));
+            cObs.setBackgroundColor(currentBg);
+            cObs.setBorderColor(borderColor);
+            cObs.setPadding(5f);
+            table.addCell(cObs);
         }
+
+        // Summary Row at bottom of table
+        com.lowagie.text.Font totalFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8.5f, new java.awt.Color(15, 23, 42));
+
+        com.lowagie.text.pdf.PdfPCell cTotalLbl = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase("TOTALES Y PROMEDIOS", totalFont));
+        cTotalLbl.setColspan(4);
+        cTotalLbl.setBackgroundColor(new java.awt.Color(241, 245, 249));
+        cTotalLbl.setBorderColor(borderColor);
+        cTotalLbl.setPadding(6f);
+        cTotalLbl.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+        table.addCell(cTotalLbl);
+
+        com.lowagie.text.pdf.PdfPCell cTotalPct = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f%%", promedioLlenado), totalFont));
+        cTotalPct.setBackgroundColor(new java.awt.Color(241, 245, 249));
+        cTotalPct.setBorderColor(borderColor);
+        cTotalPct.setPadding(6f);
+        cTotalPct.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+        table.addCell(cTotalPct);
+
+        com.lowagie.text.pdf.PdfPCell cTotalKg = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f kg", totalKilos), totalFont));
+        cTotalKg.setBackgroundColor(new java.awt.Color(241, 245, 249));
+        cTotalKg.setBorderColor(borderColor);
+        cTotalKg.setPadding(6f);
+        cTotalKg.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+        table.addCell(cTotalKg);
+
+        com.lowagie.text.pdf.PdfPCell cTotalEmpty = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase("", totalFont));
+        cTotalEmpty.setColspan(2);
+        cTotalEmpty.setBackgroundColor(new java.awt.Color(241, 245, 249));
+        cTotalEmpty.setBorderColor(borderColor);
+        cTotalEmpty.setPadding(6f);
+        table.addCell(cTotalEmpty);
 
         document.add(table);
 
-        // Resumen Final
-        com.lowagie.text.Paragraph summary = new com.lowagie.text.Paragraph(
-                "\nTotal Registros: " + detalles.size() + " | Total Kilos Recolectados: " + String.format("%.1f kg", totalKilos),
-                com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10, java.awt.Color.DARK_GRAY)
-        );
-        summary.setAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-        document.add(summary);
-
         document.close();
         return baos.toByteArray();
+    }
+
+    private com.lowagie.text.pdf.PdfPCell createKpiCell(String label, String value, com.lowagie.text.Font lblFont, com.lowagie.text.Font valFont) {
+        com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell();
+        cell.setBackgroundColor(new java.awt.Color(248, 250, 252));
+        cell.setBorderColor(new java.awt.Color(226, 232, 240));
+        cell.setPadding(8f);
+        cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+
+        com.lowagie.text.Paragraph pVal = new com.lowagie.text.Paragraph(value, valFont);
+        pVal.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+        com.lowagie.text.Paragraph pLbl = new com.lowagie.text.Paragraph(label, lblFont);
+        pLbl.setAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+
+        cell.addElement(pVal);
+        cell.addElement(pLbl);
+        return cell;
+    }
+
+    private static class HeaderFooterPageEvent extends com.lowagie.text.pdf.PdfPageEventHelper {
+        private final com.lowagie.text.Font footerFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, new java.awt.Color(100, 116, 139));
+
+        @Override
+        public void onEndPage(com.lowagie.text.pdf.PdfWriter writer, com.lowagie.text.Document document) {
+            com.lowagie.text.pdf.PdfContentByte cb = writer.getDirectContent();
+            cb.saveState();
+
+            float leftMargin = document.left();
+            float rightMargin = document.right();
+            float bottomMargin = document.bottom() - 10;
+
+            cb.setLineWidth(0.5f);
+            cb.setColorStroke(new java.awt.Color(226, 232, 240));
+            cb.moveTo(leftMargin, bottomMargin + 12);
+            cb.lineTo(rightMargin, bottomMargin + 12);
+            cb.stroke();
+
+            com.lowagie.text.pdf.ColumnText.showTextAligned(
+                    cb, com.lowagie.text.Element.ALIGN_LEFT,
+                    new com.lowagie.text.Phrase("Reciclaje Litoral • Sistema de Monitoreo de Vidrio Comunal", footerFont),
+                    leftMargin, bottomMargin, 0
+            );
+
+            com.lowagie.text.pdf.ColumnText.showTextAligned(
+                    cb, com.lowagie.text.Element.ALIGN_RIGHT,
+                    new com.lowagie.text.Phrase("Página " + writer.getPageNumber(), footerFont),
+                    rightMargin, bottomMargin, 0
+            );
+
+            cb.restoreState();
+        }
     }
 
     public byte[] generatePdfReport(Long comunaId, Long usuarioId) throws Exception {
