@@ -44,6 +44,10 @@ public class AdminUserService {
 
     @Transactional
     public UserAdminDTO createUser(CreateUserRequest req) {
+        if (!isCurrentRequestingUserAdmin() && req.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
+            throw new IllegalArgumentException("No tiene permisos para asignar el rol ADMIN");
+        }
+
         if (usuarioRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("El email ya está registrado");
         }
@@ -77,6 +81,15 @@ public class AdminUserService {
     public UserAdminDTO updateUser(Long id, UpdateUserRequest req) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+
+        if (!isCurrentRequestingUserAdmin()) {
+            if (usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
+                throw new IllegalArgumentException("No tiene permisos para modificar un usuario con rol ADMIN");
+            }
+            if (req.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
+                throw new IllegalArgumentException("No tiene permisos para asignar el rol ADMIN");
+            }
+        }
 
         if (!usuario.getEmail().equalsIgnoreCase(req.getEmail()) && usuarioRepository.existsByEmail(req.getEmail())) {
             throw new IllegalArgumentException("El email ya está registrado por otro usuario");
@@ -118,6 +131,9 @@ public class AdminUserService {
     public void deleteUser(Long id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+        if (!isCurrentRequestingUserAdmin() && usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
+            throw new IllegalArgumentException("No tiene permisos para eliminar un usuario con rol ADMIN");
+        }
         usuario.setActivo(false);
         usuarioRepository.save(usuario);
     }
@@ -126,6 +142,9 @@ public class AdminUserService {
     public void hardDeleteUser(Long id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+        if (!isCurrentRequestingUserAdmin() && usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
+            throw new IllegalArgumentException("No tiene permisos para eliminar un usuario con rol ADMIN");
+        }
 
         // 1. Eliminar asignaciones de inspector asociadas
         asignacionRepository.deleteByInspectorId(id);
@@ -164,5 +183,13 @@ public class AdminUserService {
                 .comunaIds(comunaIds)
                 .comunaNombres(comunaNombres)
                 .build();
+    }
+
+    private boolean isCurrentRequestingUserAdmin() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getAuthorities() == null || auth.getAuthorities().isEmpty()) {
+            return true;
+        }
+        return auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
     }
 }

@@ -30,7 +30,7 @@ public class ComunaService {
         }
 
         cl.reciclajelitoral.entity.Usuario user = usuarioRepository.findById(usuarioId).orElse(null);
-        if (user == null || user.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN || user.getRol() == cl.reciclajelitoral.entity.Rol.CHOFER) {
+        if (user == null || user.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN || user.getRol() == cl.reciclajelitoral.entity.Rol.CHOFER || user.getRol() == cl.reciclajelitoral.entity.Rol.REPORTERIA) {
             return listarTodasLasComunas();
         }
 

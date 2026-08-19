@@ -4,6 +4,7 @@ import cl.reciclajelitoral.service.AdminBackupService;
 import cl.reciclajelitoral.service.AdminReportService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -55,6 +56,12 @@ public class AdminReportController {
 
     @GetMapping("/db-backup/export")
     public ResponseEntity<byte[]> downloadDatabaseSqlBackup() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty()
+                && auth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         byte[] sqlBytes = adminBackupService.generateSqlDump();
         String filename = "reciclaje_db_backup_" + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd_HHmm")) + ".sql";
 
@@ -68,6 +75,12 @@ public class AdminReportController {
     public ResponseEntity<java.util.Map<String, String>> restoreDatabaseSqlBackup(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file
     ) throws Exception {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty()
+                && auth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("message", "Acceso denegado: Se requiere rol ADMIN"));
+        }
+
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(java.util.Map.of("message", "El archivo de respaldo está vacío"));
         }

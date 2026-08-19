@@ -71,9 +71,22 @@ class AdminReportControllerTest {
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"Reporte_Consolidado_Reciclaje.pdf\""));
     }
 
+    @org.junit.jupiter.api.AfterEach
+    void tearDown() {
+        org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    private void setSecurityContextRole(String role) {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "user", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(role))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+    }
+
     @Test
-    @DisplayName("Debe exportar respaldo SQL de la base de datos")
+    @DisplayName("Debe exportar respaldo SQL de la base de datos para ADMIN")
     void downloadDatabaseSqlBackup() throws Exception {
+        setSecurityContextRole("ROLE_ADMIN");
         when(adminBackupService.generateSqlDump()).thenReturn("INSERT INTO test;".getBytes(StandardCharsets.UTF_8));
 
         mockMvc.perform(get("/api/admin/reports/db-backup/export"))
@@ -83,8 +96,17 @@ class AdminReportControllerTest {
     }
 
     @Test
-    @DisplayName("Debe importar respaldo SQL de la base de datos")
+    @DisplayName("Debe retornar 403 Forbidden al intentar exportar respaldo con rol REPORTERIA")
+    void downloadDatabaseSqlBackupForbiddenForReporteria() throws Exception {
+        setSecurityContextRole("ROLE_REPORTERIA");
+        mockMvc.perform(get("/api/admin/reports/db-backup/export"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @DisplayName("Debe importar respaldo SQL de la base de datos para ADMIN")
     void restoreDatabaseSqlBackup() throws Exception {
+        setSecurityContextRole("ROLE_ADMIN");
         MockMultipartFile file = new MockMultipartFile("file", "backup.sql", "text/plain", "INSERT INTO test;".getBytes(StandardCharsets.UTF_8));
         doNothing().when(adminBackupService).restoreSqlDump(any());
 
@@ -94,8 +116,18 @@ class AdminReportControllerTest {
     }
 
     @Test
+    @DisplayName("Debe retornar 403 Forbidden al intentar importar respaldo con rol REPORTERIA")
+    void restoreDatabaseSqlBackupForbiddenForReporteria() throws Exception {
+        setSecurityContextRole("ROLE_REPORTERIA");
+        MockMultipartFile file = new MockMultipartFile("file", "backup.sql", "text/plain", "INSERT INTO test;".getBytes(StandardCharsets.UTF_8));
+        mockMvc.perform(multipart("/api/admin/reports/db-backup/import").file(file))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     @DisplayName("Debe retornar bad request al intentar importar un archivo vacio")
     void restoreDatabaseSqlBackupVacio() throws Exception {
+        setSecurityContextRole("ROLE_ADMIN");
         MockMultipartFile file = new MockMultipartFile("file", "vacio.sql", "text/plain", new byte[0]);
 
         mockMvc.perform(multipart("/api/admin/reports/db-backup/import").file(file))

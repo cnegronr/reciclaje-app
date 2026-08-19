@@ -139,14 +139,17 @@ export default function UserManagementTab() {
 
   if (loading) return <div className="p-4 text-center">⏳ Cargando lista de usuarios...</div>;
 
+  const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
+  const isCurrentAdmin = currentUser?.rol === 'ADMIN';
+
   return (
     <div className="user-management">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
         <div>
           <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>👥 Gestión de Usuarios</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Administración de permisos, roles (INSPECTOR, ADMIN, CHOFER) y comunas asignadas.</p>
+          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Administración de permisos, roles (INSPECTOR, ADMIN, CHOFER, REPORTERIA) y comunas asignadas.</p>
         </div>
-        <button className="action-btn action-btn-primary" onClick={() => handleOpenModal()}>
+        <button className="action-btn action-btn-primary" onClick={() => handleOpenModal(null)}>
           + Nuevo Usuario
         </button>
       </div>
@@ -180,7 +183,7 @@ export default function UserManagementTab() {
                   <td style={{ fontWeight: 'bold' }}>{u.nombre}</td>
                   <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
                   <td>
-                    <span className={`badge-role ${u.rol === 'ADMIN' ? 'badge-admin' : u.rol === 'CHOFER' ? 'badge-chofer' : 'badge-inspector'}`}>
+                    <span className={`badge-role ${u.rol === 'ADMIN' ? 'badge-admin' : u.rol === 'CHOFER' ? 'badge-chofer' : u.rol === 'REPORTERIA' ? 'badge-reporteria' : 'badge-inspector'}`}>
                       {u.rol}
                     </span>
                   </td>
@@ -190,25 +193,29 @@ export default function UserManagementTab() {
                     </span>
                   </td>
                   <td>
-                    {u.rol === 'ADMIN' || u.rol === 'CHOFER'
+                    {u.rol === 'ADMIN' || u.rol === 'CHOFER' || u.rol === 'REPORTERIA'
                       ? 'Todas'
                       : (u.comunaNombres && u.comunaNombres.length > 0 ? u.comunaNombres.join(', ') : 'Sin asignación')}
                   </td>
                   <td>
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                      <button className="action-btn action-btn-edit" onClick={() => handleOpenModal(u)}>
-                        ✏️ Editar
-                      </button>
-                      {u.activo ? (
-                        <button className="action-btn action-btn-delete" onClick={() => handleDelete(u.id)}>
-                          🚫 Desactivar
+                    {u.rol === 'ADMIN' && !isCurrentAdmin ? (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Protegido</span>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button className="action-btn action-btn-edit" onClick={() => handleOpenModal(u)}>
+                          ✏️ Editar
                         </button>
-                      ) : (
-                        <button className="action-btn action-btn-delete" style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)' }} onClick={() => handleHardDelete(u.id, u.nombre)}>
-                          🗑️ Eliminar Definitivamente
-                        </button>
-                      )}
-                    </div>
+                        {u.activo ? (
+                          <button className="action-btn action-btn-delete" onClick={() => handleDelete(u.id)}>
+                            🚫 Desactivar
+                          </button>
+                        ) : (
+                          <button className="action-btn action-btn-delete" style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)' }} onClick={() => handleHardDelete(u.id, u.nombre)}>
+                            🗑️ Eliminar Definitivamente
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
@@ -270,9 +277,12 @@ export default function UserManagementTab() {
                   value={formData.rol}
                   onChange={e => setFormData({ ...formData, rol: e.target.value })}
                 >
+                  {isCurrentAdmin && (
+                    <option value="ADMIN">ADMIN (Acceso Total)</option>
+                  )}
                   <option value="INSPECTOR">INSPECTOR (Inspección Terreno)</option>
-                  <option value="ADMIN">ADMIN (Acceso Total)</option>
                   <option value="CHOFER">CHOFER (Retiro y Logística)</option>
+                  <option value="REPORTERIA">REPORTERIA (Monitoreo y Reportes)</option>
                 </select>
               </div>
 

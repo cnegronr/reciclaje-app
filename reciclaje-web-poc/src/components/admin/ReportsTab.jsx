@@ -149,12 +149,19 @@ export default function ReportsTab() {
     }
   };
 
+  const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
+  const isAdmin = currentUser?.rol === 'ADMIN';
+
   return (
     <div className="reports-tab">
       <div style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📁 Reportes Consolidados y Respaldo de BD</h3>
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>
+          {isAdmin ? '📁 Reportes Consolidados y Respaldo de BD' : '📁 Reportes Consolidados de Inspección'}
+        </h3>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-          Generación directa de reportes Excel (.xlsx) con fotos incrustadas e hipervínculos S3, reportes PDF y exportación/importación completa en formato SQL Dump.
+          {isAdmin
+            ? 'Generación directa de reportes Excel (.xlsx) con fotos incrustadas e hipervínculos S3, reportes PDF y exportación/importación completa en formato SQL Dump.'
+            : 'Generación directa de reportes Excel (.xlsx) con fotos incrustadas e hipervínculos S3 y reportes PDF.'}
         </p>
       </div>
 
@@ -314,45 +321,47 @@ export default function ReportsTab() {
           </div>
         </div>
 
-        {/* Card 2: Respaldo y Restauración de Base de Datos */}
-        <div className="calculation-card" style={{ borderColor: 'rgba(59, 130, 246, 0.4)', background: 'rgba(15, 23, 42, 0.8)' }}>
-          <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa' }}>
-            🗄️ Respaldo y Restauración de BD (SQL Dump)
-          </h4>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-            Exporte un respaldo completo `.sql` con todos los usuarios, puntos limpios, inspecciones y fotos para probar datos reales en local o restaurar tras un redespliegue en AWS.
-          </p>
+        {/* Card 2: Respaldo y Restauración de Base de Datos (Solo ADMIN) */}
+        {isAdmin && (
+          <div className="calculation-card" style={{ borderColor: 'rgba(59, 130, 246, 0.4)', background: 'rgba(15, 23, 42, 0.8)' }}>
+            <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px', color: '#60a5fa' }}>
+              🗄️ Respaldo y Restauración de BD (SQL Dump)
+            </h4>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
+              Exporte un respaldo completo `.sql` con todos los usuarios, puntos limpios, inspecciones y fotos para probar datos reales en local o restaurar tras un redespliegue en AWS.
+            </p>
 
-          {restoreMessage && (
-            <div className="alert alert-success" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '0.75rem', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
-              {restoreMessage}
-            </div>
-          )}
+            {restoreMessage && (
+              <div className="alert alert-success" style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '0.75rem', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '1rem' }}>
+                {restoreMessage}
+              </div>
+            )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <button
-              className="action-btn action-btn-primary"
-              style={{ width: '100%', padding: '0.85rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}
-              onClick={handleDownloadDbBackup}
-              disabled={downloadingDb || restoringDb}
-            >
-              {downloadingDb ? '⏳ Generando Dump SQL...' : '💾 Exportar Respaldo Completo (.sql)'}
-            </button>
-
-            <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-              <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Restaurar BD desde Archivo (.sql):</label>
-              <input
-                type="file"
-                accept=".sql"
-                onChange={handleRestoreDbBackup}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <button
+                className="action-btn action-btn-primary"
+                style={{ width: '100%', padding: '0.85rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}
+                onClick={handleDownloadDbBackup}
                 disabled={downloadingDb || restoringDb}
-                className="input-control"
-                style={{ cursor: 'pointer' }}
-              />
-              {restoringDb && <span style={{ fontSize: '0.8rem', color: '#60a5fa', marginTop: '0.5rem', display: 'block' }}>⏳ Ejecutando restauración de base de datos...</span>}
+              >
+                {downloadingDb ? '⏳ Generando Dump SQL...' : '💾 Exportar Respaldo Completo (.sql)'}
+              </button>
+
+              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                <label className="field-label" style={{ marginBottom: '0.5rem', display: 'block' }}>Restaurar BD desde Archivo (.sql):</label>
+                <input
+                  type="file"
+                  accept=".sql"
+                  onChange={handleRestoreDbBackup}
+                  disabled={downloadingDb || restoringDb}
+                  className="input-control"
+                  style={{ cursor: 'pointer' }}
+                />
+                {restoringDb && <span style={{ fontSize: '0.8rem', color: '#60a5fa', marginTop: '0.5rem', display: 'block' }}>⏳ Ejecutando restauración de base de datos...</span>}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

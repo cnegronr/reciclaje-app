@@ -77,7 +77,7 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
               <span className="user-role">{user?.rol}</span>
             </div>
 
-            {user?.rol === 'ADMIN' && (
+            {(user?.rol === 'ADMIN' || user?.rol === 'REPORTERIA') && (
               <div className="admin-mode-pill-toggle">
                 <button
                   className={`mode-toggle-btn ${activeView === 'inspection' ? 'active' : ''}`}

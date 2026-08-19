@@ -66,10 +66,11 @@ class CustomUserDetailsServiceTest {
     }
 
     @Test
-    @DisplayName("Debe validar los valores del Enum Rol incluyendo CHOFER")
+    @DisplayName("Debe validar los valores del Enum Rol incluyendo CHOFER y REPORTERIA")
     void testRolEnum() {
-        assertEquals(3, Rol.values().length);
+        assertEquals(4, Rol.values().length);
         assertEquals(Rol.CHOFER, Rol.valueOf("CHOFER"));
+        assertEquals(Rol.REPORTERIA, Rol.valueOf("REPORTERIA"));
     }
 
     @Test

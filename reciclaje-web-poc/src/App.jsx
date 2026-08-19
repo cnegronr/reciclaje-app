@@ -233,7 +233,7 @@ export function App() {
         onChangeView={(view) => setActiveView(view)}
       />
 
-      {activeView === 'admin' && currentUser?.rol === 'ADMIN' ? (
+      {activeView === 'admin' && (currentUser?.rol === 'ADMIN' || currentUser?.rol === 'REPORTERIA') ? (
         <React.Suspense fallback={<div className="p-4 text-center">Cargando Panel Admin...</div>}>
           {React.createElement(React.lazy(() => import('./components/admin/AdminPanelScreen')))}
         </React.Suspense>

@@ -111,6 +111,31 @@ class AdminUserServiceTest {
     }
 
     @Test
+    void shouldCreateReporteriaUserSuccessfully() {
+        CreateUserRequest req = CreateUserRequest.builder()
+                .nombre("Usuario Reporteria")
+                .email("reporteria@test.cl")
+                .password("Pass123!")
+                .rol(Rol.REPORTERIA)
+                .build();
+
+        when(usuarioRepository.existsByEmail("reporteria@test.cl")).thenReturn(false);
+        when(passwordEncoder.encode("Pass123!")).thenReturn("encodedPassword");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> {
+            Usuario u = i.getArgument(0);
+            u.setId(3L);
+            return u;
+        });
+        when(asignacionRepository.findByInspectorId(3L)).thenReturn(List.of());
+
+        UserAdminDTO dto = adminUserService.createUser(req);
+
+        assertNotNull(dto);
+        assertEquals("Usuario Reporteria", dto.getNombre());
+        assertEquals(Rol.REPORTERIA, dto.getRol());
+    }
+
+    @Test
     void shouldThrowWhenCreateUserEmailExists() {
         CreateUserRequest req = CreateUserRequest.builder()
                 .nombre("Nuevo Inspector")
@@ -188,5 +213,26 @@ class AdminUserServiceTest {
         when(usuarioRepository.findById(999L)).thenReturn(java.util.Optional.empty());
 
         assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(999L));
+    }
+
+    @Test
+    void shouldThrowWhenNonAdminTriesToAssignAdminRole() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "reporteria", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_REPORTERIA"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            CreateUserRequest req = CreateUserRequest.builder()
+                    .nombre("Sub Admin")
+                    .email("subadmin@test.cl")
+                    .password("Pass123!")
+                    .rol(Rol.ADMIN)
+                    .build();
+
+            assertThrows(IllegalArgumentException.class, () -> adminUserService.createUser(req));
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 }
