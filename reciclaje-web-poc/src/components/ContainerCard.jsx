@@ -30,7 +30,7 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
         {(() => {
           const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
           const isAdmin = currentUser?.rol === 'ADMIN';
-          const creador = detalleInspeccion?.creadoPorUsuarioNombre || contenedor.inspectorAsociadoNombre || 'Carlos Negrón';
+          const creador = detalleInspeccion?.creadoPorUsuarioNombre || contenedor.inspectorAsociadoNombre || 'Sin Asignar';
           const actualizador = detalleInspeccion?.actualizadoPorUsuarioNombre;
           const actRol = detalleInspeccion?.actualizadoPorRol;
 
