@@ -27,6 +27,13 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
     return () => clearInterval(interval);
   }, []);
 
+  const formatShortName = (name) => {
+    if (!name) return '';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length <= 1) return name;
+    return `${parts[0].charAt(0).toUpperCase()}. ${parts.slice(1).join(' ')}`;
+  };
+
   return (
     <header className="header-glass">
       <div className="header-container">
@@ -34,7 +41,7 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
           <div className="logo-icon">♻️</div>
           <div>
             <h1 className="brand-title">Reciclaje Litoral</h1>
-            <p className="brand-subtitle">Gestión & Monitoreo de Vidrio por Comuna</p>
+            <p className="brand-subtitle">Gestión & Monitoreo de Vidrio Comunal</p>
           </div>
         </div>
 
@@ -66,7 +73,7 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
           <div className="user-profile">
             <div className="avatar">👤</div>
             <div className="user-info">
-              <span className="user-name">{user?.nombre}</span>
+              <span className="user-name">{formatShortName(user?.nombre)}</span>
               <span className="user-role">{user?.rol}</span>
             </div>
 
