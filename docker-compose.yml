@@ -56,6 +56,8 @@ services:
       dockerfile: Dockerfile
       args:
         VITE_SHOW_TEST_CREDENTIALS: ${VITE_SHOW_TEST_CREDENTIALS:-false}
+        VITE_ADMIN_INITIAL_EMAIL: ${ADMIN_INITIAL_EMAIL}
+        VITE_ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD}
     container_name: reciclaje_frontend
     restart: always
     depends_on:

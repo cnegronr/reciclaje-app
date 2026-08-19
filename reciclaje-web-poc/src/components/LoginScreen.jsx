@@ -3,9 +3,11 @@ import { authService } from '../services/authService';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
   const showTestCredentials = import.meta.env.VITE_SHOW_TEST_CREDENTIALS === 'true';
+  const defaultAdminEmail = import.meta.env.VITE_ADMIN_INITIAL_EMAIL || 'admin@reciclajelitoral.cl';
+  const defaultAdminPassword = import.meta.env.VITE_ADMIN_INITIAL_PASSWORD || '';
 
-  const [email, setEmail] = useState(showTestCredentials ? 'inspector@reciclajelitoral.cl' : '');
-  const [password, setPassword] = useState(showTestCredentials ? 'Password123!' : '');
+  const [email, setEmail] = useState(showTestCredentials ? defaultAdminEmail : '');
+  const [password, setPassword] = useState(showTestCredentials ? defaultAdminPassword : '');
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -24,24 +26,9 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     }
   };
 
-  const fillInspectorCredentials = () => {
-    setEmail('inspector@reciclajelitoral.cl');
-    setPassword('Password123!');
-  };
-
-  const fillChofer1Credentials = () => {
-    setEmail('chofer@reciclajelitoral.cl');
-    setPassword('Password123!');
-  };
-
-  const fillChofer2Credentials = () => {
-    setEmail('chofer2@reciclajelitoral.cl');
-    setPassword('Password123!');
-  };
-
   const fillAdminCredentials = () => {
-    setEmail('admin@reciclajelitoral.cl');
-    setPassword('Password123!');
+    setEmail(defaultAdminEmail);
+    setPassword(defaultAdminPassword);
   };
 
   return (
@@ -64,7 +51,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
               onChange={(e) => setEmail(e.target.value)}
               required
               className="text-input"
-              placeholder="inspector@reciclajelitoral.cl"
+              placeholder="admin@reciclajelitoral.cl"
             />
           </div>
 
@@ -87,26 +74,18 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
         {showTestCredentials && (
           <div className="test-credentials-box">
-            <p className="test-title">🧪 Credenciales de Prueba (Inspector, Admin, Choferes):</p>
+            <p className="test-title">🧪 Credenciales de Prueba (Administrador):</p>
             <div className="credentials-code">
-              <span><strong>Admin:</strong> admin@reciclajelitoral.cl</span>
-              <span><strong>Inspector:</strong> inspector@reciclajelitoral.cl (Carlos Negrón)</span>
-              <span><strong>Chofer 1:</strong> chofer@reciclajelitoral.cl (Pedro)</span>
-              <span><strong>Chofer 2:</strong> chofer2@reciclajelitoral.cl (Juan)</span>
-              <span><strong>Clave:</strong> Password123!</span>
+              <span><strong>Usuario Admin:</strong> {defaultAdminEmail}</span>
             </div>
-            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
-              <button onClick={fillAdminCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px', background: '#ffebee', color: '#c62828', borderColor: '#ef9a9a' }}>
-                🛡️ Admin
-              </button>
-              <button onClick={fillInspectorCredentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
-                📋 Inspector (Carlos Negrón)
-              </button>
-              <button onClick={fillChofer1Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
-                🚛 Chofer 1 (Pedro)
-              </button>
-              <button onClick={fillChofer2Credentials} className="auto-fill-btn" style={{ flex: 1, minWidth: '90px' }}>
-                🚛 Chofer 2 (Juan)
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                onClick={fillAdminCredentials}
+                className="auto-fill-btn"
+                style={{ flex: 1, background: '#e8f5e9', color: '#2e7d32', borderColor: '#a5d6a7' }}
+              >
+                🛡️ Cargar Credenciales Admin
               </button>
             </div>
           </div>
