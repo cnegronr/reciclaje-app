@@ -1,0 +1,31 @@
+# ==============================================================================
+# Perfil DEV (Desarrollo Local)
+# ==============================================================================
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/reciclaje_db}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    defer-datasource-initialization: false
+    hibernate:
+      ddl-auto: none
+    show-sql: ${SPRING_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: ${SPRING_JPA_FORMAT_SQL:false}
+
+logging:
+  level:
+    root: ${LOGGING_LEVEL_ROOT:INFO}
+    cl.reciclajelitoral: DEBUG
+    org.hibernate.SQL: ${LOGGING_LEVEL_HIBERNATE_SQL:OFF}
+    org.hibernate.type.descriptor.sql.BasicBinder: ${LOGGING_LEVEL_HIBERNATE_BINDER:OFF}
+    org.hibernate: ${LOGGING_LEVEL_HIBERNATE:WARN}

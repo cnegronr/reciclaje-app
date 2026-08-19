@@ -1,6 +1,6 @@
--- V1__initial_schema.sql: Esquema DDL inicial para Reciclaje Litoral
+-- V1__initial_schema.sql: Esquema DDL inicial consolidado para Reciclaje Litoral
 
-CREATE TABLE IF NOT EXISTS usuarios (
+CREATE TABLE usuarios (
     id BIGSERIAL PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     email VARCHAR(100) UNIQUE NOT NULL,
@@ -10,15 +10,18 @@ CREATE TABLE IF NOT EXISTS usuarios (
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS comunas (
+COMMENT ON COLUMN usuarios.rol IS 'Rol del usuario: INSPECTOR, CHOFER, ADMIN, REPORTERIA';
+
+CREATE TABLE comunas (
     id BIGSERIAL PRIMARY KEY,
     nombre VARCHAR(100) UNIQUE NOT NULL,
     codigo_region VARCHAR(10) DEFAULT 'V'
 );
 
-CREATE TABLE IF NOT EXISTS contenedores (
+CREATE TABLE contenedores (
     id BIGSERIAL PRIMARY KEY,
     comuna_id BIGINT REFERENCES comunas(id) ON DELETE CASCADE,
+    sector VARCHAR(100),
     nombre_punto VARCHAR(150) NOT NULL,
     ubicacion_descripcion TEXT,
     categoria VARCHAR(20) CHECK (categoria IN ('EMPRESA', 'MUNICIPAL')),
@@ -30,7 +33,7 @@ CREATE TABLE IF NOT EXISTS contenedores (
     CONSTRAINT unique_contenedor_comuna_punto UNIQUE (comuna_id, nombre_punto, ubicacion_descripcion)
 );
 
-CREATE TABLE IF NOT EXISTS outbox_events (
+CREATE TABLE outbox_events (
     id BIGSERIAL PRIMARY KEY,
     aggregate_type VARCHAR(50) NOT NULL,
     aggregate_id VARCHAR(50) NOT NULL,
@@ -40,14 +43,14 @@ CREATE TABLE IF NOT EXISTS outbox_events (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS asignaciones_inspector (
+CREATE TABLE asignaciones_inspector (
     id BIGSERIAL PRIMARY KEY,
     inspector_id BIGINT REFERENCES usuarios(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
     comuna_id BIGINT REFERENCES comunas(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
-    UNIQUE(inspector_id, comuna_id)
+    CONSTRAINT unique_comuna_inspector UNIQUE (comuna_id)
 );
 
-CREATE TABLE IF NOT EXISTS inspecciones_semanales (
+CREATE TABLE inspecciones_semanales (
     id BIGSERIAL PRIMARY KEY,
     comuna_id BIGINT REFERENCES comunas(id) DEFERRABLE INITIALLY DEFERRED,
     inspector_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
@@ -62,7 +65,7 @@ CREATE TABLE IF NOT EXISTS inspecciones_semanales (
     creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS detalle_inspecciones (
+CREATE TABLE detalle_inspecciones (
     id BIGSERIAL PRIMARY KEY,
     inspeccion_semanal_id BIGINT REFERENCES inspecciones_semanales(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
     contenedor_id BIGINT REFERENCES contenedores(id) DEFERRABLE INITIALLY DEFERRED,
@@ -80,7 +83,7 @@ CREATE TABLE IF NOT EXISTS detalle_inspecciones (
     UNIQUE(inspeccion_semanal_id, contenedor_id)
 );
 
-CREATE TABLE IF NOT EXISTS actualizaciones_detalle (
+CREATE TABLE actualizaciones_detalle (
     id BIGSERIAL PRIMARY KEY,
     detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
     usuario_id BIGINT REFERENCES usuarios(id) DEFERRABLE INITIALLY DEFERRED,
@@ -90,7 +93,7 @@ CREATE TABLE IF NOT EXISTS actualizaciones_detalle (
     fecha_hora TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS fotos_inspeccion (
+CREATE TABLE fotos_inspeccion (
     id BIGSERIAL PRIMARY KEY,
     detalle_inspeccion_id BIGINT REFERENCES detalle_inspecciones(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,
     actualizacion_detalle_id BIGINT REFERENCES actualizaciones_detalle(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED,

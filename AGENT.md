@@ -81,3 +81,13 @@ Only after all unit tests pass cleanly via targeted execution, run the final ver
 ## 5. Commit Message Protocol
 
 At the end of every response where task execution, code modifications, or bug fixes have been completed, you **MUST** automatically include a proposed Git commit message in Conventional Commits format (including scope, short summary, and bulleted details).
+
+---
+
+## 6. Strict Zero-Exposure Security Protocol for Sensitive Data
+
+1. **No Hardcoded Secrets or Real Credentials**:
+   - **NEVER** include real or default hardcoded credentials, passwords, JWT secrets, admin passwords, or production bucket names in version-controlled files (such as `docker-compose.yml`, `application.yml`, `application-dev.yml`, `application-qa.yml`, `application-prod.yml`, `k8s/*.yaml`, or CDK stacks).
+   - In `docker-compose.yml` and Spring Boot configuration files, reference environment variables without sensitive default fallbacks (e.g., `${POSTGRES_PASSWORD}`, `${JWT_SECRET}`, `${ADMIN_INITIAL_PASSWORD}`, `${AWS_S3_BUCKET}`).
+2. **Local `.env` File Exclusivity**:
+   - All environment-specific passwords, secrets, and private configurations **MUST** reside exclusively in the gitignored local `.env` file or be injected at runtime via environment variables / secret managers.

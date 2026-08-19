@@ -5,17 +5,15 @@ services:
     container_name: reciclaje_postgres
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-reciclaje_db}
-      POSTGRES_USER: ${POSTGRES_USER:-reciclaje_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-reciclaje_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./reciclaje-backend/src/main/resources/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-      - ./reciclaje-backend/src/main/resources/init-data.sql:/docker-entrypoint-initdb.d/02-data.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-reciclaje_user} -d ${POSTGRES_DB:-reciclaje_db} || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB} || exit 1"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -32,14 +30,18 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-reciclaje_db}
-      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-reciclaje_user}
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-reciclaje_pass_2026}
-      JWT_SECRET: ${JWT_SECRET:-ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-dev}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      ADMIN_INITIAL_EMAIL: ${ADMIN_INITIAL_EMAIL}
+      ADMIN_INITIAL_NAME: ${ADMIN_INITIAL_NAME}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD}
       AWS_PROFILE: ${AWS_PROFILE:-default}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
-      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-reciclaje-litoral-fotos-prod}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET}
       AWS_REGION: ${AWS_REGION:-us-east-1}
     volumes:
       # Montar perfil local ~/.aws para reutilizar las credenciales de aws configure en el contenedor
