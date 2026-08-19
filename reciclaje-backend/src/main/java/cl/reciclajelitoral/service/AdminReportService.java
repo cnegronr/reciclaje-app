@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.poi.common.usermodel.HyperlinkType;
 import org.apache.poi.ss.usermodel.*;
+import org.apache.poi.xssf.usermodel.XSSFCellStyle;
+import org.apache.poi.xssf.usermodel.XSSFColor;
 import org.apache.poi.xssf.usermodel.XSSFHyperlink;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.stereotype.Service;
@@ -118,12 +120,12 @@ public class AdminReportService {
             Sheet sheet = workbook.createSheet("Reporte Consolidado");
 
             // Styles
-            CellStyle headerStyle = workbook.createCellStyle();
+            XSSFCellStyle headerStyle = (XSSFCellStyle) workbook.createCellStyle();
             Font headerFont = workbook.createFont();
             headerFont.setBold(true);
             headerFont.setColor(IndexedColors.WHITE.getIndex());
             headerStyle.setFont(headerFont);
-            headerStyle.setFillForegroundColor(IndexedColors.ROYAL_BLUE.getIndex());
+            headerStyle.setFillForegroundColor(new XSSFColor(new java.awt.Color(30, 41, 59), null)); // #1e293b Dark Navy Slate
             headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
             headerStyle.setAlignment(HorizontalAlignment.CENTER);
             headerStyle.setVerticalAlignment(VerticalAlignment.CENTER);
@@ -135,6 +137,34 @@ public class AdminReportService {
             linkStyle.setFont(linkFont);
             linkStyle.setAlignment(HorizontalAlignment.CENTER);
             linkStyle.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            // Subtle background styles for Column F (% Llenado)
+            Font pctFont = workbook.createFont();
+            pctFont.setBold(true);
+
+            // Subtle Green for < 50% (#dcfce7)
+            XSSFCellStyle styleGreen = (XSSFCellStyle) workbook.createCellStyle();
+            styleGreen.setFont(pctFont);
+            styleGreen.setFillForegroundColor(new XSSFColor(new java.awt.Color(220, 252, 231), null));
+            styleGreen.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            styleGreen.setAlignment(HorizontalAlignment.RIGHT);
+            styleGreen.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            // Subtle Yellow for 50% - 89.9% (#fef9c3)
+            XSSFCellStyle styleYellow = (XSSFCellStyle) workbook.createCellStyle();
+            styleYellow.setFont(pctFont);
+            styleYellow.setFillForegroundColor(new XSSFColor(new java.awt.Color(254, 249, 195), null));
+            styleYellow.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            styleYellow.setAlignment(HorizontalAlignment.RIGHT);
+            styleYellow.setVerticalAlignment(VerticalAlignment.CENTER);
+
+            // Subtle Red for 90% - 100% (#fee2e2)
+            XSSFCellStyle styleRed = (XSSFCellStyle) workbook.createCellStyle();
+            styleRed.setFont(pctFont);
+            styleRed.setFillForegroundColor(new XSSFColor(new java.awt.Color(254, 226, 226), null));
+            styleRed.setFillPattern(FillPatternType.SOLID_FOREGROUND);
+            styleRed.setAlignment(HorizontalAlignment.RIGHT);
+            styleRed.setVerticalAlignment(VerticalAlignment.CENTER);
 
             // Encabezados con columnas dedicadas por foto
             List<String> headersList = new ArrayList<>(List.of(
@@ -178,7 +208,19 @@ public class AdminReportService {
                 row.createCell(2).setCellValue(d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A");
                 row.createCell(3).setCellValue(nombrePunto);
                 row.createCell(4).setCellValue(d.getContenedor() != null && d.getContenedor().getCategoria() != null ? d.getContenedor().getCategoria().name() : "N/A");
-                row.createCell(5).setCellValue(d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado().doubleValue() : 0.0);
+                
+                double pctVal = d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado().doubleValue() : 0.0;
+                Cell pctCell = row.createCell(5);
+                pctCell.setCellValue(pctVal);
+
+                if (pctVal >= 90.0) {
+                    pctCell.setCellStyle(styleRed);
+                } else if (pctVal >= 50.0) {
+                    pctCell.setCellStyle(styleYellow);
+                } else {
+                    pctCell.setCellStyle(styleGreen);
+                }
+
                 row.createCell(6).setCellValue(d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0);
 
                 String userNombre = d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getNombre() :
