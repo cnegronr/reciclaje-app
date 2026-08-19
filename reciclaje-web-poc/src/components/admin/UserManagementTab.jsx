@@ -190,7 +190,9 @@ export default function UserManagementTab() {
                     </span>
                   </td>
                   <td>
-                    {u.comunaNombres && u.comunaNombres.length > 0 ? u.comunaNombres.join(', ') : 'Sin asignación'}
+                    {u.rol === 'ADMIN' || u.rol === 'CHOFER'
+                      ? 'Todas'
+                      : (u.comunaNombres && u.comunaNombres.length > 0 ? u.comunaNombres.join(', ') : 'Sin asignación')}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '0.4rem' }}>
