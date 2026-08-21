@@ -3,6 +3,7 @@ import { getDeadlineCurrentWeek } from '../services/inspectionService';
 
 export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogout, activeView, onChangeView }) => {
   const [timeLeft, setTimeLeft] = useState('');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const updateCountdown = () => {
@@ -34,6 +35,18 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
     return `${parts[0].charAt(0).toUpperCase()}. ${parts.slice(1).join(' ')}`;
   };
 
+  const handleSelectComuna = (id) => {
+    onSelectComuna(id);
+    setIsMobileMenuOpen(false);
+  };
+
+  const handleModeChange = (view) => {
+    if (onChangeView) {
+      onChangeView(view);
+    }
+    setIsMobileMenuOpen(false);
+  };
+
   return (
     <header className="header-glass">
       <div className="header-container">
@@ -45,18 +58,29 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
           </div>
         </div>
 
-        <div className="controls-section">
+        {/* Botón menú hamburguesa para vista móvil */}
+        <button
+          type="button"
+          className="mobile-menu-toggle"
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          aria-label={isMobileMenuOpen ? "Cerrar menú de navegación" : "Abrir menú de navegación"}
+          aria-expanded={isMobileMenuOpen}
+        >
+          {isMobileMenuOpen ? '✕' : '☰'}
+        </button>
+
+        <div className={`controls-section ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
           <div className="comuna-selector-wrapper">
             <label htmlFor="comuna-select" className="select-label">Comuna Asignada:</label>
             <select
               id="comuna-select"
               value={selectedComunaId}
-              onChange={(e) => onSelectComuna(e.target.value)}
+              onChange={(e) => handleSelectComuna(e.target.value)}
               className="comuna-select"
             >
               {comunas.map((c) => (
                 <option key={c.id} value={c.id}>
-                  📍 {c.nombre} ({c.contenedores.length} Puntos)
+                  📍 {c.nombre} ({c.contenedores?.length || 0} Puntos)
                 </option>
               ))}
             </select>
@@ -71,24 +95,28 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
           </div>
 
           <div className="user-profile">
-            <div className="avatar">👤</div>
-            <div className="user-info">
-              <span className="user-name">{formatShortName(user?.nombre)}</span>
-              <span className="user-role">{user?.rol}</span>
+            <div className="user-avatar-info">
+              <div className="avatar">👤</div>
+              <div className="user-info">
+                <span className="user-name">{formatShortName(user?.nombre)}</span>
+                <span className="user-role">{user?.rol}</span>
+              </div>
             </div>
 
             {(user?.rol === 'ADMIN' || user?.rol === 'REPORTERIA') && (
               <div className="admin-mode-pill-toggle">
                 <button
+                  type="button"
                   className={`mode-toggle-btn ${activeView === 'inspection' ? 'active' : ''}`}
-                  onClick={() => onChangeView('inspection')}
+                  onClick={() => handleModeChange('inspection')}
                   title="Módulo Inspección (Vista Inspector)"
                 >
                   📋 Inspección
                 </button>
                 <button
+                  type="button"
                   className={`mode-toggle-btn ${activeView === 'admin' ? 'active' : ''}`}
-                  onClick={() => onChangeView('admin')}
+                  onClick={() => handleModeChange('admin')}
                   title="Panel de Administración (ADMIN)"
                 >
                   ⚙️ Admin
@@ -96,7 +124,7 @@ export const Header = ({ user, comunas, selectedComunaId, onSelectComuna, onLogo
               </div>
             )}
 
-            <button onClick={onLogout} className="logout-btn" title="Cerrar Sesión">
+            <button type="button" onClick={onLogout} className="logout-btn" title="Cerrar Sesión">
               🚪 Salir
             </button>
           </div>
