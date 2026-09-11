@@ -45,8 +45,10 @@ public class AdminUserService {
 
     @Transactional
     public UserAdminDTO createUser(CreateUserRequest req) {
-        if (!isCurrentRequestingUserAdmin() && req.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
-            throw new IllegalArgumentException("No tiene permisos para asignar el rol ADMIN");
+        if (!isCurrentRequestingUserAdmin()) {
+            if (req.getRol() != cl.reciclajelitoral.entity.Rol.INSPECTOR && req.getRol() != cl.reciclajelitoral.entity.Rol.CHOFER) {
+                throw new IllegalArgumentException("Los usuarios de reportería solamente pueden crear usuarios con rol INSPECTOR o CHOFER");
+            }
         }
 
         if (usuarioRepository.existsByEmail(req.getEmail())) {
@@ -73,12 +75,15 @@ public class AdminUserService {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
 
+        String currentEmail = getCurrentUserEmail();
+        boolean isSelf = currentEmail != null && usuario.getEmail().equalsIgnoreCase(currentEmail);
+
         if (!isCurrentRequestingUserAdmin()) {
-            if (usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
-                throw new IllegalArgumentException("No tiene permisos para modificar un usuario con rol ADMIN");
+            if (!isSelf && usuario.getRol() != cl.reciclajelitoral.entity.Rol.INSPECTOR && usuario.getRol() != cl.reciclajelitoral.entity.Rol.CHOFER) {
+                throw new IllegalArgumentException("Los usuarios de reportería solamente pueden modificar usuarios con rol INSPECTOR, CHOFER o su propio usuario");
             }
-            if (req.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
-                throw new IllegalArgumentException("No tiene permisos para asignar el rol ADMIN");
+            if (!isSelf && req.getRol() != null && req.getRol() != cl.reciclajelitoral.entity.Rol.INSPECTOR && req.getRol() != cl.reciclajelitoral.entity.Rol.CHOFER) {
+                throw new IllegalArgumentException("Los usuarios de reportería solamente pueden asignar roles INSPECTOR o CHOFER");
             }
         }
 
@@ -86,8 +91,6 @@ public class AdminUserService {
             throw new IllegalArgumentException("El email ya está registrado por otro usuario");
         }
 
-        String currentEmail = getCurrentUserEmail();
-        boolean isSelf = currentEmail != null && usuario.getEmail().equalsIgnoreCase(currentEmail);
         if (isSelf) {
             if (req.getActivo() != null && !req.getActivo()) {
                 throw new IllegalArgumentException("No puedes desactivar tu propio usuario");
@@ -168,8 +171,10 @@ public class AdminUserService {
             throw new IllegalArgumentException("No puedes desactivar tu propio usuario");
         }
 
-        if (!isCurrentRequestingUserAdmin() && usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
-            throw new IllegalArgumentException("No tiene permisos para eliminar un usuario con rol ADMIN");
+        if (!isCurrentRequestingUserAdmin()) {
+            if (usuario.getRol() != cl.reciclajelitoral.entity.Rol.INSPECTOR && usuario.getRol() != cl.reciclajelitoral.entity.Rol.CHOFER) {
+                throw new IllegalArgumentException("No tiene permisos para desactivar este usuario");
+            }
         }
         usuario.setActivo(false);
         usuarioRepository.save(usuario);
@@ -185,8 +190,10 @@ public class AdminUserService {
             throw new IllegalArgumentException("No puedes eliminar tu propio usuario");
         }
 
-        if (!isCurrentRequestingUserAdmin() && usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
-            throw new IllegalArgumentException("No tiene permisos para eliminar un usuario con rol ADMIN");
+        if (!isCurrentRequestingUserAdmin()) {
+            if (usuario.getRol() != cl.reciclajelitoral.entity.Rol.INSPECTOR && usuario.getRol() != cl.reciclajelitoral.entity.Rol.CHOFER) {
+                throw new IllegalArgumentException("No tiene permisos para eliminar este usuario");
+            }
         }
 
         // 1. Eliminar asignaciones de inspector asociadas

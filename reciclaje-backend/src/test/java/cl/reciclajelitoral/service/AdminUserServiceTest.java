@@ -381,4 +381,107 @@ class AdminUserServiceTest {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
     }
+
+    @Test
+    void shouldThrowWhenReporteriaTriesToCreateAdminUser() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "rep@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_REPORTERIA"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            CreateUserRequest req = CreateUserRequest.builder()
+                    .nombre("Admin Fake")
+                    .email("fake@test.cl")
+                    .password("Pass123!")
+                    .rol(Rol.ADMIN)
+                    .build();
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.createUser(req));
+            assertEquals("Los usuarios de reportería solamente pueden crear usuarios con rol INSPECTOR o CHOFER", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenReporteriaTriesToCreateReporteriaUser() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "rep@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_REPORTERIA"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            CreateUserRequest req = CreateUserRequest.builder()
+                    .nombre("Rep Fake")
+                    .email("fake_rep@test.cl")
+                    .password("Pass123!")
+                    .rol(Rol.REPORTERIA)
+                    .build();
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.createUser(req));
+            assertEquals("Los usuarios de reportería solamente pueden crear usuarios con rol INSPECTOR o CHOFER", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenReporteriaTriesToUpdateAnotherAdminOrReporteriaUser() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "rep@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_REPORTERIA"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Usuario targetRep = Usuario.builder()
+                .id(20L)
+                .nombre("Otro Reportero")
+                .email("otro_rep@test.cl")
+                .rol(Rol.REPORTERIA)
+                .activo(true)
+                .build();
+
+        try {
+            when(usuarioRepository.findById(20L)).thenReturn(java.util.Optional.of(targetRep));
+
+            cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                    .nombre("Modificado")
+                    .email("otro_rep@test.cl")
+                    .rol(Rol.REPORTERIA)
+                    .build();
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(20L, req));
+            assertEquals("Los usuarios de reportería solamente pueden modificar usuarios con rol INSPECTOR, CHOFER o su propio usuario", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenReporteriaTriesToDeleteAdminOrReporteria() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "rep@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_REPORTERIA"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Usuario targetAdmin = Usuario.builder()
+                .id(30L)
+                .nombre("Admin Objetivo")
+                .email("admin_obj@test.cl")
+                .rol(Rol.ADMIN)
+                .activo(true)
+                .build();
+
+        try {
+            when(usuarioRepository.findById(30L)).thenReturn(java.util.Optional.of(targetAdmin));
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.deleteUser(30L));
+            assertEquals("No tiene permisos para desactivar este usuario", ex.getMessage());
+
+            IllegalArgumentException exHard = assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(30L));
+            assertEquals("No tiene permisos para eliminar este usuario", exHard.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
 }

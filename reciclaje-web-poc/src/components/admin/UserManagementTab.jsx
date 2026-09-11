@@ -45,6 +45,10 @@ export default function UserManagementTab() {
   };
 
   const handleOpenModal = (user = null) => {
+    if (user && !isCurrentAdmin && user.rol !== 'INSPECTOR' && user.rol !== 'CHOFER' && !isSelfUser(user)) {
+      alert('No tienes permisos para editar este usuario.');
+      return;
+    }
     if (user) {
       setEditingUser(user);
       setFormData({
@@ -105,8 +109,13 @@ export default function UserManagementTab() {
   };
 
   const handleDelete = async (id) => {
-    if (currentUser?.id && String(id) === String(currentUser.id)) {
+    const target = users.find(u => u.id === id);
+    if (isSelfUser(target)) {
       alert('No puedes desactivar tu propio usuario.');
+      return;
+    }
+    if (!isCurrentAdmin && target && target.rol !== 'INSPECTOR' && target.rol !== 'CHOFER') {
+      alert('No tienes permisos para desactivar este usuario.');
       return;
     }
     if (window.confirm('¿Desactivar este usuario?')) {
@@ -120,8 +129,13 @@ export default function UserManagementTab() {
   };
 
   const handleHardDelete = async (id, nombre) => {
-    if (currentUser?.id && String(id) === String(currentUser.id)) {
+    const target = users.find(u => u.id === id);
+    if (isSelfUser(target)) {
       alert('No puedes eliminar tu propio usuario.');
+      return;
+    }
+    if (!isCurrentAdmin && target && target.rol !== 'INSPECTOR' && target.rol !== 'CHOFER') {
+      alert('No tienes permisos para eliminar este usuario.');
       return;
     }
     if (window.confirm(`⚠️ ¿Deseas eliminar DEFINITIVAMENTE al usuario "${nombre}" de la base de datos?\n\nLos registros históricos de inspección se mantendrán intactos. Esta acción no se puede deshacer.`)) {
@@ -227,7 +241,7 @@ export default function UserManagementTab() {
                       : (u.comunaNombres && u.comunaNombres.length > 0 ? u.comunaNombres.join(', ') : 'Sin asignación')}
                   </td>
                   <td>
-                    {u.rol === 'ADMIN' && !isCurrentAdmin ? (
+                    {!isCurrentAdmin && u.rol !== 'INSPECTOR' && u.rol !== 'CHOFER' && !isSelfUser(u) ? (
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Protegido</span>
                     ) : (
                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
@@ -339,7 +353,9 @@ export default function UserManagementTab() {
                   )}
                   <option value="INSPECTOR">INSPECTOR (Inspección Terreno)</option>
                   <option value="CHOFER">CHOFER (Retiro y Logística)</option>
-                  <option value="REPORTERIA">REPORTERIA (Monitoreo y Reportes)</option>
+                  {(isCurrentAdmin || isEditingSelf) && (
+                    <option value="REPORTERIA">REPORTERIA (Monitoreo y Reportes)</option>
+                  )}
                 </select>
               </div>
 
