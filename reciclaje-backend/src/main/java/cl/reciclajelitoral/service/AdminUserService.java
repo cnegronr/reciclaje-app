@@ -28,6 +28,7 @@ public class AdminUserService {
     private final AsignacionInspectorRepository asignacionRepository;
     private final PasswordEncoder passwordEncoder;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final SessionInvalidationService sessionInvalidationService;
 
     @Transactional(readOnly = true)
     public List<UserAdminDTO> getAllUsers() {
@@ -100,6 +101,10 @@ public class AdminUserService {
             }
         }
 
+        String oldEmail = usuario.getEmail();
+        String newEmail = req.getEmail();
+        boolean emailChanged = newEmail != null && !oldEmail.equalsIgnoreCase(newEmail.trim());
+
         usuario.setNombre(req.getNombre());
         usuario.setEmail(req.getEmail());
         if (req.getRol() != null) {
@@ -113,6 +118,10 @@ public class AdminUserService {
         }
 
         Usuario updated = usuarioRepository.save(usuario);
+
+        if (emailChanged) {
+            sessionInvalidationService.registerEmailChange(updated.getId(), oldEmail, newEmail);
+        }
 
         if (req.getComunaIds() != null) {
             syncComunaAssignments(updated, req.getComunaIds());

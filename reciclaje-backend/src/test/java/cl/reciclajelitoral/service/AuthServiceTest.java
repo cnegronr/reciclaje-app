@@ -39,6 +39,9 @@ class AuthServiceTest {
     @Mock
     private JwtTokenProvider tokenProvider;
 
+    @Mock
+    private SessionInvalidationService sessionInvalidationService;
+
     @InjectMocks
     private AuthService authService;
 
@@ -52,6 +55,7 @@ class AuthServiceTest {
                 .email("inspector@reciclajelitoral.cl")
                 .passwordHash("$2a$10$encodedPassword")
                 .rol(Rol.INSPECTOR)
+                .activo(true)
                 .build();
     }
 
@@ -104,5 +108,51 @@ class AuthServiceTest {
         when(passwordEncoder.matches("PasswordErrado", "$2a$10$encodedPassword")).thenReturn(false);
 
         assertThrows(IllegalArgumentException.class, () -> authService.login(request));
+    }
+
+    @Test
+    @DisplayName("checkSessionStatus: Devuelve activo si token y usuario coinciden")
+    void checkSessionStatusActivo() {
+        when(tokenProvider.validarToken("valid.token")).thenReturn(true);
+        when(tokenProvider.obtenerEmailDelToken("valid.token")).thenReturn("inspector@reciclajelitoral.cl");
+        when(sessionInvalidationService.isEmailChangedForUser(1L, "inspector@reciclajelitoral.cl")).thenReturn(false);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock));
+
+        cl.reciclajelitoral.dto.SessionStatusResponse res = authService.checkSessionStatus("Bearer valid.token", 1L);
+
+        assertNotNull(res);
+        assertTrue(res.isActive());
+        assertFalse(res.isEmailUpdated());
+    }
+
+    @Test
+    @DisplayName("checkSessionStatus: Detecta email cambiado por admin desde SessionInvalidationService")
+    void checkSessionStatusEmailCambiadoPorAdmin() {
+        when(tokenProvider.validarToken("valid.token")).thenReturn(true);
+        when(tokenProvider.obtenerEmailDelToken("valid.token")).thenReturn("inspector_viejo@reciclajelitoral.cl");
+        when(sessionInvalidationService.isEmailChangedForUser(1L, "inspector_viejo@reciclajelitoral.cl")).thenReturn(true);
+
+        cl.reciclajelitoral.dto.SessionStatusResponse res = authService.checkSessionStatus("Bearer valid.token", 1L);
+
+        assertNotNull(res);
+        assertFalse(res.isActive());
+        assertTrue(res.isEmailUpdated());
+        assertTrue(res.getMessage().contains("actualizado por un administrador"));
+    }
+
+    @Test
+    @DisplayName("checkSessionStatus: Detecta email cambiado por admin en base de datos si difiere del token")
+    void checkSessionStatusEmailDifiereEnDb() {
+        when(tokenProvider.validarToken("valid.token")).thenReturn(true);
+        when(tokenProvider.obtenerEmailDelToken("valid.token")).thenReturn("inspector_viejo@reciclajelitoral.cl");
+        when(sessionInvalidationService.isEmailChangedForUser(1L, "inspector_viejo@reciclajelitoral.cl")).thenReturn(false);
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(usuarioMock)); // usuarioMock has email "inspector@reciclajelitoral.cl"
+
+        cl.reciclajelitoral.dto.SessionStatusResponse res = authService.checkSessionStatus("Bearer valid.token", 1L);
+
+        assertNotNull(res);
+        assertFalse(res.isActive());
+        assertTrue(res.isEmailUpdated());
+        assertTrue(res.getMessage().contains("actualizado por un administrador"));
     }
 }

@@ -41,6 +41,9 @@ class AdminUserServiceTest {
     @Mock
     private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
 
+    @Mock
+    private SessionInvalidationService sessionInvalidationService;
+
     @InjectMocks
     private AdminUserService adminUserService;
 
@@ -483,5 +486,33 @@ class AdminUserServiceTest {
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
+    }
+
+    @Test
+    void shouldRegisterEmailChangeWhenEmailIsUpdated() {
+        Usuario inspector = Usuario.builder()
+                .id(10L)
+                .nombre("Inspector Test")
+                .email("inspector_viejo@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .build();
+
+        cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                .nombre("Inspector Test Mod")
+                .email("inspector_nuevo@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .build();
+
+        when(usuarioRepository.findById(10L)).thenReturn(java.util.Optional.of(inspector));
+        when(usuarioRepository.existsByEmail("inspector_nuevo@test.cl")).thenReturn(false);
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+
+        UserAdminDTO dto = adminUserService.updateUser(10L, req);
+
+        assertNotNull(dto);
+        assertEquals("inspector_nuevo@test.cl", dto.getEmail());
+        verify(sessionInvalidationService).registerEmailChange(10L, "inspector_viejo@test.cl", "inspector_nuevo@test.cl");
     }
 }

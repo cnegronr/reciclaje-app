@@ -34,6 +34,47 @@ export function App() {
     return () => window.removeEventListener('reciclaje:force-logout', handleForceLogout);
   }, []);
 
+  // Monitoreo proactivo del estado de la sesión (para invalidar inmediatamente si un administrador actualizó el email)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    let isHandled = false;
+
+    const verifySession = async () => {
+      if (isHandled) return;
+      const status = await authService.checkSessionStatus();
+      if (!status.active && !isHandled) {
+        isHandled = true;
+        if (status.emailUpdated) {
+          alert('⚠️ Tu correo electrónico ha sido actualizado por un administrador.\n\nPor favor, inicia sesión con tu nuevo correo electrónico.');
+        } else if (status.deactivated) {
+          alert('⚠️ Tu cuenta ha sido desactivada por un administrador.');
+        } else if (status.message) {
+          alert(`⚠️ ${status.message}`);
+        }
+        handleLogout();
+      }
+    };
+
+    // Verificar periódicamente cada 3 segundos
+    const intervalId = setInterval(verifySession, 3000);
+
+    // Verificar inmediatamente al cambiar de pestaña o volver a enfocar la ventana
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === 'visible') {
+        verifySession();
+      }
+    };
+    window.addEventListener('visibilitychange', handleVisibilityOrFocus);
+    window.addEventListener('focus', handleVisibilityOrFocus);
+
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+    };
+  }, [currentUser]);
+
   // Estados para Traspaso de Visitas y Limpieza con Respaldo
   const [isTraspasoModalOpen, setIsTraspasoModalOpen] = useState(false);
   const [traspasoPreviewData, setTraspasoPreviewData] = useState(null);

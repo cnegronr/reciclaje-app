@@ -50,5 +50,26 @@ export const authService = {
 
   isAuthenticated: () => {
     return !!localStorage.getItem(AUTH_KEY);
+  },
+
+  checkSessionStatus: async () => {
+    const token = localStorage.getItem(AUTH_KEY);
+    const userData = authService.getCurrentUser();
+    if (!token || !userData) return { active: false };
+
+    try {
+      const query = userData.id ? `?userId=${encodeURIComponent(userData.id)}` : '';
+      const res = await fetch(`${API_BASE_URL}/auth/session-status${query}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (res.ok) {
+        return await res.json();
+      }
+      return { active: false };
+    } catch {
+      return { active: true };
+    }
   }
 };
