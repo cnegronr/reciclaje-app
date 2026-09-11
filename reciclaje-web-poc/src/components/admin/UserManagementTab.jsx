@@ -20,6 +20,9 @@ export default function UserManagementTab() {
     comunaIds: []
   });
 
+  const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
+  const isCurrentAdmin = currentUser?.rol === 'ADMIN';
+
   useEffect(() => {
     loadData();
   }, []);
@@ -66,12 +69,28 @@ export default function UserManagementTab() {
     setShowModal(true);
   };
 
+  const isSelfUser = (u) => {
+    if (!u || !currentUser) return false;
+    if (currentUser.id != null && u.id != null && String(currentUser.id) === String(u.id)) {
+      return true;
+    }
+    if (currentUser.email && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase()) {
+      return true;
+    }
+    return false;
+  };
+
+  const isEditingSelf = editingUser && isSelfUser(editingUser);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const isEditingSelf = editingUser && isSelfUser(editingUser);
       const payload = {
         ...formData,
-        comunaIds: formData.rol === 'INSPECTOR' ? formData.comunaIds : []
+        rol: isEditingSelf ? editingUser.rol : formData.rol,
+        activo: isEditingSelf ? true : formData.activo,
+        comunaIds: (isEditingSelf ? editingUser.rol : formData.rol) === 'INSPECTOR' ? formData.comunaIds : []
       };
       if (editingUser) {
         await adminService.updateUser(editingUser.id, payload);
@@ -86,6 +105,10 @@ export default function UserManagementTab() {
   };
 
   const handleDelete = async (id) => {
+    if (currentUser?.id && String(id) === String(currentUser.id)) {
+      alert('No puedes desactivar tu propio usuario.');
+      return;
+    }
     if (window.confirm('¿Desactivar este usuario?')) {
       try {
         await adminService.deleteUser(id);
@@ -97,6 +120,10 @@ export default function UserManagementTab() {
   };
 
   const handleHardDelete = async (id, nombre) => {
+    if (currentUser?.id && String(id) === String(currentUser.id)) {
+      alert('No puedes eliminar tu propio usuario.');
+      return;
+    }
     if (window.confirm(`⚠️ ¿Deseas eliminar DEFINITIVAMENTE al usuario "${nombre}" de la base de datos?\n\nLos registros históricos de inspección se mantendrán intactos. Esta acción no se puede deshacer.`)) {
       try {
         await adminService.hardDeleteUser(id);
@@ -143,9 +170,6 @@ export default function UserManagementTab() {
   };
 
   if (loading) return <div className="p-4 text-center">⏳ Cargando lista de usuarios...</div>;
-
-  const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
-  const isCurrentAdmin = currentUser?.rol === 'ADMIN';
 
   return (
     <div className="user-management">
@@ -206,18 +230,25 @@ export default function UserManagementTab() {
                     {u.rol === 'ADMIN' && !isCurrentAdmin ? (
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Protegido</span>
                     ) : (
-                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                         <button className="action-btn action-btn-edit" onClick={() => handleOpenModal(u)}>
                           ✏️ Editar
                         </button>
-                        {u.activo ? (
-                          <button className="action-btn action-btn-delete" onClick={() => handleDelete(u.id)}>
-                            🚫 Desactivar
-                          </button>
-                        ) : (
-                          <button className="action-btn action-btn-delete" style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)' }} onClick={() => handleHardDelete(u.id, u.nombre)}>
-                            🗑️ Eliminar Definitivamente
-                          </button>
+                        {!isSelfUser(u) && (
+                          u.activo ? (
+                            <button className="action-btn action-btn-delete" onClick={() => handleDelete(u.id)}>
+                              🚫 Desactivar
+                            </button>
+                          ) : (
+                            <button className="action-btn action-btn-delete" style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)' }} onClick={() => handleHardDelete(u.id, u.nombre)}>
+                              🗑️ Eliminar Definitivamente
+                            </button>
+                          )
+                        )}
+                        {isSelfUser(u) && (
+                          <span style={{ fontSize: '0.75rem', color: '#60a5fa', fontWeight: 600, padding: '0.2rem 0.5rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '4px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                            Tu usuario
+                          </span>
                         )}
                       </div>
                     )}
@@ -280,11 +311,21 @@ export default function UserManagementTab() {
               </div>
 
               <div>
-                <label className="field-label">Rol del Usuario:</label>
+                <label className="field-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span>Rol del Usuario:</span>
+                  {isEditingSelf && (
+                    <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 500 }}>
+                      🔒 No puedes cambiar tu propio rol
+                    </span>
+                  )}
+                </label>
                 <select
                   className="select-control"
                   value={formData.rol}
+                  disabled={isEditingSelf}
+                  style={isEditingSelf ? { opacity: 0.7, cursor: 'not-allowed', background: 'rgba(15, 23, 42, 0.6)' } : {}}
                   onChange={e => {
+                    if (isEditingSelf) return;
                     const newRol = e.target.value;
                     setFormData({
                       ...formData,
@@ -304,13 +345,31 @@ export default function UserManagementTab() {
 
               {editingUser && (
                 <div>
-                  <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
+                  <label
+                    className="field-label"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      cursor: isEditingSelf ? 'not-allowed' : 'pointer',
+                      opacity: isEditingSelf ? 0.8 : 1
+                    }}
+                  >
                     <input
                       type="checkbox"
                       checked={formData.activo}
-                      onChange={e => setFormData({ ...formData, activo: e.target.checked })}
+                      disabled={isEditingSelf}
+                      onChange={e => {
+                        if (isEditingSelf) return;
+                        setFormData({ ...formData, activo: e.target.checked });
+                      }}
                     />
-                    Usuario Activo en el Sistema
+                    <span>Usuario Activo en el Sistema</span>
+                    {isEditingSelf && (
+                      <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 500, marginLeft: 'auto' }}>
+                        🔒 No puedes desactivar tu propia cuenta
+                      </span>
+                    )}
                   </label>
                 </div>
               )}

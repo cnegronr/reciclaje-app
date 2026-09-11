@@ -301,4 +301,84 @@ class AdminUserServiceTest {
         assertEquals(1L, asignacionExistente.getInspector().getId());
         verify(asignacionRepository).save(asignacionExistente);
     }
+
+    @Test
+    void shouldThrowWhenUserTriesToDeactivateThemselvesInDeleteUser() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.deleteUser(1L));
+            assertEquals("No puedes desactivar tu propio usuario", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenUserTriesToDeactivateThemselvesInUpdateUser() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+
+            cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                    .nombre("Admin Modificado")
+                    .email("admin@test.cl")
+                    .activo(false)
+                    .build();
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(1L, req));
+            assertEquals("No puedes desactivar tu propio usuario", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenUserTriesToChangeTheirOwnRoleInUpdateUser() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+
+            cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                    .nombre("Admin Modificado")
+                    .email("admin@test.cl")
+                    .rol(Rol.REPORTERIA)
+                    .build();
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(1L, req));
+            assertEquals("No puedes cambiar el rol de tu propio usuario", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenUserTriesToHardDeleteThemselves() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(1L));
+            assertEquals("No puedes eliminar tu propio usuario", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
 }

@@ -86,6 +86,17 @@ public class AdminUserService {
             throw new IllegalArgumentException("El email ya está registrado por otro usuario");
         }
 
+        String currentEmail = getCurrentUserEmail();
+        boolean isSelf = currentEmail != null && usuario.getEmail().equalsIgnoreCase(currentEmail);
+        if (isSelf) {
+            if (req.getActivo() != null && !req.getActivo()) {
+                throw new IllegalArgumentException("No puedes desactivar tu propio usuario");
+            }
+            if (req.getRol() != null && req.getRol() != usuario.getRol()) {
+                throw new IllegalArgumentException("No puedes cambiar el rol de tu propio usuario");
+            }
+        }
+
         usuario.setNombre(req.getNombre());
         usuario.setEmail(req.getEmail());
         if (req.getRol() != null) {
@@ -151,6 +162,12 @@ public class AdminUserService {
     public void deleteUser(Long id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+
+        String currentEmail = getCurrentUserEmail();
+        if (currentEmail != null && usuario.getEmail().equalsIgnoreCase(currentEmail)) {
+            throw new IllegalArgumentException("No puedes desactivar tu propio usuario");
+        }
+
         if (!isCurrentRequestingUserAdmin() && usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
             throw new IllegalArgumentException("No tiene permisos para eliminar un usuario con rol ADMIN");
         }
@@ -162,6 +179,12 @@ public class AdminUserService {
     public void hardDeleteUser(Long id) {
         Usuario usuario = usuarioRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + id));
+
+        String currentEmail = getCurrentUserEmail();
+        if (currentEmail != null && usuario.getEmail().equalsIgnoreCase(currentEmail)) {
+            throw new IllegalArgumentException("No puedes eliminar tu propio usuario");
+        }
+
         if (!isCurrentRequestingUserAdmin() && usuario.getRol() == cl.reciclajelitoral.entity.Rol.ADMIN) {
             throw new IllegalArgumentException("No tiene permisos para eliminar un usuario con rol ADMIN");
         }
@@ -203,6 +226,14 @@ public class AdminUserService {
                 .comunaIds(comunaIds)
                 .comunaNombres(comunaNombres)
                 .build();
+    }
+
+    private String getCurrentUserEmail() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || auth.getName() == null) {
+            return null;
+        }
+        return auth.getName();
     }
 
     private boolean isCurrentRequestingUserAdmin() {
