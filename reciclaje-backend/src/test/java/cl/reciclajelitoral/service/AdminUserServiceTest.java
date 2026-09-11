@@ -52,9 +52,9 @@ class AdminUserServiceTest {
     @BeforeEach
     void setUp() {
         adminUser = Usuario.builder()
-                .id(1L)
+                .id(2L)
                 .nombre("Admin Test")
-                .email("admin@test.cl")
+                .email("admin2@test.cl")
                 .passwordHash("hashedPass")
                 .rol(Rol.ADMIN)
                 .activo(true)
@@ -64,7 +64,7 @@ class AdminUserServiceTest {
     @Test
     void shouldGetAllUsers() {
         when(usuarioRepository.findAll()).thenReturn(List.of(adminUser));
-        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+        when(asignacionRepository.findByInspectorId(2L)).thenReturn(List.of());
 
         List<UserAdminDTO> result = adminUserService.getAllUsers();
 
@@ -76,7 +76,7 @@ class AdminUserServiceTest {
     @Test
     void shouldGetActiveUsers() {
         when(usuarioRepository.findByActivoTrue()).thenReturn(List.of(adminUser));
-        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+        when(asignacionRepository.findByInspectorId(2L)).thenReturn(List.of());
 
         List<UserAdminDTO> result = adminUserService.getActiveUsers();
 
@@ -157,7 +157,7 @@ class AdminUserServiceTest {
     void shouldUpdateUserSuccessfully() {
         cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
                 .nombre("Admin Modificado")
-                .email("admin@test.cl")
+                .email("admin2@test.cl")
                 .password("NewPass123!")
                 .rol(Rol.ADMIN)
                 .activo(true)
@@ -166,13 +166,13 @@ class AdminUserServiceTest {
 
         Comuna comuna = Comuna.builder().id(10L).nombre("El Quisco").build();
 
-        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
         when(passwordEncoder.encode("NewPass123!")).thenReturn("newEncodedPass");
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
         when(comunaRepository.findAllById(List.of(10L))).thenReturn(List.of(comuna));
-        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+        when(asignacionRepository.findByInspectorId(2L)).thenReturn(List.of());
 
-        UserAdminDTO dto = adminUserService.updateUser(1L, req);
+        UserAdminDTO dto = adminUserService.updateUser(2L, req);
 
         assertNotNull(dto);
         assertEquals("Admin Modificado", dto.getNombre());
@@ -185,17 +185,17 @@ class AdminUserServiceTest {
                 .email("otro@test.cl")
                 .build();
 
-        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
         when(usuarioRepository.existsByEmail("otro@test.cl")).thenReturn(true);
 
-        assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(1L, req));
+        assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(2L, req));
     }
 
     @Test
     void shouldDeleteUserSoftly() {
-        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
 
-        adminUserService.deleteUser(1L);
+        adminUserService.deleteUser(2L);
 
         assertFalse(adminUser.getActivo());
         verify(usuarioRepository).save(adminUser);
@@ -203,12 +203,12 @@ class AdminUserServiceTest {
 
     @Test
     void shouldHardDeleteUserSuccessfully() {
-        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
 
-        adminUserService.hardDeleteUser(1L);
+        adminUserService.hardDeleteUser(2L);
 
-        verify(asignacionRepository).deleteByInspectorId(1L);
-        verify(jdbcTemplate, times(6)).update(anyString(), eq(1L));
+        verify(asignacionRepository).deleteByInspectorId(2L);
+        verify(jdbcTemplate, times(6)).update(anyString(), eq(2L));
         verify(usuarioRepository).delete(adminUser);
     }
 
@@ -288,34 +288,34 @@ class AdminUserServiceTest {
 
         cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
                 .nombre("Admin Modificado")
-                .email("admin@test.cl")
+                .email("admin2@test.cl")
                 .comunaIds(List.of(4L))
                 .build();
 
-        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
-        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+        when(asignacionRepository.findByInspectorId(2L)).thenReturn(List.of());
         when(comunaRepository.findAllById(List.of(4L))).thenReturn(List.of(comuna));
         when(asignacionRepository.findByComunaId(4L)).thenReturn(List.of(asignacionExistente));
 
-        UserAdminDTO dto = adminUserService.updateUser(1L, req);
+        UserAdminDTO dto = adminUserService.updateUser(2L, req);
 
         assertNotNull(dto);
-        assertEquals(1L, asignacionExistente.getInspector().getId());
+        assertEquals(2L, asignacionExistente.getInspector().getId());
         verify(asignacionRepository).save(asignacionExistente);
     }
 
     @Test
     void shouldThrowWhenUserTriesToDeactivateThemselvesInDeleteUser() {
         org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+                "admin2@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
         );
         org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
 
         try {
-            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+            when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
 
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.deleteUser(1L));
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.deleteUser(2L));
             assertEquals("No puedes desactivar tu propio usuario", ex.getMessage());
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
@@ -325,20 +325,20 @@ class AdminUserServiceTest {
     @Test
     void shouldThrowWhenUserTriesToDeactivateThemselvesInUpdateUser() {
         org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+                "admin2@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
         );
         org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
 
         try {
-            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+            when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
 
             cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
                     .nombre("Admin Modificado")
-                    .email("admin@test.cl")
+                    .email("admin2@test.cl")
                     .activo(false)
                     .build();
 
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(1L, req));
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(2L, req));
             assertEquals("No puedes desactivar tu propio usuario", ex.getMessage());
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
@@ -348,20 +348,20 @@ class AdminUserServiceTest {
     @Test
     void shouldThrowWhenUserTriesToChangeTheirOwnRoleInUpdateUser() {
         org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+                "admin2@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
         );
         org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
 
         try {
-            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+            when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
 
             cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
                     .nombre("Admin Modificado")
-                    .email("admin@test.cl")
+                    .email("admin2@test.cl")
                     .rol(Rol.REPORTERIA)
                     .build();
 
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(1L, req));
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(2L, req));
             assertEquals("No puedes cambiar el rol de tu propio usuario", ex.getMessage());
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
@@ -371,14 +371,14 @@ class AdminUserServiceTest {
     @Test
     void shouldThrowWhenUserTriesToHardDeleteThemselves() {
         org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
-                "admin@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+                "admin2@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
         );
         org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
 
         try {
-            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+            when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
 
-            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(1L));
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(2L));
             assertEquals("No puedes eliminar tu propio usuario", ex.getMessage());
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
@@ -543,5 +543,166 @@ class AdminUserServiceTest {
 
         assertNotNull(dto);
         verify(sessionInvalidationService).registerPasswordChange(10L, "inspector@test.cl");
+    }
+
+    @Test
+    void shouldSetAdministradorGeneralFlagInToDTO() {
+        Usuario generalAdmin = Usuario.builder()
+                .id(1L)
+                .nombre("Administrador General")
+                .email("admin@reciclajelitoral.cl")
+                .rol(Rol.ADMIN)
+                .activo(true)
+                .build();
+
+        when(usuarioRepository.findAll()).thenReturn(List.of(generalAdmin, adminUser));
+        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+        when(asignacionRepository.findByInspectorId(2L)).thenReturn(List.of());
+
+        List<UserAdminDTO> result = adminUserService.getAllUsers();
+
+        assertNotNull(result);
+        assertEquals(2, result.size());
+        assertTrue(result.get(0).getAdministradorGeneral());
+        assertFalse(result.get(1).getAdministradorGeneral());
+    }
+
+    @Test
+    void shouldThrowWhenNonSelfTriesToUpdateAdministradorGeneral() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin2@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Usuario generalAdmin = Usuario.builder()
+                .id(1L)
+                .nombre("Administrador General")
+                .email("admin@reciclajelitoral.cl")
+                .rol(Rol.ADMIN)
+                .activo(true)
+                .build();
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(generalAdmin));
+
+            cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                    .nombre("Modificando General")
+                    .email("admin@reciclajelitoral.cl")
+                    .build();
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.updateUser(1L, req));
+            assertEquals("No tienes permisos para modificar al Administrador General", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldAllowAdministradorGeneralToUpdateSelf() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@reciclajelitoral.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Usuario generalAdmin = Usuario.builder()
+                .id(1L)
+                .nombre("Administrador General")
+                .email("admin@reciclajelitoral.cl")
+                .rol(Rol.ADMIN)
+                .activo(true)
+                .build();
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(generalAdmin));
+            when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+
+            cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                    .nombre("Administrador General Actualizado")
+                    .email("admin@reciclajelitoral.cl")
+                    .build();
+
+            UserAdminDTO dto = adminUserService.updateUser(1L, req);
+            assertNotNull(dto);
+            assertEquals("Administrador General Actualizado", dto.getNombre());
+            assertTrue(dto.getAdministradorGeneral());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenAnyoneTriesToDeactivateAdministradorGeneral() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin2@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Usuario generalAdmin = Usuario.builder()
+                .id(1L)
+                .nombre("Administrador General")
+                .email("admin@reciclajelitoral.cl")
+                .rol(Rol.ADMIN)
+                .activo(true)
+                .build();
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(generalAdmin));
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.deleteUser(1L));
+            assertEquals("No tienes permisos para desactivar al Administrador General", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldThrowWhenAnyoneTriesToHardDeleteAdministradorGeneral() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin2@test.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        Usuario generalAdmin = Usuario.builder()
+                .id(1L)
+                .nombre("Administrador General")
+                .email("admin@reciclajelitoral.cl")
+                .rol(Rol.ADMIN)
+                .activo(true)
+                .build();
+
+        try {
+            when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(generalAdmin));
+
+            IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(1L));
+            assertEquals("No tienes permisos para eliminar al Administrador General", ex.getMessage());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void shouldAllowAdministradorGeneralToUpdateAnotherAdmin() {
+        org.springframework.security.core.Authentication auth = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@reciclajelitoral.cl", "pass", List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))
+        );
+        org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(auth);
+
+        try {
+            when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
+            when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+
+            cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                    .nombre("Admin 2 Modificado por General")
+                    .email("admin2@test.cl")
+                    .rol(Rol.ADMIN)
+                    .activo(true)
+                    .build();
+
+            UserAdminDTO dto = adminUserService.updateUser(2L, req);
+            assertNotNull(dto);
+            assertEquals("Admin 2 Modificado por General", dto.getNombre());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 }

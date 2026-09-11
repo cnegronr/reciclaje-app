@@ -20,6 +20,7 @@ public class UserAdminDTO {
     private Boolean activo;
     private List<Long> comunaIds;
     private List<String> comunaNombres;
+    private Boolean administradorGeneral;
 
     public Long getId() { return id; }
     public String getNombre() { return nombre; }
@@ -28,4 +29,5 @@ public class UserAdminDTO {
     public Boolean getActivo() { return activo; }
     public List<Long> getComunaIds() { return comunaIds; }
     public List<String> getComunaNombres() { return comunaNombres; }
+    public Boolean getAdministradorGeneral() { return administradorGeneral; }
 }

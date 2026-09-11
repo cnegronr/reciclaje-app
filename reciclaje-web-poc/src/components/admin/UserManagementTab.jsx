@@ -45,7 +45,37 @@ export default function UserManagementTab({ onLogout }) {
     }
   };
 
+  const isSelfUser = (u) => {
+    if (!u || !currentUser) return false;
+    if (currentUser.id != null && u.id != null && String(currentUser.id) === String(u.id)) {
+      return true;
+    }
+    if (currentUser.email && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase()) {
+      return true;
+    }
+    return false;
+  };
+
+  const isGeneralAdminUser = (u) => Boolean(
+    u?.administradorGeneral ||
+    u?.id === 1 ||
+    (u?.email && u.email.trim().toLowerCase() === 'admin@reciclajelitoral.cl')
+  );
+
+  const canManageUser = (u) => {
+    if (isSelfUser(u)) return true;
+    if (isGeneralAdminUser(u)) return false;
+    if (!isCurrentAdmin) {
+      return u.rol === 'INSPECTOR' || u.rol === 'CHOFER';
+    }
+    return true;
+  };
+
   const handleOpenModal = (user = null) => {
+    if (user && isGeneralAdminUser(user) && !isSelfUser(user)) {
+      alert('No tienes permisos para editar al Administrador General.');
+      return;
+    }
     if (user && !isCurrentAdmin && user.rol !== 'INSPECTOR' && user.rol !== 'CHOFER' && !isSelfUser(user)) {
       alert('No tienes permisos para editar este usuario.');
       return;
@@ -72,17 +102,6 @@ export default function UserManagementTab({ onLogout }) {
       });
     }
     setShowModal(true);
-  };
-
-  const isSelfUser = (u) => {
-    if (!u || !currentUser) return false;
-    if (currentUser.id != null && u.id != null && String(currentUser.id) === String(u.id)) {
-      return true;
-    }
-    if (currentUser.email && u.email && currentUser.email.toLowerCase() === u.email.toLowerCase()) {
-      return true;
-    }
-    return false;
   };
 
   const isEditingSelf = editingUser && isSelfUser(editingUser);
@@ -133,6 +152,10 @@ export default function UserManagementTab({ onLogout }) {
       alert('No puedes desactivar tu propio usuario.');
       return;
     }
+    if (isGeneralAdminUser(target)) {
+      alert('No tienes permisos para desactivar al Administrador General.');
+      return;
+    }
     if (!isCurrentAdmin && target && target.rol !== 'INSPECTOR' && target.rol !== 'CHOFER') {
       alert('No tienes permisos para desactivar este usuario.');
       return;
@@ -151,6 +174,10 @@ export default function UserManagementTab({ onLogout }) {
     const target = users.find(u => u.id === id);
     if (isSelfUser(target)) {
       alert('No puedes eliminar tu propio usuario.');
+      return;
+    }
+    if (isGeneralAdminUser(target)) {
+      alert('No tienes permisos para eliminar al Administrador General.');
       return;
     }
     if (!isCurrentAdmin && target && target.rol !== 'INSPECTOR' && target.rol !== 'CHOFER') {
@@ -245,8 +272,8 @@ export default function UserManagementTab({ onLogout }) {
                   <td style={{ fontWeight: 'bold' }}>{u.nombre}</td>
                   <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
                   <td>
-                    <span className={`badge-role ${u.rol === 'ADMIN' ? 'badge-admin' : u.rol === 'CHOFER' ? 'badge-chofer' : u.rol === 'REPORTERIA' ? 'badge-reporteria' : 'badge-inspector'}`}>
-                      {u.rol}
+                    <span className={`badge-role ${u.rol === 'ADMIN' ? 'badge-admin' : u.rol === 'CHOFER' ? 'badge-chofer' : u.rol === 'REPORTERIA' ? 'badge-reporteria' : 'badge-inspector'}`} style={u.rol === 'ADMIN' && isGeneralAdminUser(u) ? { display: 'inline-flex', alignItems: 'center', gap: '0.25rem' } : {}}>
+                      {u.rol === 'ADMIN' && isGeneralAdminUser(u) ? '👑 ADMIN General' : u.rol}
                     </span>
                   </td>
                   <td>
@@ -260,8 +287,10 @@ export default function UserManagementTab({ onLogout }) {
                       : (u.comunaNombres && u.comunaNombres.length > 0 ? u.comunaNombres.join(', ') : 'Sin asignación')}
                   </td>
                   <td>
-                    {!isCurrentAdmin && u.rol !== 'INSPECTOR' && u.rol !== 'CHOFER' && !isSelfUser(u) ? (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>Protegido</span>
+                    {!canManageUser(u) ? (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                        🔒 Protegido
+                      </span>
                     ) : (
                       <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
                         <button className="action-btn action-btn-edit" onClick={() => handleOpenModal(u)}>

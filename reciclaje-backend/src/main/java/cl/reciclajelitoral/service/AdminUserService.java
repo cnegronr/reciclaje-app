@@ -30,6 +30,15 @@ public class AdminUserService {
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final SessionInvalidationService sessionInvalidationService;
 
+    @org.springframework.beans.factory.annotation.Value("${admin.initial.email:admin@reciclajelitoral.cl}")
+    private String adminEmail = "admin@reciclajelitoral.cl";
+
+    public boolean isAdministradorGeneral(Usuario u) {
+        if (u == null) return false;
+        return (u.getId() != null && u.getId().equals(1L)) ||
+               (adminEmail != null && u.getEmail() != null && adminEmail.equalsIgnoreCase(u.getEmail().trim()));
+    }
+
     @Transactional(readOnly = true)
     public List<UserAdminDTO> getAllUsers() {
         return usuarioRepository.findAll().stream()
@@ -78,6 +87,10 @@ public class AdminUserService {
 
         String currentEmail = getCurrentUserEmail();
         boolean isSelf = currentEmail != null && usuario.getEmail().equalsIgnoreCase(currentEmail);
+
+        if (isAdministradorGeneral(usuario) && !isSelf) {
+            throw new IllegalArgumentException("No tienes permisos para modificar al Administrador General");
+        }
 
         if (!isCurrentRequestingUserAdmin()) {
             if (!isSelf && usuario.getRol() != cl.reciclajelitoral.entity.Rol.INSPECTOR && usuario.getRol() != cl.reciclajelitoral.entity.Rol.CHOFER) {
@@ -185,6 +198,10 @@ public class AdminUserService {
             throw new IllegalArgumentException("No puedes desactivar tu propio usuario");
         }
 
+        if (isAdministradorGeneral(usuario)) {
+            throw new IllegalArgumentException("No tienes permisos para desactivar al Administrador General");
+        }
+
         if (!isCurrentRequestingUserAdmin()) {
             if (usuario.getRol() != cl.reciclajelitoral.entity.Rol.INSPECTOR && usuario.getRol() != cl.reciclajelitoral.entity.Rol.CHOFER) {
                 throw new IllegalArgumentException("No tiene permisos para desactivar este usuario");
@@ -202,6 +219,10 @@ public class AdminUserService {
         String currentEmail = getCurrentUserEmail();
         if (currentEmail != null && usuario.getEmail().equalsIgnoreCase(currentEmail)) {
             throw new IllegalArgumentException("No puedes eliminar tu propio usuario");
+        }
+
+        if (isAdministradorGeneral(usuario)) {
+            throw new IllegalArgumentException("No tienes permisos para eliminar al Administrador General");
         }
 
         if (!isCurrentRequestingUserAdmin()) {
@@ -246,6 +267,7 @@ public class AdminUserService {
                 .activo(u.getActivo())
                 .comunaIds(comunaIds)
                 .comunaNombres(comunaNombres)
+                .administradorGeneral(isAdministradorGeneral(u))
                 .build();
     }
 

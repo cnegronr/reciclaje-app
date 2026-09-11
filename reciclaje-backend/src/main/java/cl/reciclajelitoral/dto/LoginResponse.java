@@ -17,4 +17,5 @@ public class LoginResponse {
     private String email;
     private String rol;
     private List<String> comunasAsignadas;
+    private Boolean administradorGeneral;
 }

@@ -26,6 +26,15 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
     private final SessionInvalidationService sessionInvalidationService;
 
+    @org.springframework.beans.factory.annotation.Value("${admin.initial.email:admin@reciclajelitoral.cl}")
+    private String adminEmail = "admin@reciclajelitoral.cl";
+
+    public boolean isAdministradorGeneral(Usuario u) {
+        if (u == null) return false;
+        return (u.getId() != null && u.getId().equals(1L)) ||
+               (adminEmail != null && u.getEmail() != null && adminEmail.equalsIgnoreCase(u.getEmail().trim()));
+    }
+
     public LoginResponse login(LoginRequest request) {
         Usuario usuario = usuarioRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
@@ -56,6 +65,7 @@ public class AuthService {
                 .email(usuario.getEmail())
                 .rol(usuario.getRol().name())
                 .comunasAsignadas(comunasAsignadas)
+                .administradorGeneral(isAdministradorGeneral(usuario))
                 .build();
     }
 
