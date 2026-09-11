@@ -19,6 +19,12 @@ public class AdminReportController {
     private final AdminReportService adminReportService;
     private final AdminBackupService adminBackupService;
 
+    private boolean isAdmin() {
+        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities() != null
+                && auth.getAuthorities().stream().anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+    }
+
     @GetMapping("/years")
     public ResponseEntity<java.util.List<Integer>> getAvailableReportYears() {
         return ResponseEntity.ok(adminReportService.getAvailableReportYears());
@@ -29,9 +35,11 @@ public class AdminReportController {
             @RequestParam(required = false) Long comunaId,
             @RequestParam(required = false) Long usuarioId,
             @RequestParam(required = false) Integer semanaNumero,
-            @RequestParam(required = false) Integer anio
+            @RequestParam(required = false) Integer anio,
+            @RequestParam(required = false, defaultValue = "false") Boolean incluirId
     ) throws IOException {
-        byte[] excelBytes = adminReportService.generateExcelReport(comunaId, usuarioId, semanaNumero, anio);
+        boolean effectiveIncluirId = isAdmin() && Boolean.TRUE.equals(incluirId);
+        byte[] excelBytes = adminReportService.generateExcelReport(comunaId, usuarioId, semanaNumero, anio, effectiveIncluirId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.xlsx\"")
@@ -44,9 +52,11 @@ public class AdminReportController {
             @RequestParam(required = false) Long comunaId,
             @RequestParam(required = false) Long usuarioId,
             @RequestParam(required = false) Integer semanaNumero,
-            @RequestParam(required = false) Integer anio
+            @RequestParam(required = false) Integer anio,
+            @RequestParam(required = false, defaultValue = "false") Boolean incluirId
     ) throws Exception {
-        byte[] pdfBytes = adminReportService.generatePdfReport(comunaId, usuarioId, semanaNumero, anio);
+        boolean effectiveIncluirId = isAdmin() && Boolean.TRUE.equals(incluirId);
+        byte[] pdfBytes = adminReportService.generatePdfReport(comunaId, usuarioId, semanaNumero, anio, effectiveIncluirId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.pdf\"")
@@ -56,9 +66,7 @@ public class AdminReportController {
 
     @GetMapping("/db-backup/export")
     public ResponseEntity<byte[]> downloadDatabaseSqlBackup() {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty()
-                && auth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+        if (!isAdmin()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -75,9 +83,7 @@ public class AdminReportController {
     public ResponseEntity<java.util.Map<String, String>> restoreDatabaseSqlBackup(
             @RequestParam("file") org.springframework.web.multipart.MultipartFile file
     ) throws Exception {
-        org.springframework.security.core.Authentication auth = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getAuthorities() != null && !auth.getAuthorities().isEmpty()
-                && auth.getAuthorities().stream().noneMatch(a -> a.getAuthority().equals("ROLE_ADMIN"))) {
+        if (!isAdmin()) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(java.util.Map.of("message", "Acceso denegado: Se requiere rol ADMIN"));
         }
 

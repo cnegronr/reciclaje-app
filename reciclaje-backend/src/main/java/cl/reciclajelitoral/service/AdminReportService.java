@@ -148,6 +148,11 @@ public class AdminReportService {
 
     @Transactional(readOnly = true)
     public byte[] generateExcelReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio) throws IOException {
+        return generateExcelReport(comunaId, usuarioId, semanaNumero, anio, false);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateExcelReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio, boolean incluirId) throws IOException {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
@@ -269,8 +274,8 @@ public class AdminReportService {
             CreationHelper createHelper = workbook.getCreationHelper();
             Drawing<?> drawing = sheet.createDrawingPatriarch();
 
-            List<String> headersInspector = getExcelHeaders(true, maxFotosAntes, maxFotosDespues);
-            List<String> headersChofer = getExcelHeaders(false, maxFotosAntes, maxFotosDespues);
+            List<String> headersInspector = getExcelHeaders(true, maxFotosAntes, maxFotosDespues, incluirId);
+            List<String> headersChofer = getExcelHeaders(false, maxFotosAntes, maxFotosDespues, incluirId);
 
             int rowIdx = 0;
             if (!detallesInspector.isEmpty()) {
@@ -278,7 +283,7 @@ public class AdminReportService {
                         "🏛️ SECCIÓN 1: INSPECCIONES DE RUTA - INSPECTORES",
                         detallesInspector, true, maxFotosAntes, maxFotosDespues, headersInspector,
                         bannerStyle, headerStyle, totalLabelStyle, totalNumStyle, totalEmptyStyle,
-                        linkStyle, styleGreen, styleYellow, styleRed, rowIdx);
+                        linkStyle, styleGreen, styleYellow, styleRed, rowIdx, incluirId);
             }
 
             if (!detallesChofer.isEmpty()) {
@@ -286,7 +291,7 @@ public class AdminReportService {
                         "🚚 SECCIÓN 2: RETIROS Y RECOLECCIÓN - CHOFERES",
                         detallesChofer, false, maxFotosAntes, maxFotosDespues, headersChofer,
                         bannerStyle, headerStyle, totalLabelStyle, totalNumStyle, totalEmptyStyle,
-                        linkStyle, styleGreen, styleYellow, styleRed, rowIdx);
+                        linkStyle, styleGreen, styleYellow, styleRed, rowIdx, incluirId);
             }
 
             if (detalles.isEmpty()) {
@@ -295,17 +300,22 @@ public class AdminReportService {
             }
 
             int totalCols = Math.max(headersInspector.size(), headersChofer.size());
-            sheet.setColumnWidth(0, 3000); // ID Detalle
-            sheet.setColumnWidth(1, 4500); // Semana / Año
-            sheet.setColumnWidth(2, 5000); // Comuna
-            sheet.setColumnWidth(3, 7500); // Contenedor / Punto
-            sheet.setColumnWidth(4, 4000); // Categoría
-            sheet.setColumnWidth(5, 4500); // Porcentaje Llenado (%)
-            sheet.setColumnWidth(6, 4500); // Kilos Acumulados / Retirados
-            sheet.setColumnWidth(7, 6500); // Inspector / Chofer
-            sheet.setColumnWidth(8, 7500); // Observaciones
-            for (int i = 9; i < totalCols; i++) {
-                int offset = i - 9;
+            int colIdx = 0;
+            if (incluirId) {
+                sheet.setColumnWidth(colIdx++, 3000); // ID Detalle
+            }
+            sheet.setColumnWidth(colIdx++, 4500); // Semana / Año
+            sheet.setColumnWidth(colIdx++, 5000); // Comuna
+            sheet.setColumnWidth(colIdx++, 7500); // Contenedor / Punto
+            sheet.setColumnWidth(colIdx++, 4000); // Categoría
+            sheet.setColumnWidth(colIdx++, 4500); // Porcentaje Llenado (%)
+            sheet.setColumnWidth(colIdx++, 4500); // Kilos Acumulados / Retirados
+            sheet.setColumnWidth(colIdx++, 6500); // Inspector / Chofer
+            sheet.setColumnWidth(colIdx++, 7500); // Observaciones
+
+            int startPhotoCol = colIdx;
+            for (int i = startPhotoCol; i < totalCols; i++) {
+                int offset = i - startPhotoCol;
                 if (offset % 2 == 0) {
                     sheet.setColumnWidth(i, 4500); // Columna miniatura
                 } else {
@@ -319,9 +329,13 @@ public class AdminReportService {
         }
     }
 
-    private List<String> getExcelHeaders(boolean isInspector, int maxAntes, int maxDesp) {
-        List<String> headersList = new ArrayList<>(List.of(
-                "ID Detalle", "Semana / Año", "Comuna", "Contenedor / Punto",
+    private List<String> getExcelHeaders(boolean isInspector, int maxAntes, int maxDesp, boolean incluirId) {
+        List<String> headersList = new ArrayList<>();
+        if (incluirId) {
+            headersList.add("ID Detalle");
+        }
+        headersList.addAll(List.of(
+                "Semana / Año", "Comuna", "Contenedor / Punto",
                 "Categoría", "Porcentaje Llenado (%)",
                 isInspector ? "Kilos Acumulados" : "Kilos Retirados",
                 isInspector ? "Inspector" : "Chofer",
@@ -359,7 +373,8 @@ public class AdminReportService {
                                    CellStyle styleGreen,
                                    CellStyle styleYellow,
                                    CellStyle styleRed,
-                                   int startRow) {
+                                   int startRow,
+                                   boolean incluirId) {
         if (detallesList.isEmpty()) {
             return startRow;
         }
@@ -398,16 +413,19 @@ public class AdminReportService {
             String semanaAnio = "Semana " + effWeek + " (" + effYear + ")";
 
             Row row = sheet.createRow(rowIdx);
+            int currentCell = 0;
 
-            row.createCell(0).setCellValue(d.getId());
-            row.createCell(1).setCellValue(semanaAnio);
-            row.createCell(2).setCellValue(d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A");
-            row.createCell(3).setCellValue(nombrePunto);
-            row.createCell(4).setCellValue(d.getContenedor() != null && d.getContenedor().getCategoria() != null ? d.getContenedor().getCategoria().name() : "N/A");
+            if (incluirId) {
+                row.createCell(currentCell++).setCellValue(d.getId());
+            }
+            row.createCell(currentCell++).setCellValue(semanaAnio);
+            row.createCell(currentCell++).setCellValue(d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A");
+            row.createCell(currentCell++).setCellValue(nombrePunto);
+            row.createCell(currentCell++).setCellValue(d.getContenedor() != null && d.getContenedor().getCategoria() != null ? d.getContenedor().getCategoria().name() : "N/A");
 
             double pctVal = d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado().doubleValue() : 0.0;
             sumPct += pctVal;
-            Cell pctCell = row.createCell(5);
+            Cell pctCell = row.createCell(currentCell++);
             pctCell.setCellValue(pctVal);
 
             if (pctVal >= 90.0) {
@@ -427,13 +445,13 @@ public class AdminReportService {
                         (d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0);
             }
             sumKg += kgVal;
-            row.createCell(6).setCellValue(kgVal);
+            row.createCell(currentCell++).setCellValue(kgVal);
 
             // Actor
-            row.createCell(7).setCellValue(getNombreActor(d));
+            row.createCell(currentCell++).setCellValue(getNombreActor(d));
 
             // Observaciones
-            row.createCell(8).setCellValue(d.getObservaciones() != null ? d.getObservaciones() : "");
+            row.createCell(currentCell++).setCellValue(d.getObservaciones() != null ? d.getObservaciones() : "");
 
             // Fotos
             List<FotoInspeccion> fotos = d.getFotos();
@@ -457,7 +475,7 @@ public class AdminReportService {
             }
 
             boolean hasPhoto = false;
-            int currentColIdx = 9;
+            int currentColIdx = currentCell;
 
             // Fotos ANTES
             for (int i = 0; i < maxFotosAntes; i++) {
@@ -557,21 +575,23 @@ public class AdminReportService {
         Cell totLbl = totRow.createCell(0);
         totLbl.setCellValue("TOTAL " + (isInspector ? "INSPECTORES" : "CHOFERES"));
         totLbl.setCellStyle(totalLabelStyle);
-        for (int c = 1; c <= 4; c++) {
+        int endMergeCol = incluirId ? 4 : 3;
+        for (int c = 1; c <= endMergeCol; c++) {
             Cell emptyTot = totRow.createCell(c);
             emptyTot.setCellStyle(totalLabelStyle);
         }
-        sheet.addMergedRegion(new CellRangeAddress(totRow.getRowNum(), totRow.getRowNum(), 0, 4));
+        sheet.addMergedRegion(new CellRangeAddress(totRow.getRowNum(), totRow.getRowNum(), 0, endMergeCol));
 
-        Cell pctTot = totRow.createCell(5);
+        int totCellIdx = endMergeCol + 1;
+        Cell pctTot = totRow.createCell(totCellIdx++);
         pctTot.setCellValue(String.format("%.1f%%", avgPct));
         pctTot.setCellStyle(totalNumStyle);
 
-        Cell kgTot = totRow.createCell(6);
+        Cell kgTot = totRow.createCell(totCellIdx++);
         kgTot.setCellValue(sumKg);
         kgTot.setCellStyle(totalNumStyle);
 
-        for (int c = 7; c < headersList.size(); c++) {
+        for (int c = totCellIdx; c < headersList.size(); c++) {
             Cell emptyTot = totRow.createCell(c);
             emptyTot.setCellStyle(totalEmptyStyle);
         }
@@ -584,11 +604,20 @@ public class AdminReportService {
     }
 
     public byte[] generateExcelZipReport(Long comunaId, Long usuarioId) throws IOException {
-        return generateExcelReport(comunaId, usuarioId, null, null);
+        return generateExcelReport(comunaId, usuarioId, null, null, false);
+    }
+
+    public byte[] generateExcelZipReport(Long comunaId, Long usuarioId, boolean incluirId) throws IOException {
+        return generateExcelReport(comunaId, usuarioId, null, null, incluirId);
     }
 
     @Transactional(readOnly = true)
     public byte[] generatePdfReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio) throws Exception {
+        return generatePdfReport(comunaId, usuarioId, semanaNumero, anio, false);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generatePdfReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio, boolean incluirId) throws Exception {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
@@ -733,12 +762,12 @@ public class AdminReportService {
 
         if (!detallesInspector.isEmpty()) {
             addPdfSection(document, "🏛️ SECCIÓN 1: INSPECCIONES DE RUTA - INSPECTORES", detallesInspector, true,
-                    sectionTitleFont, headFont, bodyFont, bodyFontBold, catFont, totalFont, lightBg, whiteBg, borderColor);
+                    sectionTitleFont, headFont, bodyFont, bodyFontBold, catFont, totalFont, lightBg, whiteBg, borderColor, incluirId);
         }
 
         if (!detallesChofer.isEmpty()) {
             addPdfSection(document, "🚚 SECCIÓN 2: RETIROS Y RECOLECCIÓN - CHOFERES", detallesChofer, false,
-                    sectionTitleFont, headFont, bodyFont, bodyFontBold, catFont, totalFont, lightBg, whiteBg, borderColor);
+                    sectionTitleFont, headFont, bodyFont, bodyFontBold, catFont, totalFont, lightBg, whiteBg, borderColor, incluirId);
         }
 
         if (detalles.isEmpty()) {
@@ -764,7 +793,8 @@ public class AdminReportService {
                                com.lowagie.text.Font totalFont,
                                java.awt.Color lightBg,
                                java.awt.Color whiteBg,
-                               java.awt.Color borderColor) throws com.lowagie.text.DocumentException {
+                               java.awt.Color borderColor,
+                               boolean incluirId) throws com.lowagie.text.DocumentException {
         if (detallesList.isEmpty()) return;
 
         com.lowagie.text.Paragraph pSec = new com.lowagie.text.Paragraph(sectionTitle, sectionTitleFont);
@@ -772,28 +802,53 @@ public class AdminReportService {
         pSec.setSpacingAfter(5f);
         document.add(pSec);
 
-        com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(8);
+        int numCols = incluirId ? 8 : 7;
+        com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(numCols);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{1.0f, 2.2f, 3.8f, 1.8f, 1.6f, 2.2f, 3.0f, 3.4f});
+        if (incluirId) {
+            table.setWidths(new float[]{1.0f, 2.2f, 3.8f, 1.8f, 1.6f, 2.2f, 3.0f, 3.4f});
+        } else {
+            table.setWidths(new float[]{2.4f, 4.2f, 2.0f, 1.8f, 2.4f, 3.2f, 3.8f});
+        }
 
-        String[] headers = {
-                "ID", "Comuna", "Punto Limpio", "Categoría", "% Llenado",
-                isInspector ? "Kilos Acumulados" : "Kilos Retirados",
-                isInspector ? "Inspector" : "Chofer",
-                "Observaciones"
-        };
+        String[] headers;
+        if (incluirId) {
+            headers = new String[]{
+                    "ID", "Comuna", "Punto Limpio", "Categoría", "% Llenado",
+                    isInspector ? "Kilos Acumulados" : "Kilos Retirados",
+                    isInspector ? "Inspector" : "Chofer",
+                    "Observaciones"
+            };
+        } else {
+            headers = new String[]{
+                    "Comuna", "Punto Limpio", "Categoría", "% Llenado",
+                    isInspector ? "Kilos Acumulados" : "Kilos Retirados",
+                    isInspector ? "Inspector" : "Chofer",
+                    "Observaciones"
+            };
+        }
 
         for (int i = 0; i < headers.length; i++) {
             com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(headers[i], headFont));
             cell.setBackgroundColor(new java.awt.Color(30, 41, 59));
             cell.setBorderColor(new java.awt.Color(51, 65, 85));
             cell.setPadding(6f);
-            if (i == 4 || i == 5) {
-                cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-            } else if (i == 0 || i == 3) {
-                cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+            if (incluirId) {
+                if (i == 4 || i == 5) {
+                    cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+                } else if (i == 0 || i == 3) {
+                    cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                } else {
+                    cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                }
             } else {
-                cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                if (i == 3 || i == 4) {
+                    cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+                } else if (i == 2) {
+                    cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                } else {
+                    cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_LEFT);
+                }
             }
             table.addCell(cell);
         }
@@ -806,13 +861,15 @@ public class AdminReportService {
             java.awt.Color currentBg = (rowIndex % 2 == 1) ? lightBg : whiteBg;
             rowIndex++;
 
-            // ID
-            com.lowagie.text.pdf.PdfPCell cId = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.valueOf(d.getId()), bodyFont));
-            cId.setBackgroundColor(currentBg);
-            cId.setBorderColor(borderColor);
-            cId.setPadding(5f);
-            cId.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
-            table.addCell(cId);
+            // ID (solo si incluirId es true)
+            if (incluirId) {
+                com.lowagie.text.pdf.PdfPCell cId = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.valueOf(d.getId()), bodyFont));
+                cId.setBackgroundColor(currentBg);
+                cId.setBorderColor(borderColor);
+                cId.setPadding(5f);
+                cId.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
+                table.addCell(cId);
+            }
 
             // Comuna
             String comunaNombre = d.getContenedor() != null && d.getContenedor().getComuna() != null ? d.getContenedor().getComuna().getNombre() : "N/A";
@@ -886,7 +943,7 @@ public class AdminReportService {
         // Summary Row
         double avgPct = detallesList.isEmpty() ? 0 : (sumPct / detallesList.size());
         com.lowagie.text.pdf.PdfPCell cTotalLbl = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase("TOTAL " + (isInspector ? "INSPECTORES" : "CHOFERES"), totalFont));
-        cTotalLbl.setColspan(4);
+        cTotalLbl.setColspan(incluirId ? 4 : 3);
         cTotalLbl.setBackgroundColor(new java.awt.Color(241, 245, 249));
         cTotalLbl.setBorderColor(borderColor);
         cTotalLbl.setPadding(6f);

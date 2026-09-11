@@ -65,6 +65,29 @@ class AdminReportServiceTest {
     }
 
     @Test
+    void shouldGenerateExcelReportWithAndWithoutIdColumn() throws Exception {
+        when(detalleRepository.findAll()).thenReturn(List.of(detalle));
+
+        // Con ID: Columna 0 debe ser "ID Detalle"
+        byte[] excelWithId = adminReportService.generateExcelReport(1L, 5L, 33, 2026, true);
+        assertNotNull(excelWithId);
+        try (org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(excelWithId))) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.getRow(1); // Row 0 is Banner, Row 1 is Header
+            assertEquals("ID Detalle", headerRow.getCell(0).getStringCellValue());
+        }
+
+        // Sin ID: Columna 0 debe ser "Semana / Año"
+        byte[] excelWithoutId = adminReportService.generateExcelReport(1L, 5L, 33, 2026, false);
+        assertNotNull(excelWithoutId);
+        try (org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(excelWithoutId))) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            org.apache.poi.ss.usermodel.Row headerRow = sheet.getRow(1);
+            assertEquals("Semana / Año", headerRow.getCell(0).getStringCellValue());
+        }
+    }
+
+    @Test
     void shouldGenerateValidPdfReportWithWeekFilter() throws Exception {
         when(detalleRepository.findAll()).thenReturn(List.of(detalle));
 
@@ -72,6 +95,14 @@ class AdminReportServiceTest {
 
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
+
+        byte[] pdfWithId = adminReportService.generatePdfReport(1L, 5L, 33, 2026, true);
+        assertNotNull(pdfWithId);
+        assertTrue(pdfWithId.length > 0);
+
+        byte[] pdfWithoutId = adminReportService.generatePdfReport(1L, 5L, 33, 2026, false);
+        assertNotNull(pdfWithoutId);
+        assertTrue(pdfWithoutId.length > 0);
     }
 
     @Test

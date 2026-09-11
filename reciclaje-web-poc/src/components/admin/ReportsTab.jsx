@@ -15,6 +15,9 @@ export default function ReportsTab() {
   const currentWeekNumber = getCurrentISOWeek();
   const currentYearNumber = new Date().getFullYear();
 
+  const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
+  const isAdmin = currentUser?.rol === 'ADMIN';
+
   const [comunas, setComunas] = useState([]);
   const [users, setUsers] = useState([]);
   const [availableYears, setAvailableYears] = useState([currentYearNumber]);
@@ -24,6 +27,7 @@ export default function ReportsTab() {
   const [filterByWeek, setFilterByWeek] = useState(true); // Checkbox para reporte semanal opcional (marcado por defecto)
   const [selectedSemana, setSelectedSemana] = useState(currentWeekNumber.toString());
   const [selectedAnio, setSelectedAnio] = useState(currentYearNumber.toString());
+  const [incluirId, setIncluirId] = useState(false);
 
   const [downloadingExcel, setDownloadingExcel] = useState(false);
   const [downloadingPdf, setDownloadingPdf] = useState(false);
@@ -62,6 +66,9 @@ export default function ReportsTab() {
         if (selectedSemana) params.semanaNumero = selectedSemana;
         if (selectedAnio) params.anio = selectedAnio;
       }
+      if (isAdmin && incluirId) {
+        params.incluirId = true;
+      }
 
       const blob = await adminService.downloadExcelReport(params);
       const url = window.URL.createObjectURL(blob);
@@ -88,6 +95,9 @@ export default function ReportsTab() {
       if (filterByWeek) {
         if (selectedSemana) params.semanaNumero = selectedSemana;
         if (selectedAnio) params.anio = selectedAnio;
+      }
+      if (isAdmin && incluirId) {
+        params.incluirId = true;
       }
 
       const blob = await adminService.downloadPdfReport(params);
@@ -148,9 +158,6 @@ export default function ReportsTab() {
       e.target.value = null;
     }
   };
-
-  const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
-  const isAdmin = currentUser?.rol === 'ADMIN';
 
   return (
     <div className="reports-tab">
@@ -256,6 +263,20 @@ export default function ReportsTab() {
               ))}
             </select>
           </div>
+
+          {isAdmin && (
+            <div style={{ marginBottom: '1.25rem', padding: '0.75rem 0.85rem', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 500, fontSize: '0.85rem', color: '#e5e7eb' }}>
+                <input
+                  type="checkbox"
+                  checked={incluirId}
+                  onChange={e => setIncluirId(e.target.checked)}
+                  style={{ width: '16px', height: '16px', accentColor: '#10b981', cursor: 'pointer' }}
+                />
+                <span>Incluir ID del registro de inspección en los reportes</span>
+              </label>
+            </div>
+          )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
             <button

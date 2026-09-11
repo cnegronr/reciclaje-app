@@ -54,7 +54,7 @@ class AdminReportControllerTest {
     @Test
     @DisplayName("Debe descargar reporte Excel directo (.xlsx) con filtro de semana")
     void downloadExcelReport() throws Exception {
-        when(adminReportService.generateExcelReport(any(), any(), any(), any())).thenReturn(new byte[]{1, 2, 3});
+        when(adminReportService.generateExcelReport(any(), any(), any(), any(), anyBoolean())).thenReturn(new byte[]{1, 2, 3});
 
         mockMvc.perform(get("/api/admin/reports/excel?semanaNumero=33&anio=2026"))
                 .andExpect(status().isOk())
@@ -64,11 +64,59 @@ class AdminReportControllerTest {
     @Test
     @DisplayName("Debe descargar reporte PDF con filtro de semana")
     void downloadPdfReport() throws Exception {
-        when(adminReportService.generatePdfReport(any(), any(), any(), any())).thenReturn(new byte[]{4, 5, 6});
+        when(adminReportService.generatePdfReport(any(), any(), any(), any(), anyBoolean())).thenReturn(new byte[]{4, 5, 6});
 
         mockMvc.perform(get("/api/admin/reports/pdf?semanaNumero=33&anio=2026"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Content-Disposition", "attachment; filename=\"Reporte_Consolidado_Reciclaje.pdf\""));
+    }
+
+    @Test
+    @DisplayName("Debe incluir ID en reporte Excel para usuario ADMIN cuando incluirId=true")
+    void downloadExcelReportWithIdForAdmin() throws Exception {
+        setSecurityContextRole("ROLE_ADMIN");
+        when(adminReportService.generateExcelReport(any(), any(), any(), any(), eq(true))).thenReturn(new byte[]{1, 2, 3});
+
+        mockMvc.perform(get("/api/admin/reports/excel?incluirId=true"))
+                .andExpect(status().isOk());
+
+        verify(adminReportService).generateExcelReport(any(), any(), any(), any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("Debe ignorar incluirId=true y omitir ID en reporte Excel para usuario REPORTERIA")
+    void downloadExcelReportWithIdIgnoredForReporteria() throws Exception {
+        setSecurityContextRole("ROLE_REPORTERIA");
+        when(adminReportService.generateExcelReport(any(), any(), any(), any(), eq(false))).thenReturn(new byte[]{1, 2, 3});
+
+        mockMvc.perform(get("/api/admin/reports/excel?incluirId=true"))
+                .andExpect(status().isOk());
+
+        verify(adminReportService).generateExcelReport(any(), any(), any(), any(), eq(false));
+    }
+
+    @Test
+    @DisplayName("Debe incluir ID en reporte PDF para usuario ADMIN cuando incluirId=true")
+    void downloadPdfReportWithIdForAdmin() throws Exception {
+        setSecurityContextRole("ROLE_ADMIN");
+        when(adminReportService.generatePdfReport(any(), any(), any(), any(), eq(true))).thenReturn(new byte[]{4, 5, 6});
+
+        mockMvc.perform(get("/api/admin/reports/pdf?incluirId=true"))
+                .andExpect(status().isOk());
+
+        verify(adminReportService).generatePdfReport(any(), any(), any(), any(), eq(true));
+    }
+
+    @Test
+    @DisplayName("Debe ignorar incluirId=true y omitir ID en reporte PDF para usuario REPORTERIA")
+    void downloadPdfReportWithIdIgnoredForReporteria() throws Exception {
+        setSecurityContextRole("ROLE_REPORTERIA");
+        when(adminReportService.generatePdfReport(any(), any(), any(), any(), eq(false))).thenReturn(new byte[]{4, 5, 6});
+
+        mockMvc.perform(get("/api/admin/reports/pdf?incluirId=true"))
+                .andExpect(status().isOk());
+
+        verify(adminReportService).generatePdfReport(any(), any(), any(), any(), eq(false));
     }
 
     @org.junit.jupiter.api.AfterEach
