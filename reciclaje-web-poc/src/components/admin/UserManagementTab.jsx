@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { adminService } from '../../services/adminService';
 import { comunaService } from '../../services/comunaService';
+import { authService } from '../../services/authService';
 
-export default function UserManagementTab() {
+export default function UserManagementTab({ onLogout }) {
   const [users, setUsers] = useState([]);
   const [comunas, setComunas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +91,7 @@ export default function UserManagementTab() {
     e.preventDefault();
     try {
       const isEditingSelf = editingUser && isSelfUser(editingUser);
+      const isSelfEmailChanged = isEditingSelf && (editingUser.email?.trim().toLowerCase() !== formData.email?.trim().toLowerCase());
       const payload = {
         ...formData,
         rol: isEditingSelf ? editingUser.rol : formData.rol,
@@ -102,6 +104,17 @@ export default function UserManagementTab() {
         await adminService.createUser(payload);
       }
       setShowModal(false);
+
+      if (isSelfEmailChanged) {
+        alert('Has actualizado tu correo electrónico. Por seguridad, tu sesión ha sido cerrada.\nPor favor, inicia sesión con tu nuevo correo.');
+        authService.logout();
+        if (typeof onLogout === 'function') {
+          onLogout();
+        }
+        window.dispatchEvent(new CustomEvent('reciclaje:force-logout'));
+        return;
+      }
+
       loadData();
     } catch (err) {
       alert(err.message);

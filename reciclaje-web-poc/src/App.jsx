@@ -9,6 +9,8 @@ import { ContainerCard } from './components/ContainerCard';
 import { InspectionModal } from './components/InspectionModal';
 import TraspasoVisitasModal from './components/admin/TraspasoVisitasModal';
 
+const AdminPanelScreen = React.lazy(() => import('./components/admin/AdminPanelScreen'));
+
 export function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [comunas, setComunas] = useState([]);
@@ -17,6 +19,20 @@ export function App() {
   const [activeModalContenedor, setActiveModalContenedor] = useState(null);
   const [loadingComunas, setLoadingComunas] = useState(true);
   const [activeView, setActiveView] = useState('inspection'); // 'inspection' | 'admin'
+
+  const handleLogout = () => {
+    authService.logout();
+    setCurrentUser(null);
+    setActiveView('inspection');
+  };
+
+  useEffect(() => {
+    const handleForceLogout = () => {
+      handleLogout();
+    };
+    window.addEventListener('reciclaje:force-logout', handleForceLogout);
+    return () => window.removeEventListener('reciclaje:force-logout', handleForceLogout);
+  }, []);
 
   // Estados para Traspaso de Visitas y Limpieza con Respaldo
   const [isTraspasoModalOpen, setIsTraspasoModalOpen] = useState(false);
@@ -80,10 +96,7 @@ export function App() {
           comunas={comunas}
           selectedComunaId={selectedComunaId}
           onSelectComuna={(id) => setSelectedComunaId(id)}
-          onLogout={() => {
-            authService.logout();
-            setCurrentUser(null);
-          }}
+          onLogout={handleLogout}
         />
         <main className="main-content-container" style={{ textAlign: 'center', padding: '4rem 1rem' }}>
           <h2>⏳ Cargando comunas y puntos de reciclaje desde PostgreSQL...</h2>
@@ -225,17 +238,14 @@ export function App() {
         comunas={comunas}
         selectedComunaId={selectedComunaId}
         onSelectComuna={(id) => setSelectedComunaId(id)}
-        onLogout={() => {
-          authService.logout();
-          setCurrentUser(null);
-        }}
+        onLogout={handleLogout}
         activeView={activeView}
         onChangeView={(view) => setActiveView(view)}
       />
 
       {activeView === 'admin' && (currentUser?.rol === 'ADMIN' || currentUser?.rol === 'REPORTERIA') ? (
         <React.Suspense fallback={<div className="p-4 text-center">Cargando Panel Admin...</div>}>
-          {React.createElement(React.lazy(() => import('./components/admin/AdminPanelScreen')))}
+          <AdminPanelScreen onLogout={handleLogout} />
         </React.Suspense>
       ) : (
         <main className="main-content-container">

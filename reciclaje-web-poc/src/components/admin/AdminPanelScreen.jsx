@@ -4,7 +4,7 @@ import ContainerManagementTab from './ContainerManagementTab';
 import MetricsDashboardTab from './MetricsDashboardTab';
 import ReportsTab from './ReportsTab';
 
-export default function AdminPanelScreen() {
+export default function AdminPanelScreen({ onLogout }) {
   const [activeTab, setActiveTab] = useState('metrics');
 
   return (
@@ -38,7 +38,7 @@ export default function AdminPanelScreen() {
 
       <div className="admin-card">
         {activeTab === 'metrics' && <MetricsDashboardTab />}
-        {activeTab === 'users' && <UserManagementTab />}
+        {activeTab === 'users' && <UserManagementTab onLogout={onLogout} />}
         {activeTab === 'containers' && <ContainerManagementTab />}
         {activeTab === 'reports' && <ReportsTab />}
       </div>
