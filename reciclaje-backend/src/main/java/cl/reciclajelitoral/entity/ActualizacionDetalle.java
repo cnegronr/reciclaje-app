@@ -34,6 +34,9 @@ public class ActualizacionDetalle {
     @Column(name = "kilos_calculados", precision = 7, scale = 2)
     private BigDecimal kilosCalculados;
 
+    @Column(name = "kilos_retirados", precision = 7, scale = 2)
+    private BigDecimal kilosRetirados;
+
     @Column(name = "observaciones", columnDefinition = "TEXT")
     private String observaciones;
 

@@ -23,8 +23,14 @@ public class DetalleInspeccionDTO {
     private String actualizadoPorRol;
     private BigDecimal porcentajeEstimado;
     private BigDecimal kilosCalculados;
+    private BigDecimal kilosRetirados;
     private BigDecimal porcentajeEstimadoInicial;
     private BigDecimal kilosCalculadosInicial;
+    private BigDecimal kilosRetiradosInicial;
+    private String inspectorAsignadoNombre;
+    private BigDecimal ultimoPorcentajeInspector;
+    private BigDecimal ultimosKilosInspector;
+    private LocalDateTime ultimaFechaInspector;
     private Boolean visitado;
     private LocalDateTime fechaHoraInicial;
     private LocalDateTime fechaHoraActualizacion;

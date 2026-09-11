@@ -24,6 +24,8 @@ public class DashboardMetricsDTO {
 
     private List<UserMetricItem> userMetrics;
     private List<ComunaMetricItem> comunaMetrics;
+    private List<InspectorComunaMetricItem> inspectorComunaMetrics;
+    private List<ChoferComunaMetricItem> choferComunaMetrics;
 
     public String getScope() { return scope; }
     public String getPeriod() { return period; }
@@ -35,6 +37,56 @@ public class DashboardMetricsDTO {
     public Long getTotalFotosCargadas() { return totalFotosCargadas; }
     public List<UserMetricItem> getUserMetrics() { return userMetrics; }
     public List<ComunaMetricItem> getComunaMetrics() { return comunaMetrics; }
+    public List<InspectorComunaMetricItem> getInspectorComunaMetrics() { return inspectorComunaMetrics; }
+    public List<ChoferComunaMetricItem> getChoferComunaMetrics() { return choferComunaMetrics; }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ContenedorInspeccionadoItem {
+        private Long contenedorId;
+        private String nombrePunto;
+        private String sector;
+        private String categoria;
+        private BigDecimal porcentaje;
+        private BigDecimal kilos;
+        private BigDecimal kilosRetirados;
+        private java.time.LocalDateTime fechaInspeccion;
+        private String inspectorNombre;
+        private String choferNombre;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class InspectorComunaMetricItem {
+        private Long comunaId;
+        private String comunaNombre;
+        private String codigoRegion;
+        private Long totalContenedores;
+        private String inspectorNombre;
+        private Long inspeccionesCompletadas;
+        private BigDecimal kilosCalculados;
+        private BigDecimal porcentajeLlenadoPromedio;
+        private List<ContenedorInspeccionadoItem> contenedoresInspeccionados;
+    }
+
+    @Data
+    @Builder
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public static class ChoferComunaMetricItem {
+        private Long comunaId;
+        private String comunaNombre;
+        private String codigoRegion;
+        private Long totalContenedores;
+        private Long inspeccionesCompletadas;
+        private BigDecimal kilosRetirados;
+        private BigDecimal porcentajeLlenadoPromedio;
+        private List<ContenedorInspeccionadoItem> contenedoresInspeccionados;
+    }
 
     @Data
     @Builder

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 
 export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) => {
+  const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
+  const isChofer = currentUser?.rol === 'CHOFER';
   const isEditing = !!detalleActual?.visitado;
 
   // Valores iniciales para detección de cambios (por defecto 0% en vez de 50%)
@@ -189,7 +191,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                   )}
                 </h4>
                 <div className="update-data-summary" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '8px 0 10px 0', fontSize: '0.85rem', background: 'rgba(0, 0, 0, 0.2)', padding: '8px 12px', borderRadius: '6px' }}>
-                  <span><strong>📊 Llenado Inicial Registrado:</strong> <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{detalleActual.porcentajeEstimadoInicial ?? detalleActual.porcentajeEstimado}%</span> ({detalleActual.kilosCalculadosInicial ?? detalleActual.kilosCalculados} kg)</span>
+                  <span><strong>📊 Llenado Inicial Registrado:</strong> <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{detalleActual.porcentajeEstimadoInicial ?? detalleActual.porcentajeEstimado}%</span> ({isChofer ? (detalleActual.kilosRetiradosInicial ?? detalleActual.kilosRetirados ?? detalleActual.kilosCalculadosInicial ?? detalleActual.kilosCalculados) : (detalleActual.kilosCalculadosInicial ?? detalleActual.kilosCalculados)} kg)</span>
                   {(detalleActual.observacionesInicial || detalleActual.observaciones) && (
                     <span><strong>💬 Comentarios Iniciales:</strong> <span style={{ color: '#e2e8f0', fontStyle: 'italic' }}>"{detalleActual.observacionesInicial || detalleActual.observaciones}"</span></span>
                   )}
@@ -255,7 +257,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                           )}
                         </h4>
                         <div className="update-data-summary" style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', margin: '8px 0 10px 0', fontSize: '0.85rem', background: 'rgba(0, 0, 0, 0.2)', padding: '8px 12px', borderRadius: '6px' }}>
-                          <span><strong>📊 Llenado Registrado:</strong> <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{upd.porcentajeEstimado}%</span> ({upd.kilosCalculados} kg)</span>
+                          <span><strong>📊 Llenado Registrado:</strong> <span style={{ color: '#38bdf8', fontWeight: 'bold' }}>{upd.porcentajeEstimado}%</span> ({isChofer ? (upd.kilosRetirados ?? upd.kilosCalculados) : upd.kilosCalculados} kg)</span>
                           {upd.observaciones && (
                             <span><strong>💬 Comentarios:</strong> <span style={{ color: '#e2e8f0', fontStyle: 'italic' }}>"{upd.observaciones}"</span></span>
                           )}
@@ -350,7 +352,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                 className="percentage-slider"
               />
               <div className="kilo-calculation-box">
-                <span>Fórmula de Kilos: ({porcentaje}% × {maxKilos}kg) =</span>
+                <span>{isChofer ? 'Kilos Retirados Estimados:' : 'Fórmula de Kilos:'} ({porcentaje}% × {maxKilos}kg) =</span>
                 <span className="kilos-total">{kilosCalculados} kg</span>
               </div>
             </div>
@@ -471,7 +473,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
                 <li><strong>Contenedor:</strong> {contenedor.nombrePunto} ({contenedor.categoria})</li>
                 <li><strong>Capacidad Máxima:</strong> {maxKilos} kg</li>
                 <li><strong>Porcentaje Ingresado:</strong> {porcentaje}%</li>
-                <li><strong>Kilos Calculados:</strong> <span className="highlight">{kilosCalculados} kg</span></li>
+                <li><strong>{isChofer ? 'Kilos Retirados:' : 'Kilos Calculados:'}</strong> <span className="highlight">{kilosCalculados} kg</span></li>
                 <li><strong>Tipo de Registro:</strong> {isEditing ? 'Actualización / Edición' : 'Inspección Inicial'}</li>
                 <li><strong>Marca Temporal:</strong> {new Date().toLocaleString('es-CL')}</li>
               </ul>

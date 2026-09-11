@@ -17,6 +17,7 @@ public class ActualizacionDetalleDTO {
     private String usuarioNombre;
     private BigDecimal porcentajeEstimado;
     private BigDecimal kilosCalculados;
+    private BigDecimal kilosRetirados;
     private String observaciones;
     private LocalDateTime fechaHora;
     @Builder.Default

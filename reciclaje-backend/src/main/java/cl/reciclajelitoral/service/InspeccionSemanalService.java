@@ -180,14 +180,24 @@ public class InspeccionSemanalService {
             }
         }
 
+        boolean esChofer = (actor != null && actor.getRol() == Rol.CHOFER) ||
+                (detalle.getInspeccionSemanal() != null && detalle.getInspeccionSemanal().getTipoRuta() == TipoRuta.CHOFER);
+        BigDecimal kilosRetiradosValor = esChofer ? kilos : null;
+
         if (detalle.getPorcentajeEstimadoInicial() == null) {
             detalle.setPorcentajeEstimadoInicial(Optional.ofNullable(detalle.getPorcentajeEstimado()).orElse(porcentajeEstimado));
             detalle.setKilosCalculadosInicial(Optional.ofNullable(detalle.getKilosCalculados()).orElse(kilos));
+            if (esChofer) {
+                detalle.setKilosRetiradosInicial(Optional.ofNullable(detalle.getKilosRetirados()).orElse(kilos));
+            }
             detalle.setObservacionesInicial(Optional.ofNullable(detalle.getObservaciones()).orElse(observacionesFinales));
         }
 
         detalle.setPorcentajeEstimado(porcentajeEstimado);
         detalle.setKilosCalculados(kilos);
+        if (esChofer) {
+            detalle.setKilosRetirados(kilos);
+        }
         detalle.setObservaciones(observacionesFinales);
         detalle.setVisitado(true);
         detalle.setActualizadoPorUsuario(actor);
@@ -200,6 +210,10 @@ public class InspeccionSemanalService {
             detalle.setCreadoPorUsuario(actor);
             detalle.setPorcentajeEstimadoInicial(porcentajeEstimado);
             detalle.setKilosCalculadosInicial(kilos);
+            if (esChofer) {
+                detalle.setKilosRetirados(kilos);
+                detalle.setKilosRetiradosInicial(kilos);
+            }
             detalle.setObservacionesInicial(observacionesFinales);
 
             if (fotosAntesUrls != null) {
@@ -233,6 +247,7 @@ public class InspeccionSemanalService {
                     .usuario(actor)
                     .porcentajeEstimado(porcentajeEstimado)
                     .kilosCalculados(kilos)
+                    .kilosRetirados(kilosRetiradosValor)
                     .observaciones(observacionesFinales)
                     .fechaHora(ahora)
                     .build();
@@ -285,12 +300,47 @@ public class InspeccionSemanalService {
 
     private InspeccionSemanalDTO convertirADTO(InspeccionSemanal i) {
         List<DetalleInspeccion> detalles = i.getDetalles() != null ? i.getDetalles() : List.of();
+
+        Map<Long, DetalleInspeccion> ultimasInspectorPorContenedor = new HashMap<>();
+        Usuario inspectorAsignado = null;
+        if (i.getComuna() != null) {
+            inspectorAsignado = asignacionRepository.findByComunaId(i.getComuna().getId()).stream()
+                    .map(AsignacionInspector::getInspector)
+                    .filter(u -> u != null && u.getRol() == Rol.INSPECTOR)
+                    .findFirst()
+                    .orElse(i.getInspectorAsociado());
+            if (i.getTipoRuta() == TipoRuta.CHOFER) {
+                List<DetalleInspeccion> visitadas = detalleRepository.findVisitadasInspectorByComunaId(i.getComuna().getId());
+                if (visitadas != null) {
+                    for (DetalleInspeccion dInsp : visitadas) {
+                        if (dInsp.getContenedor() != null) {
+                            ultimasInspectorPorContenedor.putIfAbsent(dInsp.getContenedor().getId(), dInsp);
+                        }
+                    }
+                }
+            }
+        }
+        final String inspectorAsignadoNombre = inspectorAsignado != null ? inspectorAsignado.getNombre() : "Sin Asignar";
+
         List<DetalleInspeccionDTO> detallesDTO = detalles.stream()
                 .map(d -> {
                     List<FotoInspeccion> fotos = Optional.ofNullable(d.getFotos()).orElseGet(List::of);
                     List<ActualizacionDetalle> actualizaciones = Optional.ofNullable(d.getActualizaciones()).orElseGet(List::of);
                     Usuario creador = d.getCreadoPorUsuario();
                     Usuario actualizador = d.getActualizadoPorUsuario();
+
+                    Long contId = d.getContenedor() != null ? d.getContenedor().getId() : null;
+                    DetalleInspeccion dInsp = contId != null ? ultimasInspectorPorContenedor.get(contId) : null;
+                    BigDecimal ultimoPorcentaje = dInsp != null ? dInsp.getPorcentajeEstimado() : null;
+                    BigDecimal ultimosKilos = dInsp != null ? dInsp.getKilosCalculados() : null;
+                    LocalDateTime ultimaFecha = dInsp != null
+                            ? (dInsp.getFechaHoraActualizacion() != null ? dInsp.getFechaHoraActualizacion() : dInsp.getFechaHoraInicial())
+                            : null;
+
+                    BigDecimal kRetirados = d.getKilosRetirados();
+                    if (kRetirados == null && i.getTipoRuta() == TipoRuta.CHOFER && Boolean.TRUE.equals(d.getVisitado())) {
+                        kRetirados = d.getKilosCalculados();
+                    }
 
                     List<ActualizacionDetalleDTO> actDTOList = actualizaciones.stream()
                             .map(act -> {
@@ -302,6 +352,7 @@ public class InspeccionSemanalService {
                                         .usuarioNombre(Optional.ofNullable(uAct).map(Usuario::getNombre).orElse(null))
                                         .porcentajeEstimado(act.getPorcentajeEstimado())
                                         .kilosCalculados(act.getKilosCalculados())
+                                        .kilosRetirados(act.getKilosRetirados() != null ? act.getKilosRetirados() : (i.getTipoRuta() == TipoRuta.CHOFER ? act.getKilosCalculados() : null))
                                         .observaciones(act.getObservaciones())
                                         .fechaHora(act.getFechaHora())
                                         .fotos(fotosAct.stream()
@@ -329,8 +380,14 @@ public class InspeccionSemanalService {
                             .actualizadoPorRol(Optional.ofNullable(actualizador).map(u -> u.getRol().name()).orElse(null))
                             .porcentajeEstimado(d.getPorcentajeEstimado())
                             .kilosCalculados(d.getKilosCalculados())
+                            .kilosRetirados(kRetirados)
                             .porcentajeEstimadoInicial(Optional.ofNullable(d.getPorcentajeEstimadoInicial()).orElse(d.getPorcentajeEstimado()))
                             .kilosCalculadosInicial(Optional.ofNullable(d.getKilosCalculadosInicial()).orElse(d.getKilosCalculados()))
+                            .kilosRetiradosInicial(d.getKilosRetiradosInicial())
+                            .inspectorAsignadoNombre(inspectorAsignadoNombre)
+                            .ultimoPorcentajeInspector(ultimoPorcentaje)
+                            .ultimosKilosInspector(ultimosKilos)
+                            .ultimaFechaInspector(ultimaFecha)
                             .visitado(d.getVisitado())
                             .fechaHoraInicial(d.getFechaHoraInicial())
                             .fechaHoraActualizacion(d.getFechaHoraActualizacion())
@@ -338,18 +395,18 @@ public class InspeccionSemanalService {
                             .observacionesInicial(Optional.ofNullable(d.getObservacionesInicial()).orElse(d.getObservaciones()))
                             .actualizacionesHistorial(actDTOList)
                             .fotos(fotos.stream()
-                                    .map(f -> {
-                                        Usuario uFoto = f.getUsuario();
-                                        return FotoInspeccionDTO.builder()
-                                                .id(f.getId())
-                                                .momento(f.getMomento().name())
-                                                .urlFoto(f.getUrlFoto())
-                                                .creadoEn(f.getCreadoEn())
-                                                .usuarioId(Optional.ofNullable(uFoto).map(Usuario::getId).orElse(null))
-                                                .usuarioNombre(Optional.ofNullable(uFoto).map(Usuario::getNombre).orElse(null))
-                                                .build();
-                                    })
-                                    .collect(Collectors.toList()))
+                                     .map(f -> {
+                                         Usuario uFoto = f.getUsuario();
+                                         return FotoInspeccionDTO.builder()
+                                                 .id(f.getId())
+                                                 .momento(f.getMomento().name())
+                                                 .urlFoto(f.getUrlFoto())
+                                                 .creadoEn(f.getCreadoEn())
+                                                 .usuarioId(Optional.ofNullable(uFoto).map(Usuario::getId).orElse(null))
+                                                 .usuarioNombre(Optional.ofNullable(uFoto).map(Usuario::getNombre).orElse(null))
+                                                 .build();
+                                     })
+                                     .collect(Collectors.toList()))
                             .build();
                 })
                 .collect(Collectors.toList());

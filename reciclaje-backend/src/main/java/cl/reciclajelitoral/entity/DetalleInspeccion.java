@@ -48,6 +48,12 @@ public class DetalleInspeccion {
     @Column(name = "kilos_calculados_inicial", precision = 7, scale = 2)
     private BigDecimal kilosCalculadosInicial;
 
+    @Column(name = "kilos_retirados", precision = 7, scale = 2)
+    private BigDecimal kilosRetirados;
+
+    @Column(name = "kilos_retirados_inicial", precision = 7, scale = 2)
+    private BigDecimal kilosRetiradosInicial;
+
     @Column(name = "visitado")
     private Boolean visitado = false;
 

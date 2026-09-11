@@ -1,9 +1,12 @@
 package cl.reciclajelitoral.service;
 
 import cl.reciclajelitoral.dto.DashboardMetricsDTO;
+import cl.reciclajelitoral.entity.AsignacionInspector;
 import cl.reciclajelitoral.entity.Comuna;
 import cl.reciclajelitoral.entity.Contenedor;
 import cl.reciclajelitoral.entity.DetalleInspeccion;
+import cl.reciclajelitoral.entity.Rol;
+import cl.reciclajelitoral.entity.TipoRuta;
 import cl.reciclajelitoral.entity.Usuario;
 import cl.reciclajelitoral.repository.*;
 import cl.reciclajelitoral.util.WeekDateUtils;
@@ -31,6 +34,7 @@ public class AdminDashboardService {
     private final DetalleInspeccionRepository detalleRepository;
     private final ComunaRepository comunaRepository;
     private final FotoInspeccionRepository fotoRepository;
+    private final AsignacionInspectorRepository asignacionRepository;
 
     private Usuario getUsuarioRelacionado(DetalleInspeccion d) {
         if (d.getActualizadoPorUsuario() != null) return d.getActualizadoPorUsuario();
@@ -69,6 +73,19 @@ public class AdminDashboardService {
             return WeekDateUtils.getYear(dt);
         }
         return d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getAnio() != null ? d.getInspeccionSemanal().getAnio() : -1;
+    }
+
+    private boolean isDetalleChofer(DetalleInspeccion d) {
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getTipoRuta() == TipoRuta.CHOFER) {
+            return true;
+        }
+        Usuario u = getUsuarioRelacionado(d);
+        return u != null && u.getRol() == Rol.CHOFER;
+    }
+
+    private String getNombreActor(DetalleInspeccion d) {
+        Usuario u = getUsuarioRelacionado(d);
+        return u != null ? u.getNombre() : "Sin Asignar";
     }
 
     @Transactional(readOnly = true)
@@ -135,21 +152,27 @@ public class AdminDashboardService {
                 })
                 .collect(Collectors.toList());
 
-        // Deduplicar detalles por contenedor, semana y año para evitar conteos dobles dentro del mismo periodo
+        // Deduplicar detalles por contenedor, tipo (CHOFER / INSPECTOR), semana y año
         Map<String, DetalleInspeccion> mapUnicos = new HashMap<>();
         for (DetalleInspeccion d : detallesVisitados) {
             Long contId = (d.getContenedor() != null) ? d.getContenedor().getId() : null;
             if (contId != null) {
                 int week = getWeekOfDetalle(d);
                 int year = getYearOfDetalle(d);
-                String key = contId + "_" + week + "_" + year;
+                String tipo = isDetalleChofer(d) ? "CHOFER" : "INSPECTOR";
+                String key = contId + "_" + tipo + "_" + week + "_" + year;
                 mapUnicos.put(key, d);
             }
         }
         final List<DetalleInspeccion> detallesUnicos = new ArrayList<>(mapUnicos.values());
 
         BigDecimal sumKilos = detallesUnicos.stream()
-                .map(d -> Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO))
+                .map(d -> {
+                    if (isDetalleChofer(d) && d.getKilosRetirados() != null) {
+                        return d.getKilosRetirados();
+                    }
+                    return Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO);
+                })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         double avgPorcentajeDouble = detallesUnicos.stream()
@@ -184,7 +207,12 @@ public class AdminDashboardService {
                                 Usuario uRel = getUsuarioRelacionado(d);
                                 return uRel != null && uRel.getId().equals(u.getId());
                             })
-                            .map(d -> Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO))
+                            .map(d -> {
+                                if (isDetalleChofer(d) && d.getKilosRetirados() != null) {
+                                    return d.getKilosRetirados();
+                                }
+                                return Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO);
+                            })
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                     return DashboardMetricsDTO.UserMetricItem.builder()
@@ -198,7 +226,7 @@ public class AdminDashboardService {
                 .filter(um -> userId != null || um.getInspeccionesRealizadas() > 0)
                 .collect(Collectors.toList());
 
-        // Desglose por comuna
+        // Desglose por comuna - GENERAL (compatibilidad)
         List<DashboardMetricsDTO.ComunaMetricItem> comunaMetrics = comunas.stream()
                 .filter(c -> comunaId == null || c.getId().equals(comunaId))
                 .filter(c -> region == null || region.trim().isEmpty() || region.equalsIgnoreCase(c.getCodigoRegion()))
@@ -212,7 +240,12 @@ public class AdminDashboardService {
                             .collect(Collectors.toList());
 
                     BigDecimal cKilos = detallesComuna.stream()
-                            .map(d -> Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO))
+                            .map(d -> {
+                                if (isDetalleChofer(d) && d.getKilosRetirados() != null) {
+                                    return d.getKilosRetirados();
+                                }
+                                return Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO);
+                            })
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
                     double cAvgPorc = detallesComuna.stream()
@@ -233,6 +266,140 @@ public class AdminDashboardService {
                 .filter(cm -> comunaId != null || cm.getInspeccionesCompletadas() > 0)
                 .collect(Collectors.toList());
 
+        // Separar detalles por perfil (INSPECTOR vs CHOFER)
+        List<DetalleInspeccion> detallesInspector = detallesUnicos.stream()
+                .filter(d -> !isDetalleChofer(d))
+                .collect(Collectors.toList());
+
+        List<DetalleInspeccion> detallesChofer = detallesUnicos.stream()
+                .filter(this::isDetalleChofer)
+                .collect(Collectors.toList());
+
+        // Desglose por comuna - SECCIÓN INSPECTOR
+        List<DashboardMetricsDTO.InspectorComunaMetricItem> inspectorComunaMetrics = comunas.stream()
+                .filter(c -> comunaId == null || c.getId().equals(comunaId))
+                .filter(c -> region == null || region.trim().isEmpty() || region.equalsIgnoreCase(c.getCodigoRegion()))
+                .map(c -> {
+                    long totalContComuna = contenedores.stream()
+                            .filter(cont -> cont.getComuna() != null && cont.getComuna().getId().equals(c.getId()))
+                            .count();
+
+                    List<DetalleInspeccion> detallesComuna = detallesInspector.stream()
+                            .filter(d -> d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(c.getId()))
+                            .collect(Collectors.toList());
+
+                    BigDecimal cKilos = detallesComuna.stream()
+                            .map(d -> Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO))
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    double cAvgPorc = detallesComuna.stream()
+                            .mapToDouble(d -> Optional.ofNullable(d.getPorcentajeEstimado()).map(BigDecimal::doubleValue).orElse(0.0))
+                            .average()
+                            .orElse(0.0);
+
+                    String inspectorNombre = "Sin Asignar";
+                    if (asignacionRepository != null) {
+                        try {
+                            inspectorNombre = asignacionRepository.findByComunaId(c.getId()).stream()
+                                    .map(AsignacionInspector::getInspector)
+                                    .filter(u -> u != null && u.getRol() == Rol.INSPECTOR)
+                                    .findFirst()
+                                    .map(Usuario::getNombre)
+                                    .orElse("Sin Asignar");
+                        } catch (Exception ignored) {}
+                    }
+                    if ("Sin Asignar".equals(inspectorNombre) && !detallesComuna.isEmpty()) {
+                        inspectorNombre = getNombreActor(detallesComuna.get(0));
+                    }
+
+                    List<DashboardMetricsDTO.ContenedorInspeccionadoItem> contenedoresItems = detallesComuna.stream()
+                            .map(d -> {
+                                Contenedor cont = d.getContenedor();
+                                return DashboardMetricsDTO.ContenedorInspeccionadoItem.builder()
+                                        .contenedorId(cont != null ? cont.getId() : null)
+                                        .nombrePunto(cont != null ? cont.getNombrePunto() : "Punto Limpio")
+                                        .sector(cont != null ? cont.getSector() : null)
+                                        .categoria(cont != null && cont.getCategoria() != null ? cont.getCategoria().name() : "MUNICIPAL")
+                                        .porcentaje(d.getPorcentajeEstimado())
+                                        .kilos(d.getKilosCalculados())
+                                        .fechaInspeccion(getEffectiveLocalDateTime(d))
+                                        .inspectorNombre(getNombreActor(d))
+                                        .build();
+                            })
+                            .collect(Collectors.toList());
+
+                    return DashboardMetricsDTO.InspectorComunaMetricItem.builder()
+                            .comunaId(c.getId())
+                            .comunaNombre(c.getNombre())
+                            .codigoRegion(c.getCodigoRegion())
+                            .totalContenedores(totalContComuna)
+                            .inspectorNombre(inspectorNombre)
+                            .inspeccionesCompletadas((long) detallesComuna.size())
+                            .kilosCalculados(cKilos)
+                            .porcentajeLlenadoPromedio(BigDecimal.valueOf(cAvgPorc).setScale(2, RoundingMode.HALF_UP))
+                            .contenedoresInspeccionados(contenedoresItems)
+                            .build();
+                })
+                .filter(cm -> comunaId != null || cm.getInspeccionesCompletadas() > 0)
+                .collect(Collectors.toList());
+
+        // Desglose por comuna - SECCIÓN CHOFER
+        List<DashboardMetricsDTO.ChoferComunaMetricItem> choferComunaMetrics = comunas.stream()
+                .filter(c -> comunaId == null || c.getId().equals(comunaId))
+                .filter(c -> region == null || region.trim().isEmpty() || region.equalsIgnoreCase(c.getCodigoRegion()))
+                .map(c -> {
+                    long totalContComuna = contenedores.stream()
+                            .filter(cont -> cont.getComuna() != null && cont.getComuna().getId().equals(c.getId()))
+                            .count();
+
+                    List<DetalleInspeccion> detallesComuna = detallesChofer.stream()
+                            .filter(d -> d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(c.getId()))
+                            .collect(Collectors.toList());
+
+                    BigDecimal cKilosRetirados = detallesComuna.stream()
+                            .map(d -> {
+                                if (d.getKilosRetirados() != null) return d.getKilosRetirados();
+                                return Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO);
+                            })
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+                    double cAvgPorc = detallesComuna.stream()
+                            .mapToDouble(d -> Optional.ofNullable(d.getPorcentajeEstimado()).map(BigDecimal::doubleValue).orElse(0.0))
+                            .average()
+                            .orElse(0.0);
+
+                    List<DashboardMetricsDTO.ContenedorInspeccionadoItem> contenedoresItems = detallesComuna.stream()
+                            .map(d -> {
+                                Contenedor cont = d.getContenedor();
+                                BigDecimal kRet = d.getKilosRetirados() != null ? d.getKilosRetirados() : d.getKilosCalculados();
+                                return DashboardMetricsDTO.ContenedorInspeccionadoItem.builder()
+                                        .contenedorId(cont != null ? cont.getId() : null)
+                                        .nombrePunto(cont != null ? cont.getNombrePunto() : "Punto Limpio")
+                                        .sector(cont != null ? cont.getSector() : null)
+                                        .categoria(cont != null && cont.getCategoria() != null ? cont.getCategoria().name() : "MUNICIPAL")
+                                        .porcentaje(d.getPorcentajeEstimado())
+                                        .kilos(kRet)
+                                        .kilosRetirados(kRet)
+                                        .fechaInspeccion(getEffectiveLocalDateTime(d))
+                                        .choferNombre(getNombreActor(d))
+                                        .build();
+                            })
+                            .collect(Collectors.toList());
+
+                    return DashboardMetricsDTO.ChoferComunaMetricItem.builder()
+                            .comunaId(c.getId())
+                            .comunaNombre(c.getNombre())
+                            .codigoRegion(c.getCodigoRegion())
+                            .totalContenedores(totalContComuna)
+                            .inspeccionesCompletadas((long) detallesComuna.size())
+                            .kilosRetirados(cKilosRetirados)
+                            .porcentajeLlenadoPromedio(BigDecimal.valueOf(cAvgPorc).setScale(2, RoundingMode.HALF_UP))
+                            .contenedoresInspeccionados(contenedoresItems)
+                            .build();
+                })
+                .filter(cm -> comunaId != null || cm.getInspeccionesCompletadas() > 0)
+                .collect(Collectors.toList());
+
         return DashboardMetricsDTO.builder()
                 .scope(scope != null ? scope : "ALL")
                 .period(period != null ? period : "HISTORIC")
@@ -244,6 +411,8 @@ public class AdminDashboardService {
                 .totalFotosCargadas(countFotosFiltradas > 0 ? countFotosFiltradas : totalFotos)
                 .userMetrics(userMetrics)
                 .comunaMetrics(comunaMetrics)
+                .inspectorComunaMetrics(inspectorComunaMetrics)
+                .choferComunaMetrics(choferComunaMetrics)
                 .build();
     }
 }

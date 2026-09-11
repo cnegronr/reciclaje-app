@@ -27,6 +27,7 @@ class AdminDashboardServiceTest {
     @Mock private DetalleInspeccionRepository detalleRepository;
     @Mock private ComunaRepository comunaRepository;
     @Mock private FotoInspeccionRepository fotoRepository;
+    @Mock private AsignacionInspectorRepository asignacionRepository;
 
     @InjectMocks
     private AdminDashboardService adminDashboardService;
@@ -145,5 +146,42 @@ class AdminDashboardServiceTest {
 
         DashboardMetricsDTO historicDto = adminDashboardService.getMetrics("ALL", "HISTORIC", 1L, null, null, null);
         assertEquals(1L, historicDto.getTotalInspecciones());
+    }
+
+    @Test
+    @DisplayName("Debe generar metricas separadas para inspector y chofer por comuna")
+    void shouldGenerateInspectorAndChoferComunaMetrics() {
+        Usuario chofer = Usuario.builder().id(2L).nombre("Chofer 1").rol(Rol.CHOFER).build();
+        DetalleInspeccion detChofer = DetalleInspeccion.builder()
+                .id(101L)
+                .visitado(true)
+                .fechaHoraInicial(LocalDateTime.now())
+                .creadoPorUsuario(chofer)
+                .actualizadoPorUsuario(chofer)
+                .contenedor(cont)
+                .porcentajeEstimado(BigDecimal.valueOf(80))
+                .kilosCalculados(BigDecimal.valueOf(400))
+                .kilosRetirados(BigDecimal.valueOf(380))
+                .build();
+
+        when(detalleRepository.findAll()).thenReturn(List.of(det, detChofer));
+        when(asignacionRepository.findByComunaId(1L)).thenReturn(List.of(
+                AsignacionInspector.builder().comuna(comuna).inspector(user).build()
+        ));
+
+        DashboardMetricsDTO dto = adminDashboardService.getMetrics("ALL", "HISTORIC", null, null, null, null);
+
+        assertNotNull(dto);
+        assertNotNull(dto.getInspectorComunaMetrics());
+        assertEquals(1, dto.getInspectorComunaMetrics().size());
+        assertEquals("User 1", dto.getInspectorComunaMetrics().get(0).getInspectorNombre());
+        assertEquals(1L, dto.getInspectorComunaMetrics().get(0).getInspeccionesCompletadas());
+        assertEquals(BigDecimal.valueOf(250), dto.getInspectorComunaMetrics().get(0).getKilosCalculados());
+
+        assertNotNull(dto.getChoferComunaMetrics());
+        assertEquals(1, dto.getChoferComunaMetrics().size());
+        assertEquals(1L, dto.getChoferComunaMetrics().get(0).getInspeccionesCompletadas());
+        assertEquals(BigDecimal.valueOf(380), dto.getChoferComunaMetrics().get(0).getKilosRetirados());
+        assertEquals("Chofer 1", dto.getChoferComunaMetrics().get(0).getContenedoresInspeccionados().get(0).getChoferNombre());
     }
 }

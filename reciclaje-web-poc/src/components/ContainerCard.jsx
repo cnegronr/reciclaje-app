@@ -38,12 +38,16 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
         {(() => {
           const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
           const isAdmin = currentUser?.rol === 'ADMIN';
-          const creador = detalleInspeccion?.creadoPorUsuarioNombre || contenedor.inspectorAsociadoNombre || 'Sin Asignar';
+          const isChofer = currentUser?.rol === 'CHOFER';
+          const inspectorAsignado = detalleInspeccion?.inspectorAsignadoNombre || contenedor.inspectorAsociadoNombre || 'Sin Asignar';
+          const creador = detalleInspeccion?.creadoPorUsuarioNombre || inspectorAsignado;
           const actualizador = detalleInspeccion?.actualizadoPorUsuarioNombre;
           const actRol = detalleInspeccion?.actualizadoPorRol;
 
           let inspectorLabel = `👤 Inspector: ${creador}`;
-          if (isVisited && actualizador && actualizador !== creador) {
+          if (isChofer) {
+            inspectorLabel = `👤 Inspector Asignado: ${inspectorAsignado}`;
+          } else if (isVisited && actualizador && actualizador !== creador) {
             if (actRol === 'ADMIN') {
               if (isAdmin) {
                 inspectorLabel = `👤 Creado por: ${creador} | Actualizado por: ${actualizador} (Admin)`;
@@ -56,9 +60,40 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
           }
 
           return (
-            <div style={{ marginTop: '0.35rem', marginBottom: '0.5rem', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
-              {inspectorLabel}
-            </div>
+            <>
+              <div style={{ marginTop: '0.35rem', marginBottom: '0.5rem', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
+                {inspectorLabel}
+              </div>
+
+              {isChofer && (
+                <div style={{
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  borderRadius: '6px',
+                  padding: '0.5rem 0.75rem',
+                  marginBottom: '0.75rem',
+                  fontSize: '0.78rem'
+                }}>
+                  <div style={{ fontWeight: 700, color: '#60a5fa', marginBottom: '0.25rem' }}>
+                    ℹ️ Registro Inspector Asignado:
+                  </div>
+                  {detalleInspeccion?.ultimoPorcentajeInspector != null ? (
+                    <div style={{ color: '#cbd5e1' }}>
+                      <span>📊 Llenado: <strong style={{ color: '#38bdf8' }}>{detalleInspeccion.ultimoPorcentajeInspector}%</strong> ({detalleInspeccion.ultimosKilosInspector} kg)</span>
+                      {detalleInspeccion.ultimaFechaInspector && (
+                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                          🕒 Fecha: {new Date(detalleInspeccion.ultimaFechaInspector).toLocaleString('es-CL')}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ color: '#94a3b8', fontStyle: 'italic' }}>
+                      Sin registros previos del inspector
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
           );
         })()}
 
@@ -69,8 +104,20 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
               <span className="metric-value font-bold">{detalleInspeccion.porcentajeEstimado}%</span>
             </div>
             <div className="result-metric">
-              <span className="metric-label">Kilos Calculados:</span>
-              <span className="metric-value highlight">{detalleInspeccion.kilosCalculados} kg</span>
+              {(() => {
+                const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
+                const isChofer = currentUser?.rol === 'CHOFER';
+                return (
+                  <>
+                    <span className="metric-label">{isChofer ? 'Kilos Retirados:' : 'Kilos Calculados:'}</span>
+                    <span className="metric-value highlight">
+                      {isChofer
+                        ? (detalleInspeccion.kilosRetirados != null ? detalleInspeccion.kilosRetirados : detalleInspeccion.kilosCalculados)
+                        : detalleInspeccion.kilosCalculados} kg
+                    </span>
+                  </>
+                );
+              })()}
             </div>
 
             <div className="timestamps-history">
