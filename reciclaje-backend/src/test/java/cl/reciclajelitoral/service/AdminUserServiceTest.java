@@ -2,6 +2,7 @@ package cl.reciclajelitoral.service;
 
 import cl.reciclajelitoral.dto.CreateUserRequest;
 import cl.reciclajelitoral.dto.UserAdminDTO;
+import cl.reciclajelitoral.entity.AsignacionInspector;
 import cl.reciclajelitoral.entity.Comuna;
 import cl.reciclajelitoral.entity.Rol;
 import cl.reciclajelitoral.entity.Usuario;
@@ -234,5 +235,70 @@ class AdminUserServiceTest {
         } finally {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
+    }
+
+    @Test
+    void shouldCreateUserWithReassignedComuna() {
+        Usuario inspectorExistente = Usuario.builder().id(5L).nombre("Inspector Anterior").build();
+        Comuna comuna = Comuna.builder().id(4L).nombre("San Antonio").build();
+        AsignacionInspector asignacionExistente = AsignacionInspector.builder()
+                .id(100L)
+                .inspector(inspectorExistente)
+                .comuna(comuna)
+                .build();
+
+        CreateUserRequest req = CreateUserRequest.builder()
+                .nombre("Nuevo Inspector")
+                .email("nuevo@test.cl")
+                .password("Pass123!")
+                .rol(Rol.INSPECTOR)
+                .comunaIds(List.of(4L))
+                .build();
+
+        when(usuarioRepository.existsByEmail("nuevo@test.cl")).thenReturn(false);
+        when(passwordEncoder.encode("Pass123!")).thenReturn("encodedPassword");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> {
+            Usuario u = i.getArgument(0);
+            u.setId(6L);
+            return u;
+        });
+        when(comunaRepository.findAllById(List.of(4L))).thenReturn(List.of(comuna));
+        when(asignacionRepository.findByInspectorId(6L)).thenReturn(List.of());
+        when(asignacionRepository.findByComunaId(4L)).thenReturn(List.of(asignacionExistente));
+
+        UserAdminDTO dto = adminUserService.createUser(req);
+
+        assertNotNull(dto);
+        assertEquals(6L, asignacionExistente.getInspector().getId());
+        verify(asignacionRepository).save(asignacionExistente);
+    }
+
+    @Test
+    void shouldUpdateUserWithReassignedComuna() {
+        Usuario inspectorExistente = Usuario.builder().id(5L).nombre("Inspector Anterior").build();
+        Comuna comuna = Comuna.builder().id(4L).nombre("San Antonio").build();
+        AsignacionInspector asignacionExistente = AsignacionInspector.builder()
+                .id(100L)
+                .inspector(inspectorExistente)
+                .comuna(comuna)
+                .build();
+
+        cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                .nombre("Admin Modificado")
+                .email("admin@test.cl")
+                .comunaIds(List.of(4L))
+                .build();
+
+        when(usuarioRepository.findById(1L)).thenReturn(java.util.Optional.of(adminUser));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+        when(asignacionRepository.findByInspectorId(1L)).thenReturn(List.of());
+        when(comunaRepository.findAllById(List.of(4L))).thenReturn(List.of(comuna));
+        when(asignacionRepository.findByComunaId(4L)).thenReturn(List.of(asignacionExistente));
+
+        UserAdminDTO dto = adminUserService.updateUser(1L, req);
+
+        assertNotNull(dto);
+        assertEquals(1L, asignacionExistente.getInspector().getId());
+        verify(asignacionRepository).save(asignacionExistente);
     }
 }

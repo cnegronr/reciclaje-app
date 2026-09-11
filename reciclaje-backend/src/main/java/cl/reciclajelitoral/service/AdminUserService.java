@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -62,17 +63,7 @@ public class AdminUserService {
 
         Usuario saved = usuarioRepository.save(usuario);
 
-        if (req.getComunaIds() != null && !req.getComunaIds().isEmpty()) {
-            List<Comuna> comunas = comunaRepository.findAllById(req.getComunaIds());
-            for (Comuna c : comunas) {
-                asignacionRepository.deleteByComunaId(c.getId());
-                AsignacionInspector asignacion = AsignacionInspector.builder()
-                        .inspector(saved)
-                        .comuna(c)
-                        .build();
-                asignacionRepository.save(asignacion);
-            }
-        }
+        syncComunaAssignments(saved, req.getComunaIds());
 
         return toDTO(saved);
     }
@@ -110,21 +101,50 @@ public class AdminUserService {
         Usuario updated = usuarioRepository.save(usuario);
 
         if (req.getComunaIds() != null) {
-            List<AsignacionInspector> actual = asignacionRepository.findByInspectorId(id);
-            asignacionRepository.deleteAll(actual);
+            syncComunaAssignments(updated, req.getComunaIds());
+        }
 
-            List<Comuna> comunas = comunaRepository.findAllById(req.getComunaIds());
-            for (Comuna c : comunas) {
-                asignacionRepository.deleteByComunaId(c.getId());
+        return toDTO(updated);
+    }
+
+    private void syncComunaAssignments(Usuario usuario, List<Long> comunaIds) {
+        if (comunaIds == null) {
+            return;
+        }
+
+        // 1. Quitar asignaciones previas de este usuario que ya no figuren en la nueva lista
+        List<AsignacionInspector> actuales = asignacionRepository.findByInspectorId(usuario.getId());
+        if (actuales != null && !actuales.isEmpty()) {
+            List<AsignacionInspector> toRemove = actuales.stream()
+                    .filter(a -> a.getComuna() != null && !comunaIds.contains(a.getComuna().getId()))
+                    .collect(Collectors.toList());
+            if (!toRemove.isEmpty()) {
+                asignacionRepository.deleteAll(toRemove);
+            }
+        }
+
+        if (comunaIds.isEmpty()) {
+            return;
+        }
+
+        // 2. Asignar o reasignar cada comuna solicitada
+        List<Comuna> comunas = comunaRepository.findAllById(comunaIds);
+        for (Comuna c : comunas) {
+            Optional<AsignacionInspector> existingOpt = asignacionRepository.findByComunaId(c.getId()).stream().findFirst();
+            if (existingOpt.isPresent()) {
+                AsignacionInspector existing = existingOpt.get();
+                if (existing.getInspector() == null || !existing.getInspector().getId().equals(usuario.getId())) {
+                    existing.setInspector(usuario);
+                    asignacionRepository.save(existing);
+                }
+            } else {
                 AsignacionInspector asignacion = AsignacionInspector.builder()
-                        .inspector(updated)
+                        .inspector(usuario)
                         .comuna(c)
                         .build();
                 asignacionRepository.save(asignacion);
             }
         }
-
-        return toDTO(updated);
     }
 
     @Transactional
