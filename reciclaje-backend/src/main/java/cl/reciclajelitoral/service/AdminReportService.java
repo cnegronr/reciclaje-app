@@ -694,15 +694,20 @@ public class AdminReportService {
                 })
                 .sum();
 
-        double totalPorcentaje = detalles.stream()
+        double sumPorcInspector = detallesInspector.stream()
                 .mapToDouble(d -> d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado().doubleValue() : 0.0)
                 .sum();
-        double promedioLlenado = !detalles.isEmpty() ? (totalPorcentaje / detalles.size()) : 0;
+        double promedioAcumulados = !detallesInspector.isEmpty() ? (sumPorcInspector / detallesInspector.size()) : 0.0;
 
-        // KPI Summary Box (4 columns)
-        com.lowagie.text.pdf.PdfPTable kpiTable = new com.lowagie.text.pdf.PdfPTable(4);
+        double sumPorcChofer = detallesChofer.stream()
+                .mapToDouble(d -> d.getPorcentajeEstimado() != null ? d.getPorcentajeEstimado().doubleValue() : 0.0)
+                .sum();
+        double promedioRetirados = !detallesChofer.isEmpty() ? (sumPorcChofer / detallesChofer.size()) : 0.0;
+
+        // KPI Summary Box (5 columns)
+        com.lowagie.text.pdf.PdfPTable kpiTable = new com.lowagie.text.pdf.PdfPTable(5);
         kpiTable.setWidthPercentage(100);
-        kpiTable.setWidths(new float[]{1f, 1f, 1f, 1f});
+        kpiTable.setWidths(new float[]{1f, 1f, 1f, 1f, 1f});
         kpiTable.setSpacingAfter(10f);
 
         com.lowagie.text.Font kpiValFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 12, new java.awt.Color(5, 150, 105));
@@ -711,7 +716,8 @@ public class AdminReportService {
         kpiTable.addCell(createKpiCell("Total Puntos Inspeccionados", String.valueOf(detalles.size()), kpiLblFont, kpiValFont));
         kpiTable.addCell(createKpiCell("Total Kilos Acumulados", String.format("%.1f kg", totalKilosAcumulados), kpiLblFont, kpiValFont));
         kpiTable.addCell(createKpiCell("Total Kilos Retirados", String.format("%.1f kg", totalKilosRetirados), kpiLblFont, kpiValFont));
-        kpiTable.addCell(createKpiCell("Promedio % Llenado", String.format("%.1f%%", promedioLlenado), kpiLblFont, kpiValFont));
+        kpiTable.addCell(createKpiCell("Promedio Acumulados", String.format("%.1f%%", promedioAcumulados), kpiLblFont, kpiValFont));
+        kpiTable.addCell(createKpiCell("Promedio Retirados", String.format("%.1f%%", promedioRetirados), kpiLblFont, kpiValFont));
         document.add(kpiTable);
 
         com.lowagie.text.Font sectionTitleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10f, new java.awt.Color(30, 41, 59));
