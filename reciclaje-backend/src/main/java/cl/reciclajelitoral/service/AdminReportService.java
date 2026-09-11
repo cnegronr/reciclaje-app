@@ -2,6 +2,9 @@ package cl.reciclajelitoral.service;
 
 import cl.reciclajelitoral.entity.DetalleInspeccion;
 import cl.reciclajelitoral.entity.FotoInspeccion;
+import cl.reciclajelitoral.entity.Rol;
+import cl.reciclajelitoral.entity.TipoRuta;
+import cl.reciclajelitoral.entity.Usuario;
 import cl.reciclajelitoral.repository.DetalleInspeccionRepository;
 import cl.reciclajelitoral.repository.InspeccionSemanalRepository;
 import cl.reciclajelitoral.util.WeekDateUtils;
@@ -60,6 +63,69 @@ public class AdminReportService {
         return null;
     }
 
+    public boolean isDetalleChofer(DetalleInspeccion d) {
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getTipoRuta() == TipoRuta.CHOFER) {
+            return true;
+        }
+        if (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getRol() == Rol.CHOFER) {
+            return true;
+        }
+        if (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getRol() == Rol.CHOFER) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isDetalleInspectorOrChofer(DetalleInspeccion d) {
+        if (isDetalleChofer(d)) {
+            return true;
+        }
+        if (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getRol() == Rol.INSPECTOR) {
+            return true;
+        }
+        if (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getRol() == Rol.INSPECTOR) {
+            return true;
+        }
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null && d.getInspeccionSemanal().getInspector().getRol() == Rol.INSPECTOR) {
+            return true;
+        }
+        if (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getRol() != Rol.ADMIN && d.getCreadoPorUsuario().getRol() != Rol.REPORTERIA) {
+            return true;
+        }
+        if (d.getInspeccionSemanal() != null && (d.getInspeccionSemanal().getTipoRuta() == null || d.getInspeccionSemanal().getTipoRuta() == TipoRuta.INSPECTOR)) {
+            return true;
+        }
+        return false;
+    }
+
+    public boolean matchesUsuario(DetalleInspeccion d, Long usuarioId) {
+        if (usuarioId == null) return true;
+        if (d.getActualizadoPorUsuario() != null && usuarioId.equals(d.getActualizadoPorUsuario().getId())) return true;
+        if (d.getCreadoPorUsuario() != null && usuarioId.equals(d.getCreadoPorUsuario().getId())) return true;
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null && usuarioId.equals(d.getInspeccionSemanal().getInspector().getId())) return true;
+        return false;
+    }
+
+    public String getNombreActor(DetalleInspeccion d) {
+        if (d.getCreadoPorUsuario() != null && (d.getCreadoPorUsuario().getRol() == Rol.INSPECTOR || d.getCreadoPorUsuario().getRol() == Rol.CHOFER)) {
+            return d.getCreadoPorUsuario().getNombre();
+        }
+        if (d.getActualizadoPorUsuario() != null && (d.getActualizadoPorUsuario().getRol() == Rol.INSPECTOR || d.getActualizadoPorUsuario().getRol() == Rol.CHOFER)) {
+            return d.getActualizadoPorUsuario().getNombre();
+        }
+        if (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null) {
+            return d.getInspeccionSemanal().getInspector().getNombre();
+        }
+        if (d.getCreadoPorUsuario() != null) {
+            return d.getCreadoPorUsuario().getNombre();
+        }
+        return "Sin Asignar";
+    }
+
+    public String getRolActor(DetalleInspeccion d) {
+        return isDetalleChofer(d) ? "CHOFER" : "INSPECTOR";
+    }
+
     @Transactional(readOnly = true)
     public List<Integer> getAvailableReportYears() {
         int currentYear = WeekDateUtils.getCurrentYear();
@@ -84,10 +150,7 @@ public class AdminReportService {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
-                .filter(d -> usuarioId == null ||
-                        (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(usuarioId)) ||
-                        (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(usuarioId)) ||
-                        (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null && d.getInspeccionSemanal().getInspector().getId().equals(usuarioId)))
+                .filter(d -> usuarioId != null ? matchesUsuario(d, usuarioId) : isDetalleInspectorOrChofer(d))
                 .filter(d -> semanaNumero == null || semanaNumero.equals(getEffectiveWeekNumber(d)))
                 .filter(d -> anio == null || anio.equals(getEffectiveYear(d)))
                 .toList();
@@ -169,8 +232,8 @@ public class AdminReportService {
             // Encabezados con columnas dedicadas por foto
             List<String> headersList = new ArrayList<>(List.of(
                     "ID Detalle", "Semana / Año", "Comuna", "Contenedor / Punto",
-                    "Categoría", "Porcentaje Llenado (%)", "Kilos Calculados", "Usuario / Inspector",
-                    "Observaciones"
+                    "Categoría", "Porcentaje Llenado (%)", "Kilos Calculados", "Kilos Retirados",
+                    "Inspector / Chofer", "Observaciones"
             ));
 
             for (int i = 1; i <= maxFotosAntes; i++) {
@@ -221,12 +284,25 @@ public class AdminReportService {
                     pctCell.setCellStyle(styleGreen);
                 }
 
+                // Kilos Calculados
                 row.createCell(6).setCellValue(d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0);
 
-                String userNombre = d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getNombre() :
-                        (d.getCreadoPorUsuario() != null ? d.getCreadoPorUsuario().getNombre() : "Sistema");
-                row.createCell(7).setCellValue(userNombre);
-                row.createCell(8).setCellValue(d.getObservaciones() != null ? d.getObservaciones() : "");
+                // Kilos Retirados (Para choferes, "-" para inspectores)
+                Cell cellRet = row.createCell(7);
+                if (isDetalleChofer(d)) {
+                    double retVal = d.getKilosRetirados() != null ? d.getKilosRetirados().doubleValue() :
+                            (d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0);
+                    cellRet.setCellValue(retVal);
+                } else {
+                    cellRet.setCellValue("-");
+                }
+
+                // Inspector / Chofer
+                String actorText = getNombreActor(d) + " (" + getRolActor(d) + ")";
+                row.createCell(8).setCellValue(actorText);
+
+                // Observaciones
+                row.createCell(9).setCellValue(d.getObservaciones() != null ? d.getObservaciones() : "");
 
                 List<FotoInspeccion> fotos = d.getFotos();
                 List<FotoInspeccion> fotosAntes = new ArrayList<>();
@@ -249,7 +325,7 @@ public class AdminReportService {
                 }
 
                 boolean hasPhoto = false;
-                int currentColIdx = 9;
+                int currentColIdx = 10;
 
                 // 1. Columnas para Fotos ANTES
                 for (int i = 0; i < maxFotosAntes; i++) {
@@ -353,8 +429,9 @@ public class AdminReportService {
             }
 
             for (int i = 0; i < headersList.size(); i++) {
-                if (i >= 9) {
-                    if (i % 2 != 0) {
+                if (i >= 10) {
+                    int offset = i - 10;
+                    if (offset % 2 == 0) {
                         sheet.setColumnWidth(i, 4500); // Columna miniatura
                     } else {
                         sheet.setColumnWidth(i, 7500); // Columna enlace HD
@@ -379,10 +456,7 @@ public class AdminReportService {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
-                .filter(d -> usuarioId == null ||
-                        (d.getActualizadoPorUsuario() != null && d.getActualizadoPorUsuario().getId().equals(usuarioId)) ||
-                        (d.getCreadoPorUsuario() != null && d.getCreadoPorUsuario().getId().equals(usuarioId)) ||
-                        (d.getInspeccionSemanal() != null && d.getInspeccionSemanal().getInspector() != null && d.getInspeccionSemanal().getInspector().getId().equals(usuarioId)))
+                .filter(d -> usuarioId != null ? matchesUsuario(d, usuarioId) : isDetalleInspectorOrChofer(d))
                 .filter(d -> semanaNumero == null || semanaNumero.equals(getEffectiveWeekNumber(d)))
                 .filter(d -> anio == null || anio.equals(getEffectiveYear(d)))
                 .toList();
@@ -438,6 +512,16 @@ public class AdminReportService {
         if (comunaId != null && !detalles.isEmpty() && detalles.get(0).getContenedor() != null && detalles.get(0).getContenedor().getComuna() != null) {
             filtroTexto += " | Comuna: " + detalles.get(0).getContenedor().getComuna().getNombre();
         }
+        if (usuarioId != null) {
+            String actorFiltro = detalles.stream()
+                    .filter(d -> matchesUsuario(d, usuarioId))
+                    .findFirst()
+                    .map(d -> getNombreActor(d) + " (" + getRolActor(d) + ")")
+                    .orElse("Usuario #" + usuarioId);
+            filtroTexto += " | Inspector / Chofer: " + actorFiltro;
+        } else {
+            filtroTexto += " | Todos los Inspectores y Choferes";
+        }
         com.lowagie.text.Paragraph metaP3 = new com.lowagie.text.Paragraph(filtroTexto, metaValFont);
         metaP3.setAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
 
@@ -455,47 +539,57 @@ public class AdminReportService {
         document.add(gap);
 
         // KPI Calculations
-        double totalKilos = 0;
+        double totalKilosCalculados = 0;
+        double totalKilosRetirados = 0;
         double totalPorcentaje = 0;
         int totalPuntos = detalles.size();
 
         for (DetalleInspeccion d : detalles) {
-            double kg = d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0;
-            totalKilos += kg;
+            if (d.getKilosCalculados() != null) {
+                totalKilosCalculados += d.getKilosCalculados().doubleValue();
+            }
+            if (isDetalleChofer(d)) {
+                if (d.getKilosRetirados() != null) {
+                    totalKilosRetirados += d.getKilosRetirados().doubleValue();
+                } else if (d.getKilosCalculados() != null) {
+                    totalKilosRetirados += d.getKilosCalculados().doubleValue();
+                }
+            }
             if (d.getPorcentajeEstimado() != null) {
                 totalPorcentaje += d.getPorcentajeEstimado().doubleValue();
             }
         }
         double promedioLlenado = totalPuntos > 0 ? (totalPorcentaje / totalPuntos) : 0;
 
-        // KPI Summary Box (3 columns)
-        com.lowagie.text.pdf.PdfPTable kpiTable = new com.lowagie.text.pdf.PdfPTable(3);
+        // KPI Summary Box (4 columns)
+        com.lowagie.text.pdf.PdfPTable kpiTable = new com.lowagie.text.pdf.PdfPTable(4);
         kpiTable.setWidthPercentage(100);
-        kpiTable.setWidths(new float[]{1f, 1f, 1f});
+        kpiTable.setWidths(new float[]{1f, 1f, 1f, 1f});
         kpiTable.setSpacingAfter(10f);
 
         com.lowagie.text.Font kpiValFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 12, new java.awt.Color(5, 150, 105));
         com.lowagie.text.Font kpiLblFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, new java.awt.Color(100, 116, 139));
 
         kpiTable.addCell(createKpiCell("Total Puntos Inspeccionados", String.valueOf(totalPuntos), kpiLblFont, kpiValFont));
-        kpiTable.addCell(createKpiCell("Total Kilos Recolectados", String.format("%.1f kg", totalKilos), kpiLblFont, kpiValFont));
+        kpiTable.addCell(createKpiCell("Total Kilos Calculados", String.format("%.1f kg", totalKilosCalculados), kpiLblFont, kpiValFont));
+        kpiTable.addCell(createKpiCell("Total Kilos Retirados", String.format("%.1f kg", totalKilosRetirados), kpiLblFont, kpiValFont));
         kpiTable.addCell(createKpiCell("Promedio % Llenado", String.format("%.1f%%", promedioLlenado), kpiLblFont, kpiValFont));
         document.add(kpiTable);
 
-        // Main Table
-        com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(8);
+        // Main Table (9 columns)
+        com.lowagie.text.pdf.PdfPTable table = new com.lowagie.text.pdf.PdfPTable(9);
         table.setWidthPercentage(100);
-        table.setWidths(new float[]{1.0f, 2.2f, 3.8f, 1.8f, 1.8f, 2.0f, 2.4f, 4.0f});
+        table.setWidths(new float[]{1.0f, 2.0f, 3.4f, 1.6f, 1.5f, 1.8f, 1.8f, 2.8f, 3.1f});
 
         com.lowagie.text.Font headFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 8.5f, java.awt.Color.WHITE);
-        String[] headers = {"ID", "Comuna", "Punto Limpio", "Categoría", "% Llenado", "Kilos (kg)", "Inspector", "Observaciones"};
+        String[] headers = {"ID", "Comuna", "Punto Limpio", "Categoría", "% Llenado", "Kilos Calc.", "Kilos Ret.", "Inspector / Chofer", "Observaciones"};
 
         for (int i = 0; i < headers.length; i++) {
             com.lowagie.text.pdf.PdfPCell cell = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(headers[i], headFont));
             cell.setBackgroundColor(new java.awt.Color(30, 41, 59));
             cell.setBorderColor(new java.awt.Color(51, 65, 85));
             cell.setPadding(6f);
-            if (i == 4 || i == 5) {
+            if (i == 4 || i == 5 || i == 6) {
                 cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
             } else if (i == 0 || i == 3) {
                 cell.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_CENTER);
@@ -560,19 +654,32 @@ public class AdminReportService {
             cPct.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
             table.addCell(cPct);
 
-            // Kilos
-            double kg = d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0;
-            com.lowagie.text.pdf.PdfPCell cKg = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f", kg), bodyFontBold));
-            cKg.setBackgroundColor(currentBg);
-            cKg.setBorderColor(borderColor);
-            cKg.setPadding(5f);
-            cKg.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-            table.addCell(cKg);
+            // Kilos Calculados
+            double kgCalc = d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0;
+            com.lowagie.text.pdf.PdfPCell cKgCalc = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f", kgCalc), bodyFontBold));
+            cKgCalc.setBackgroundColor(currentBg);
+            cKgCalc.setBorderColor(borderColor);
+            cKgCalc.setPadding(5f);
+            cKgCalc.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+            table.addCell(cKgCalc);
 
-            // Inspector
-            String userNombre = d.getActualizadoPorUsuario() != null ? d.getActualizadoPorUsuario().getNombre() :
-                    (d.getCreadoPorUsuario() != null ? d.getCreadoPorUsuario().getNombre() : "Sistema");
-            com.lowagie.text.pdf.PdfPCell cUser = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(userNombre, bodyFont));
+            // Kilos Retirados (para Choferes, "-" para inspectores)
+            String kgRetStr = "-";
+            if (isDetalleChofer(d)) {
+                double retVal = d.getKilosRetirados() != null ? d.getKilosRetirados().doubleValue() :
+                        (d.getKilosCalculados() != null ? d.getKilosCalculados().doubleValue() : 0.0);
+                kgRetStr = String.format("%.1f", retVal);
+            }
+            com.lowagie.text.pdf.PdfPCell cKgRet = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(kgRetStr, bodyFontBold));
+            cKgRet.setBackgroundColor(currentBg);
+            cKgRet.setBorderColor(borderColor);
+            cKgRet.setPadding(5f);
+            cKgRet.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+            table.addCell(cKgRet);
+
+            // Inspector / Chofer
+            String actorStr = getNombreActor(d) + " (" + getRolActor(d) + ")";
+            com.lowagie.text.pdf.PdfPCell cUser = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(actorStr, bodyFont));
             cUser.setBackgroundColor(currentBg);
             cUser.setBorderColor(borderColor);
             cUser.setPadding(5f);
@@ -605,12 +712,19 @@ public class AdminReportService {
         cTotalPct.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
         table.addCell(cTotalPct);
 
-        com.lowagie.text.pdf.PdfPCell cTotalKg = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f kg", totalKilos), totalFont));
-        cTotalKg.setBackgroundColor(new java.awt.Color(241, 245, 249));
-        cTotalKg.setBorderColor(borderColor);
-        cTotalKg.setPadding(6f);
-        cTotalKg.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
-        table.addCell(cTotalKg);
+        com.lowagie.text.pdf.PdfPCell cTotalKgCalc = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f kg", totalKilosCalculados), totalFont));
+        cTotalKgCalc.setBackgroundColor(new java.awt.Color(241, 245, 249));
+        cTotalKgCalc.setBorderColor(borderColor);
+        cTotalKgCalc.setPadding(6f);
+        cTotalKgCalc.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+        table.addCell(cTotalKgCalc);
+
+        com.lowagie.text.pdf.PdfPCell cTotalKgRet = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase(String.format("%.1f kg", totalKilosRetirados), totalFont));
+        cTotalKgRet.setBackgroundColor(new java.awt.Color(241, 245, 249));
+        cTotalKgRet.setBorderColor(borderColor);
+        cTotalKgRet.setPadding(6f);
+        cTotalKgRet.setHorizontalAlignment(com.lowagie.text.Element.ALIGN_RIGHT);
+        table.addCell(cTotalKgRet);
 
         com.lowagie.text.pdf.PdfPCell cTotalEmpty = new com.lowagie.text.pdf.PdfPCell(new com.lowagie.text.Phrase("", totalFont));
         cTotalEmpty.setColspan(2);

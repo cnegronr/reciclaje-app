@@ -244,14 +244,14 @@ export default function ReportsTab() {
           </div>
 
           <div style={{ marginBottom: '1.25rem' }}>
-            <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Filtrar por Inspector / Usuario (Opcional):</label>
+            <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Filtrar por Inspector / Chofer (Opcional):</label>
             <select
               className="select-control"
               value={selectedUser}
               onChange={e => setSelectedUser(e.target.value)}
             >
-              <option value="">Todos los Usuarios Activos</option>
-              {users.filter(u => u.activo).map(u => (
+              <option value="">Todos los Usuarios Activos (Inspectores y Choferes)</option>
+              {users.filter(u => u.activo && (u.rol === 'INSPECTOR' || u.rol === 'CHOFER')).map(u => (
                 <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
               ))}
             </select>

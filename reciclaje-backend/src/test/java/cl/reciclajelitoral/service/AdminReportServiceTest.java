@@ -34,11 +34,12 @@ class AdminReportServiceTest {
                 .nombrePunto("Punto Central")
                 .comuna(comuna)
                 .build();
-        Usuario user = Usuario.builder().id(5L).nombre("Inspector Juan").build();
+        Usuario user = Usuario.builder().id(5L).nombre("Inspector Juan").rol(Rol.INSPECTOR).build();
         InspeccionSemanal inspeccionSemanal = InspeccionSemanal.builder()
                 .id(1L)
                 .semanaNumero(33)
                 .anio(2026)
+                .tipoRuta(TipoRuta.INSPECTOR)
                 .comuna(comuna)
                 .build();
 
@@ -71,5 +72,49 @@ class AdminReportServiceTest {
 
         assertNotNull(pdfBytes);
         assertTrue(pdfBytes.length > 0);
+    }
+
+    @Test
+    void shouldGenerateReportsForChoferWithKilosRetirados() throws Exception {
+        Comuna comuna = Comuna.builder().id(1L).nombre("San Antonio").build();
+        Contenedor contenedor = Contenedor.builder().id(101L).nombrePunto("Punto 2").comuna(comuna).build();
+        Usuario chofer = Usuario.builder().id(6L).nombre("Chofer Pedro").rol(Rol.CHOFER).build();
+        InspeccionSemanal rutaChofer = InspeccionSemanal.builder()
+                .id(2L)
+                .semanaNumero(33)
+                .anio(2026)
+                .tipoRuta(TipoRuta.CHOFER)
+                .comuna(comuna)
+                .build();
+        DetalleInspeccion detChofer = DetalleInspeccion.builder()
+                .id(11L)
+                .inspeccionSemanal(rutaChofer)
+                .contenedor(contenedor)
+                .creadoPorUsuario(chofer)
+                .visitado(true)
+                .porcentajeEstimado(BigDecimal.valueOf(80))
+                .kilosCalculados(BigDecimal.valueOf(400))
+                .kilosRetirados(BigDecimal.valueOf(390))
+                .build();
+
+        when(detalleRepository.findAll()).thenReturn(List.of(detalle, detChofer));
+
+        // Filtrando por chofer específico
+        byte[] excelChofer = adminReportService.generateExcelReport(null, 6L, null, null);
+        assertNotNull(excelChofer);
+        assertTrue(excelChofer.length > 0);
+
+        byte[] pdfChofer = adminReportService.generatePdfReport(null, 6L, null, null);
+        assertNotNull(pdfChofer);
+        assertTrue(pdfChofer.length > 0);
+
+        // Filtrando por todos los usuarios activos (usuarioId == null)
+        byte[] excelAll = adminReportService.generateExcelReport(null, null, null, null);
+        assertNotNull(excelAll);
+        assertTrue(excelAll.length > 0);
+
+        byte[] pdfAll = adminReportService.generatePdfReport(null, null, null, null);
+        assertNotNull(pdfAll);
+        assertTrue(pdfAll.length > 0);
     }
 }
