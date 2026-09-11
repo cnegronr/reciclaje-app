@@ -142,6 +142,17 @@ public class AdminDashboardService {
                 })
                 .filter(d -> {
                     if (role == null || role.trim().isEmpty()) return true;
+                    if ("CHOFER".equalsIgnoreCase(role.trim())) {
+                        return isDetalleChofer(d);
+                    }
+                    if ("INSPECTOR".equalsIgnoreCase(role.trim())) {
+                        if (isDetalleChofer(d)) return false;
+                        Usuario u = getUsuarioRelacionado(d);
+                        if (u != null && (u.getRol() == Rol.ADMIN || u.getRol() == Rol.REPORTERIA)) {
+                            return false;
+                        }
+                        return true;
+                    }
                     Usuario u = getUsuarioRelacionado(d);
                     return u != null && u.getRol() != null && u.getRol().name().equalsIgnoreCase(role.trim());
                 })

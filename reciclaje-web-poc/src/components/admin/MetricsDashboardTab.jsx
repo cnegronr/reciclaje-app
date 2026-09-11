@@ -57,8 +57,10 @@ export default function MetricsDashboardTab() {
   };
 
   const selectedUser = users.find(u => String(u.id) === String(filters.userId));
-  const showInspectorSection = !filters.userId || selectedUser?.rol === 'INSPECTOR';
-  const showChoferSection = !filters.userId || selectedUser?.rol === 'CHOFER';
+  const isFilterInspector = filters.role === 'INSPECTOR' || selectedUser?.rol === 'INSPECTOR';
+  const isFilterChofer = filters.role === 'CHOFER' || selectedUser?.rol === 'CHOFER';
+  const showInspectorSection = (!filters.userId && !filters.role) || isFilterInspector;
+  const showChoferSection = (!filters.userId && !filters.role) || isFilterChofer;
 
   return (
     <div className="metrics-dashboard">
@@ -89,20 +91,57 @@ export default function MetricsDashboardTab() {
           <label className="field-label" style={{ marginBottom: '0.35rem', display: 'block', fontSize: '0.8rem' }}>👤 Inspector / Chofer:</label>
           <select
             className="select-control"
-            value={filters.userId}
+            value={filters.role ? ('ROLE_' + filters.role) : (filters.userId || '')}
             onChange={e => {
               const uVal = e.target.value;
-              setFilters({
-                ...filters,
-                userId: uVal,
-                scope: uVal ? 'INDIVIDUAL' : filters.comunaId ? 'COMUNA' : 'ALL'
-              });
+              if (uVal === 'ROLE_INSPECTOR') {
+                setFilters({
+                  ...filters,
+                  role: 'INSPECTOR',
+                  userId: '',
+                  scope: filters.comunaId ? 'COMUNA' : 'ALL'
+                });
+              } else if (uVal === 'ROLE_CHOFER') {
+                setFilters({
+                  ...filters,
+                  role: 'CHOFER',
+                  userId: '',
+                  scope: filters.comunaId ? 'COMUNA' : 'ALL'
+                });
+              } else if (uVal) {
+                setFilters({
+                  ...filters,
+                  role: '',
+                  userId: uVal,
+                  scope: 'INDIVIDUAL'
+                });
+              } else {
+                setFilters({
+                  ...filters,
+                  role: '',
+                  userId: '',
+                  scope: filters.comunaId ? 'COMUNA' : 'ALL'
+                });
+              }
             }}
           >
-            <option value="">Todos los Usuarios Activos</option>
-            {users.filter(u => u.activo && (u.rol === 'INSPECTOR' || u.rol === 'CHOFER')).map(u => (
-              <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
-            ))}
+            <option value="">Todos los Usuarios Activos (Inspectores y Choferes)</option>
+            <option value="ROLE_INSPECTOR">Todos los Inspectores Activos</option>
+            <option value="ROLE_CHOFER">Todos los Choferes Activos</option>
+            {users.filter(u => u.activo && u.rol === 'INSPECTOR').length > 0 && (
+              <optgroup label="Inspectores">
+                {users.filter(u => u.activo && u.rol === 'INSPECTOR').map(u => (
+                  <option key={u.id} value={u.id}>{u.nombre}</option>
+                ))}
+              </optgroup>
+            )}
+            {users.filter(u => u.activo && u.rol === 'CHOFER').length > 0 && (
+              <optgroup label="Choferes">
+                {users.filter(u => u.activo && u.rol === 'CHOFER').map(u => (
+                  <option key={u.id} value={u.id}>{u.nombre}</option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </div>
 
@@ -161,36 +200,44 @@ export default function MetricsDashboardTab() {
             <div className="stat-card purple">
               <span className="stat-icon">⚖️</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 0 }}>
-                <div>
-                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
-                    {metrics.totalKilosAcumulados != null ? metrics.totalKilosAcumulados : 0} kg
-                  </span>
-                  <span className="stat-label">Total Acumulados</span>
-                </div>
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '0.3rem' }}>
-                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
-                    {metrics.totalKilosRetirados != null ? metrics.totalKilosRetirados : 0} kg
-                  </span>
-                  <span className="stat-label">Total Retirados</span>
-                </div>
+                {showInspectorSection && (
+                  <div>
+                    <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                      {metrics.totalKilosAcumulados != null ? metrics.totalKilosAcumulados : 0} kg
+                    </span>
+                    <span className="stat-label">Total Acumulados</span>
+                  </div>
+                )}
+                {showChoferSection && (
+                  <div style={showInspectorSection ? { borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '0.3rem' } : {}}>
+                    <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                      {metrics.totalKilosRetirados != null ? metrics.totalKilosRetirados : 0} kg
+                    </span>
+                    <span className="stat-label">Total Retirados</span>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="stat-card blue">
               <span className="stat-icon">📊</span>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 0 }}>
-                <div>
-                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
-                    {metrics.promedioPorcentajeAcumulados != null ? metrics.promedioPorcentajeAcumulados : 0}%
-                  </span>
-                  <span className="stat-label">Promedio Acumulados</span>
-                </div>
-                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '0.3rem' }}>
-                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
-                    {metrics.promedioPorcentajeRetirados != null ? metrics.promedioPorcentajeRetirados : 0}%
-                  </span>
-                  <span className="stat-label">Promedio Retirados</span>
-                </div>
+                {showInspectorSection && (
+                  <div>
+                    <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                      {metrics.promedioPorcentajeAcumulados != null ? metrics.promedioPorcentajeAcumulados : 0}%
+                    </span>
+                    <span className="stat-label">Promedio Acumulados</span>
+                  </div>
+                )}
+                {showChoferSection && (
+                  <div style={showInspectorSection ? { borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '0.3rem' } : {}}>
+                    <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                      {metrics.promedioPorcentajeRetirados != null ? metrics.promedioPorcentajeRetirados : 0}%
+                    </span>
+                    <span className="stat-label">Promedio Retirados</span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

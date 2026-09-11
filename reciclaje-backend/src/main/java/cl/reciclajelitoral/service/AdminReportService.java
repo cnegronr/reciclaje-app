@@ -148,15 +148,33 @@ public class AdminReportService {
 
     @Transactional(readOnly = true)
     public byte[] generateExcelReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio) throws IOException {
-        return generateExcelReport(comunaId, usuarioId, semanaNumero, anio, false);
+        return generateExcelReport(comunaId, usuarioId, null, semanaNumero, anio, false);
     }
 
     @Transactional(readOnly = true)
     public byte[] generateExcelReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio, boolean incluirId) throws IOException {
+        return generateExcelReport(comunaId, usuarioId, null, semanaNumero, anio, incluirId);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generateExcelReport(Long comunaId, Long usuarioId, String role, Integer semanaNumero, Integer anio, boolean incluirId) throws IOException {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
-                .filter(d -> usuarioId != null ? matchesUsuario(d, usuarioId) : isDetalleInspectorOrChofer(d))
+                .filter(d -> {
+                    if (usuarioId != null) {
+                        return matchesUsuario(d, usuarioId);
+                    }
+                    if (role != null && !role.trim().isEmpty()) {
+                        if ("CHOFER".equalsIgnoreCase(role.trim())) {
+                            return isDetalleChofer(d);
+                        }
+                        if ("INSPECTOR".equalsIgnoreCase(role.trim())) {
+                            return !isDetalleChofer(d) && isDetalleInspectorOrChofer(d);
+                        }
+                    }
+                    return isDetalleInspectorOrChofer(d);
+                })
                 .filter(d -> semanaNumero == null || semanaNumero.equals(getEffectiveWeekNumber(d)))
                 .filter(d -> anio == null || anio.equals(getEffectiveYear(d)))
                 .toList();
@@ -604,24 +622,46 @@ public class AdminReportService {
     }
 
     public byte[] generateExcelZipReport(Long comunaId, Long usuarioId) throws IOException {
-        return generateExcelReport(comunaId, usuarioId, null, null, false);
+        return generateExcelReport(comunaId, usuarioId, null, null, null, false);
     }
 
     public byte[] generateExcelZipReport(Long comunaId, Long usuarioId, boolean incluirId) throws IOException {
-        return generateExcelReport(comunaId, usuarioId, null, null, incluirId);
+        return generateExcelReport(comunaId, usuarioId, null, null, null, incluirId);
+    }
+
+    public byte[] generateExcelZipReport(Long comunaId, Long usuarioId, String role, boolean incluirId) throws IOException {
+        return generateExcelReport(comunaId, usuarioId, role, null, null, incluirId);
     }
 
     @Transactional(readOnly = true)
     public byte[] generatePdfReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio) throws Exception {
-        return generatePdfReport(comunaId, usuarioId, semanaNumero, anio, false);
+        return generatePdfReport(comunaId, usuarioId, null, semanaNumero, anio, false);
     }
 
     @Transactional(readOnly = true)
     public byte[] generatePdfReport(Long comunaId, Long usuarioId, Integer semanaNumero, Integer anio, boolean incluirId) throws Exception {
+        return generatePdfReport(comunaId, usuarioId, null, semanaNumero, anio, incluirId);
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] generatePdfReport(Long comunaId, Long usuarioId, String role, Integer semanaNumero, Integer anio, boolean incluirId) throws Exception {
         List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
-                .filter(d -> usuarioId != null ? matchesUsuario(d, usuarioId) : isDetalleInspectorOrChofer(d))
+                .filter(d -> {
+                    if (usuarioId != null) {
+                        return matchesUsuario(d, usuarioId);
+                    }
+                    if (role != null && !role.trim().isEmpty()) {
+                        if ("CHOFER".equalsIgnoreCase(role.trim())) {
+                            return isDetalleChofer(d);
+                        }
+                        if ("INSPECTOR".equalsIgnoreCase(role.trim())) {
+                            return !isDetalleChofer(d) && isDetalleInspectorOrChofer(d);
+                        }
+                    }
+                    return isDetalleInspectorOrChofer(d);
+                })
                 .filter(d -> semanaNumero == null || semanaNumero.equals(getEffectiveWeekNumber(d)))
                 .filter(d -> anio == null || anio.equals(getEffectiveYear(d)))
                 .toList();
@@ -684,6 +724,10 @@ public class AdminReportService {
                     .map(d -> getNombreActor(d) + " (" + getRolActor(d) + ")")
                     .orElse("Usuario #" + usuarioId);
             filtroTexto += " | Inspector / Chofer: " + actorFiltro;
+        } else if ("INSPECTOR".equalsIgnoreCase(role)) {
+            filtroTexto += " | Inspector / Chofer: Todos los Inspectores Activos";
+        } else if ("CHOFER".equalsIgnoreCase(role)) {
+            filtroTexto += " | Inspector / Chofer: Todos los Choferes Activos";
         } else {
             filtroTexto += " | Todos los Inspectores y Choferes";
         }
@@ -733,20 +777,36 @@ public class AdminReportService {
                 .sum();
         double promedioRetirados = !detallesChofer.isEmpty() ? (sumPorcChofer / detallesChofer.size()) : 0.0;
 
-        // KPI Summary Box (5 columns)
-        com.lowagie.text.pdf.PdfPTable kpiTable = new com.lowagie.text.pdf.PdfPTable(5);
+        // KPI Summary Box (5 columns if both, 3 columns if single role)
+        boolean hasInspector = !detallesInspector.isEmpty();
+        boolean hasChofer = !detallesChofer.isEmpty();
+        int kpiCols = (hasInspector && hasChofer) ? 5 : 3;
+
+        com.lowagie.text.pdf.PdfPTable kpiTable = new com.lowagie.text.pdf.PdfPTable(kpiCols);
         kpiTable.setWidthPercentage(100);
-        kpiTable.setWidths(new float[]{1f, 1f, 1f, 1f, 1f});
+        float[] kpiWidths = new float[kpiCols];
+        java.util.Arrays.fill(kpiWidths, 1f);
+        kpiTable.setWidths(kpiWidths);
         kpiTable.setSpacingAfter(10f);
 
         com.lowagie.text.Font kpiValFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 12, new java.awt.Color(5, 150, 105));
         com.lowagie.text.Font kpiLblFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA, 8, new java.awt.Color(100, 116, 139));
 
-        kpiTable.addCell(createKpiCell("Total Puntos Inspeccionados", String.valueOf(detalles.size()), kpiLblFont, kpiValFont));
-        kpiTable.addCell(createKpiCell("Total Kilos Acumulados", String.format("%.1f kg", totalKilosAcumulados), kpiLblFont, kpiValFont));
-        kpiTable.addCell(createKpiCell("Total Kilos Retirados", String.format("%.1f kg", totalKilosRetirados), kpiLblFont, kpiValFont));
-        kpiTable.addCell(createKpiCell("Promedio Acumulados", String.format("%.1f%%", promedioAcumulados), kpiLblFont, kpiValFont));
-        kpiTable.addCell(createKpiCell("Promedio Retirados", String.format("%.1f%%", promedioRetirados), kpiLblFont, kpiValFont));
+        if (hasInspector && hasChofer) {
+            kpiTable.addCell(createKpiCell("Total Puntos Inspeccionados", String.valueOf(detalles.size()), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Total Kilos Acumulados", String.format("%.1f kg", totalKilosAcumulados), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Total Kilos Retirados", String.format("%.1f kg", totalKilosRetirados), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Promedio Acumulados", String.format("%.1f%%", promedioAcumulados), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Promedio Retirados", String.format("%.1f%%", promedioRetirados), kpiLblFont, kpiValFont));
+        } else if (hasChofer) {
+            kpiTable.addCell(createKpiCell("Total Puntos Retirados", String.valueOf(detallesChofer.size()), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Total Kilos Retirados", String.format("%.1f kg", totalKilosRetirados), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Promedio Retirados", String.format("%.1f%%", promedioRetirados), kpiLblFont, kpiValFont));
+        } else {
+            kpiTable.addCell(createKpiCell("Total Puntos Inspeccionados", String.valueOf(detallesInspector.size()), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Total Kilos Acumulados", String.format("%.1f kg", totalKilosAcumulados), kpiLblFont, kpiValFont));
+            kpiTable.addCell(createKpiCell("Promedio Acumulados", String.format("%.1f%%", promedioAcumulados), kpiLblFont, kpiValFont));
+        }
         document.add(kpiTable);
 
         com.lowagie.text.Font sectionTitleFont = com.lowagie.text.FontFactory.getFont(com.lowagie.text.FontFactory.HELVETICA_BOLD, 10f, new java.awt.Color(30, 41, 59));

@@ -61,7 +61,13 @@ export default function ReportsTab() {
       setDownloadingExcel(true);
       const params = {};
       if (selectedComuna) params.comunaId = selectedComuna;
-      if (selectedUser) params.usuarioId = selectedUser;
+      if (selectedUser === 'ROLE_INSPECTOR') {
+        params.role = 'INSPECTOR';
+      } else if (selectedUser === 'ROLE_CHOFER') {
+        params.role = 'CHOFER';
+      } else if (selectedUser) {
+        params.usuarioId = selectedUser;
+      }
       if (filterByWeek) {
         if (selectedSemana) params.semanaNumero = selectedSemana;
         if (selectedAnio) params.anio = selectedAnio;
@@ -91,7 +97,13 @@ export default function ReportsTab() {
       setDownloadingPdf(true);
       const params = {};
       if (selectedComuna) params.comunaId = selectedComuna;
-      if (selectedUser) params.usuarioId = selectedUser;
+      if (selectedUser === 'ROLE_INSPECTOR') {
+        params.role = 'INSPECTOR';
+      } else if (selectedUser === 'ROLE_CHOFER') {
+        params.role = 'CHOFER';
+      } else if (selectedUser) {
+        params.usuarioId = selectedUser;
+      }
       if (filterByWeek) {
         if (selectedSemana) params.semanaNumero = selectedSemana;
         if (selectedAnio) params.anio = selectedAnio;
@@ -258,9 +270,22 @@ export default function ReportsTab() {
               onChange={e => setSelectedUser(e.target.value)}
             >
               <option value="">Todos los Usuarios Activos (Inspectores y Choferes)</option>
-              {users.filter(u => u.activo && (u.rol === 'INSPECTOR' || u.rol === 'CHOFER')).map(u => (
-                <option key={u.id} value={u.id}>{u.nombre} ({u.rol})</option>
-              ))}
+              <option value="ROLE_INSPECTOR">Todos los Inspectores Activos</option>
+              <option value="ROLE_CHOFER">Todos los Choferes Activos</option>
+              {users.filter(u => u.activo && u.rol === 'INSPECTOR').length > 0 && (
+                <optgroup label="Inspectores">
+                  {users.filter(u => u.activo && u.rol === 'INSPECTOR').map(u => (
+                    <option key={u.id} value={u.id}>{u.nombre}</option>
+                  ))}
+                </optgroup>
+              )}
+              {users.filter(u => u.activo && u.rol === 'CHOFER').length > 0 && (
+                <optgroup label="Choferes">
+                  {users.filter(u => u.activo && u.rol === 'CHOFER').map(u => (
+                    <option key={u.id} value={u.id}>{u.nombre}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </div>
 

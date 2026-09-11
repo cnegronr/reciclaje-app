@@ -34,12 +34,13 @@ public class AdminReportController {
     public ResponseEntity<byte[]> downloadExcelReport(
             @RequestParam(required = false) Long comunaId,
             @RequestParam(required = false) Long usuarioId,
+            @RequestParam(required = false) String role,
             @RequestParam(required = false) Integer semanaNumero,
             @RequestParam(required = false) Integer anio,
             @RequestParam(required = false, defaultValue = "false") Boolean incluirId
     ) throws IOException {
         boolean effectiveIncluirId = isAdmin() && Boolean.TRUE.equals(incluirId);
-        byte[] excelBytes = adminReportService.generateExcelReport(comunaId, usuarioId, semanaNumero, anio, effectiveIncluirId);
+        byte[] excelBytes = adminReportService.generateExcelReport(comunaId, usuarioId, role, semanaNumero, anio, effectiveIncluirId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.xlsx\"")
@@ -51,12 +52,13 @@ public class AdminReportController {
     public ResponseEntity<byte[]> downloadPdfReport(
             @RequestParam(required = false) Long comunaId,
             @RequestParam(required = false) Long usuarioId,
+            @RequestParam(required = false) String role,
             @RequestParam(required = false) Integer semanaNumero,
             @RequestParam(required = false) Integer anio,
             @RequestParam(required = false, defaultValue = "false") Boolean incluirId
     ) throws Exception {
         boolean effectiveIncluirId = isAdmin() && Boolean.TRUE.equals(incluirId);
-        byte[] pdfBytes = adminReportService.generatePdfReport(comunaId, usuarioId, semanaNumero, anio, effectiveIncluirId);
+        byte[] pdfBytes = adminReportService.generatePdfReport(comunaId, usuarioId, role, semanaNumero, anio, effectiveIncluirId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"Reporte_Consolidado_Reciclaje.pdf\"")

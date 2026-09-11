@@ -147,5 +147,53 @@ class AdminReportServiceTest {
         byte[] pdfAll = adminReportService.generatePdfReport(null, null, null, null);
         assertNotNull(pdfAll);
         assertTrue(pdfAll.length > 0);
+
+        // Filtrando por Todos los Inspectores Activos (role="INSPECTOR")
+        byte[] excelInspectores = adminReportService.generateExcelReport(null, null, "INSPECTOR", null, null, false);
+        assertNotNull(excelInspectores);
+        assertTrue(excelInspectores.length > 0);
+        try (org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(excelInspectores))) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            boolean foundInspectorHeader = false;
+            boolean foundChoferHeader = false;
+            for (int r = 0; r <= sheet.getLastRowNum(); r++) {
+                org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
+                if (row != null && row.getCell(0) != null) {
+                    String val = row.getCell(0).getStringCellValue();
+                    if (val.contains("SECCIÓN 1")) foundInspectorHeader = true;
+                    if (val.contains("SECCIÓN 2")) foundChoferHeader = true;
+                }
+            }
+            assertTrue(foundInspectorHeader, "Debe contener sección de Inspectores");
+            assertFalse(foundChoferHeader, "NO debe contener sección de Choferes cuando se filtra por INSPECTOR");
+        }
+
+        byte[] pdfInspectores = adminReportService.generatePdfReport(null, null, "INSPECTOR", null, null, false);
+        assertNotNull(pdfInspectores);
+        assertTrue(pdfInspectores.length > 0);
+
+        // Filtrando por Todos los Choferes Activos (role="CHOFER")
+        byte[] excelChoferes = adminReportService.generateExcelReport(null, null, "CHOFER", null, null, false);
+        assertNotNull(excelChoferes);
+        assertTrue(excelChoferes.length > 0);
+        try (org.apache.poi.ss.usermodel.Workbook wb = new org.apache.poi.xssf.usermodel.XSSFWorkbook(new java.io.ByteArrayInputStream(excelChoferes))) {
+            org.apache.poi.ss.usermodel.Sheet sheet = wb.getSheetAt(0);
+            boolean foundInspectorHeader = false;
+            boolean foundChoferHeader = false;
+            for (int r = 0; r <= sheet.getLastRowNum(); r++) {
+                org.apache.poi.ss.usermodel.Row row = sheet.getRow(r);
+                if (row != null && row.getCell(0) != null) {
+                    String val = row.getCell(0).getStringCellValue();
+                    if (val.contains("SECCIÓN 1")) foundInspectorHeader = true;
+                    if (val.contains("SECCIÓN 2")) foundChoferHeader = true;
+                }
+            }
+            assertFalse(foundInspectorHeader, "NO debe contener sección de Inspectores cuando se filtra por CHOFER");
+            assertTrue(foundChoferHeader, "Debe contener sección de Choferes");
+        }
+
+        byte[] pdfChoferes = adminReportService.generatePdfReport(null, null, "CHOFER", null, null, false);
+        assertNotNull(pdfChoferes);
+        assertTrue(pdfChoferes.length > 0);
     }
 }

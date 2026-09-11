@@ -192,4 +192,37 @@ class AdminDashboardServiceTest {
         assertEquals(BigDecimal.valueOf(380), dto.getChoferComunaMetrics().get(0).getKilosRetirados());
         assertEquals("Chofer 1", dto.getChoferComunaMetrics().get(0).getContenedoresInspeccionados().get(0).getChoferNombre());
     }
+
+    @Test
+    @DisplayName("Debe filtrar metricas por rol INSPECTOR y CHOFER")
+    void shouldFilterMetricsByRole() {
+        Usuario chofer = Usuario.builder().id(2L).nombre("Chofer 1").rol(Rol.CHOFER).build();
+        DetalleInspeccion detChofer = DetalleInspeccion.builder()
+                .id(101L)
+                .visitado(true)
+                .fechaHoraInicial(LocalDateTime.now())
+                .creadoPorUsuario(chofer)
+                .actualizadoPorUsuario(chofer)
+                .contenedor(cont)
+                .porcentajeEstimado(BigDecimal.valueOf(80))
+                .kilosCalculados(BigDecimal.valueOf(400))
+                .kilosRetirados(BigDecimal.valueOf(380))
+                .build();
+
+        when(detalleRepository.findAll()).thenReturn(List.of(det, detChofer));
+
+        // Filtrar por INSPECTOR
+        DashboardMetricsDTO inspectorDto = adminDashboardService.getMetrics("ALL", "HISTORIC", null, null, "INSPECTOR", null);
+        assertNotNull(inspectorDto);
+        assertEquals(1L, inspectorDto.getTotalInspecciones());
+        assertEquals(BigDecimal.valueOf(250), inspectorDto.getTotalKilosAcumulados());
+        assertEquals(BigDecimal.ZERO, inspectorDto.getTotalKilosRetirados());
+
+        // Filtrar por CHOFER
+        DashboardMetricsDTO choferDto = adminDashboardService.getMetrics("ALL", "HISTORIC", null, null, "CHOFER", null);
+        assertNotNull(choferDto);
+        assertEquals(1L, choferDto.getTotalInspecciones());
+        assertEquals(BigDecimal.ZERO, choferDto.getTotalKilosAcumulados());
+        assertEquals(BigDecimal.valueOf(380), choferDto.getTotalKilosRetirados());
+    }
 }
