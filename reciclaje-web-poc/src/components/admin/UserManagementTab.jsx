@@ -50,7 +50,7 @@ export default function UserManagementTab() {
         password: '',
         rol: user.rol || 'INSPECTOR',
         activo: user.activo ?? true,
-        comunaIds: user.comunaIds || []
+        comunaIds: user.rol === 'INSPECTOR' ? (user.comunaIds || []) : []
       });
     } else {
       setEditingUser(null);
@@ -69,10 +69,14 @@ export default function UserManagementTab() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        comunaIds: formData.rol === 'INSPECTOR' ? formData.comunaIds : []
+      };
       if (editingUser) {
-        await adminService.updateUser(editingUser.id, formData);
+        await adminService.updateUser(editingUser.id, payload);
       } else {
-        await adminService.createUser(formData);
+        await adminService.createUser(payload);
       }
       setShowModal(false);
       loadData();
@@ -231,7 +235,11 @@ export default function UserManagementTab() {
             <div className="modal-header">
               <div>
                 <h3 className="modal-title">{editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}</h3>
-                <p className="modal-subtitle">Ingrese los datos del perfil y comunas a supervisar</p>
+                <p className="modal-subtitle">
+                  {formData.rol === 'INSPECTOR'
+                    ? 'Ingrese los datos del perfil y comunas a supervisar'
+                    : 'Ingrese los datos del perfil de usuario (acceso a todas las comunas)'}
+                </p>
               </div>
               <button className="close-modal-btn" onClick={() => setShowModal(false)}>✕</button>
             </div>
@@ -276,7 +284,14 @@ export default function UserManagementTab() {
                 <select
                   className="select-control"
                   value={formData.rol}
-                  onChange={e => setFormData({ ...formData, rol: e.target.value })}
+                  onChange={e => {
+                    const newRol = e.target.value;
+                    setFormData({
+                      ...formData,
+                      rol: newRol,
+                      comunaIds: newRol === 'INSPECTOR' ? formData.comunaIds : []
+                    });
+                  }}
                 >
                   {isCurrentAdmin && (
                     <option value="ADMIN">ADMIN (Acceso Total)</option>
@@ -300,36 +315,42 @@ export default function UserManagementTab() {
                 </div>
               )}
 
-              <div>
-                <label className="field-label">Comunas Asignadas:</label>
-                <div style={{ maxHeight: '140px', overflowY: 'auto', background: '#0f172a', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {comunas.length === 0 ? (
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cargando comunas...</span>
-                  ) : (
-                    comunas.map(c => {
-                      const cId = c.backendId || c.id;
-                      const assignedUser = users.find(u => u.id !== editingUser?.id && u.comunaIds && u.comunaIds.includes(cId));
-                      return (
-                        <label key={c.id} style={{ fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <input
-                              type="checkbox"
-                              checked={formData.comunaIds.includes(cId)}
-                              onChange={() => toggleComuna(cId)}
-                            />
-                            📍 {c.nombre}
-                          </span>
-                          {assignedUser && (
-                            <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>
-                              (Asignada a: {assignedUser.nombre})
+              {formData.rol === 'INSPECTOR' ? (
+                <div>
+                  <label className="field-label">Comunas Asignadas:</label>
+                  <div style={{ maxHeight: '140px', overflowY: 'auto', background: '#0f172a', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    {comunas.length === 0 ? (
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cargando comunas...</span>
+                    ) : (
+                      comunas.map(c => {
+                        const cId = c.backendId || c.id;
+                        const assignedUser = users.find(u => u.id !== editingUser?.id && u.comunaIds && u.comunaIds.includes(cId));
+                        return (
+                          <label key={c.id} style={{ fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <input
+                                type="checkbox"
+                                checked={formData.comunaIds.includes(cId)}
+                                onChange={() => toggleComuna(cId)}
+                              />
+                              📍 {c.nombre}
                             </span>
-                          )}
-                        </label>
-                      );
-                    })
-                  )}
+                            {assignedUser && (
+                              <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>
+                                (Asignada a: {assignedUser.nombre})
+                              </span>
+                            )}
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ padding: '0.75rem 0.85rem', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 'var(--radius-md)', fontSize: '0.82rem', color: '#93c5fd', lineHeight: '1.4' }}>
+                  ℹ️ <strong>Acceso a Todas las Comunas:</strong> Por regla de negocio, los usuarios con perfil <strong>{formData.rol}</strong> tienen asignadas todas las comunas. La asignación individual de comunas aplica exclusivamente para el perfil <strong>INSPECTOR</strong>.
+                </div>
+              )}
 
               <div className="modal-footer">
                 <button type="button" className="cancel-btn" onClick={() => setShowModal(false)}>Cancelar</button>
