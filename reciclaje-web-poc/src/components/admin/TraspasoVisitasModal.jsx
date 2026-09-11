@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 
 export default function TraspasoVisitasModal({
   isOpen,
@@ -16,7 +17,7 @@ export default function TraspasoVisitasModal({
   const semanaDestino = previewData?.semanaDestino || '-';
   const anioDestino = previewData?.anioDestino || '-';
 
-  return (
+  return createPortal(
     <div className="modal-backdrop">
       <div className="modal-window" style={{ maxWidth: '42rem', width: '100%' }}>
         {/* Modal Header */}
@@ -144,6 +145,7 @@ export default function TraspasoVisitasModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

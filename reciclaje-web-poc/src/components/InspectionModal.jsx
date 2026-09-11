@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) => {
   const isEditing = !!detalleActual?.visitado;
@@ -154,7 +155,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-backdrop">
       <div className="modal-window">
         <div className="modal-header">
@@ -502,6 +503,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

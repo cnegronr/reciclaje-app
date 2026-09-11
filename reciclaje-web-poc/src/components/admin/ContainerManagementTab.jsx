@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { adminService } from '../../services/adminService';
 import { comunaService } from '../../services/comunaService';
 
@@ -213,7 +214,7 @@ export default function ContainerManagementTab() {
         </table>
       </div>
 
-      {showModal && (
+      {showModal && createPortal(
         <div className="modal-backdrop">
           <div className="modal-window">
             <div className="modal-header">
@@ -343,7 +344,8 @@ export default function ContainerManagementTab() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
