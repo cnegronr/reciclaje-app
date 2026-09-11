@@ -19,7 +19,11 @@ public class DashboardMetricsDTO {
     private Long totalContenedores;
     private Long totalInspecciones;
     private BigDecimal totalKilosCalculados;
+    private BigDecimal totalKilosAcumulados;
+    private BigDecimal totalKilosRetirados;
     private BigDecimal promedioPorcentajeLlenado;
+    private BigDecimal promedioPorcentajeAcumulados;
+    private BigDecimal promedioPorcentajeRetirados;
     private Long totalFotosCargadas;
 
     private List<UserMetricItem> userMetrics;
@@ -33,7 +37,11 @@ public class DashboardMetricsDTO {
     public Long getTotalContenedores() { return totalContenedores; }
     public Long getTotalInspecciones() { return totalInspecciones; }
     public BigDecimal getTotalKilosCalculados() { return totalKilosCalculados; }
+    public BigDecimal getTotalKilosAcumulados() { return totalKilosAcumulados; }
+    public BigDecimal getTotalKilosRetirados() { return totalKilosRetirados; }
     public BigDecimal getPromedioPorcentajeLlenado() { return promedioPorcentajeLlenado; }
+    public BigDecimal getPromedioPorcentajeAcumulados() { return promedioPorcentajeAcumulados; }
+    public BigDecimal getPromedioPorcentajeRetirados() { return promedioPorcentajeRetirados; }
     public Long getTotalFotosCargadas() { return totalFotosCargadas; }
     public List<UserMetricItem> getUserMetrics() { return userMetrics; }
     public List<ComunaMetricItem> getComunaMetrics() { return comunaMetrics; }

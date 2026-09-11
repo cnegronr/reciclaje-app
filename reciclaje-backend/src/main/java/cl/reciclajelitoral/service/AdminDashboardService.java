@@ -166,14 +166,39 @@ public class AdminDashboardService {
         }
         final List<DetalleInspeccion> detallesUnicos = new ArrayList<>(mapUnicos.values());
 
-        BigDecimal sumKilos = detallesUnicos.stream()
+        // Separar detalles por perfil (INSPECTOR vs CHOFER)
+        List<DetalleInspeccion> detallesInspector = detallesUnicos.stream()
+                .filter(d -> !isDetalleChofer(d))
+                .collect(Collectors.toList());
+
+        List<DetalleInspeccion> detallesChofer = detallesUnicos.stream()
+                .filter(this::isDetalleChofer)
+                .collect(Collectors.toList());
+
+        BigDecimal totalKilosAcumulados = detallesInspector.stream()
+                .map(d -> Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        BigDecimal totalKilosRetirados = detallesChofer.stream()
                 .map(d -> {
-                    if (isDetalleChofer(d) && d.getKilosRetirados() != null) {
-                        return d.getKilosRetirados();
-                    }
+                    if (d.getKilosRetirados() != null) return d.getKilosRetirados();
                     return Optional.ofNullable(d.getKilosCalculados()).orElse(BigDecimal.ZERO);
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        double avgPorcAcumDouble = detallesInspector.stream()
+                .mapToDouble(d -> Optional.ofNullable(d.getPorcentajeEstimado()).map(BigDecimal::doubleValue).orElse(0.0))
+                .average()
+                .orElse(0.0);
+        BigDecimal promedioPorcentajeAcumulados = BigDecimal.valueOf(avgPorcAcumDouble).setScale(2, RoundingMode.HALF_UP);
+
+        double avgPorcRetDouble = detallesChofer.stream()
+                .mapToDouble(d -> Optional.ofNullable(d.getPorcentajeEstimado()).map(BigDecimal::doubleValue).orElse(0.0))
+                .average()
+                .orElse(0.0);
+        BigDecimal promedioPorcentajeRetirados = BigDecimal.valueOf(avgPorcRetDouble).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal sumKilos = totalKilosAcumulados.add(totalKilosRetirados);
 
         double avgPorcentajeDouble = detallesUnicos.stream()
                 .mapToDouble(d -> Optional.ofNullable(d.getPorcentajeEstimado()).map(BigDecimal::doubleValue).orElse(0.0))
@@ -264,15 +289,6 @@ public class AdminDashboardService {
                             .build();
                 })
                 .filter(cm -> comunaId != null || cm.getInspeccionesCompletadas() > 0)
-                .collect(Collectors.toList());
-
-        // Separar detalles por perfil (INSPECTOR vs CHOFER)
-        List<DetalleInspeccion> detallesInspector = detallesUnicos.stream()
-                .filter(d -> !isDetalleChofer(d))
-                .collect(Collectors.toList());
-
-        List<DetalleInspeccion> detallesChofer = detallesUnicos.stream()
-                .filter(this::isDetalleChofer)
                 .collect(Collectors.toList());
 
         // Desglose por comuna - SECCIÓN INSPECTOR
@@ -407,7 +423,11 @@ public class AdminDashboardService {
                 .totalContenedores((long) contenedoresFiltrados.size())
                 .totalInspecciones((long) detallesUnicos.size())
                 .totalKilosCalculados(sumKilos)
+                .totalKilosAcumulados(totalKilosAcumulados)
+                .totalKilosRetirados(totalKilosRetirados)
                 .promedioPorcentajeLlenado(avgPorcentaje)
+                .promedioPorcentajeAcumulados(promedioPorcentajeAcumulados)
+                .promedioPorcentajeRetirados(promedioPorcentajeRetirados)
                 .totalFotosCargadas(countFotosFiltradas > 0 ? countFotosFiltradas : totalFotos)
                 .userMetrics(userMetrics)
                 .comunaMetrics(comunaMetrics)

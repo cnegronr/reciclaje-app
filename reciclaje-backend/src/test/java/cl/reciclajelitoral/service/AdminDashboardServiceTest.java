@@ -70,6 +70,10 @@ class AdminDashboardServiceTest {
         assertEquals(1L, dto.getTotalContenedores());
         assertEquals(1L, dto.getTotalInspecciones());
         assertEquals(BigDecimal.valueOf(250), dto.getTotalKilosCalculados());
+        assertEquals(BigDecimal.valueOf(250), dto.getTotalKilosAcumulados());
+        assertEquals(BigDecimal.ZERO, dto.getTotalKilosRetirados());
+        assertEquals(BigDecimal.valueOf(50).setScale(2), dto.getPromedioPorcentajeAcumulados());
+        assertEquals(BigDecimal.ZERO.setScale(2), dto.getPromedioPorcentajeRetirados());
         assertEquals(5L, dto.getTotalFotosCargadas());
     }
 
@@ -172,6 +176,10 @@ class AdminDashboardServiceTest {
         DashboardMetricsDTO dto = adminDashboardService.getMetrics("ALL", "HISTORIC", null, null, null, null);
 
         assertNotNull(dto);
+        assertEquals(BigDecimal.valueOf(250), dto.getTotalKilosAcumulados());
+        assertEquals(BigDecimal.valueOf(380), dto.getTotalKilosRetirados());
+        assertEquals(BigDecimal.valueOf(50).setScale(2), dto.getPromedioPorcentajeAcumulados());
+        assertEquals(BigDecimal.valueOf(80).setScale(2), dto.getPromedioPorcentajeRetirados());
         assertNotNull(dto.getInspectorComunaMetrics());
         assertEquals(1, dto.getInspectorComunaMetrics().size());
         assertEquals("User 1", dto.getInspectorComunaMetrics().get(0).getInspectorNombre());

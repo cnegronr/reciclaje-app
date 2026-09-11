@@ -160,17 +160,37 @@ export default function MetricsDashboardTab() {
 
             <div className="stat-card purple">
               <span className="stat-icon">⚖️</span>
-              <div>
-                <span className="stat-value">{metrics.totalKilosCalculados} kg</span>
-                <span className="stat-label">Recolección Total</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 0 }}>
+                <div>
+                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                    {metrics.totalKilosAcumulados != null ? metrics.totalKilosAcumulados : 0} kg
+                  </span>
+                  <span className="stat-label">Total Acumulados</span>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '0.3rem' }}>
+                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                    {metrics.totalKilosRetirados != null ? metrics.totalKilosRetirados : 0} kg
+                  </span>
+                  <span className="stat-label">Total Retirados</span>
+                </div>
               </div>
             </div>
 
             <div className="stat-card blue">
               <span className="stat-icon">📊</span>
-              <div>
-                <span className="stat-value">{metrics.promedioPorcentajeLlenado}%</span>
-                <span className="stat-label">Llenado Promedio</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: 0 }}>
+                <div>
+                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                    {metrics.promedioPorcentajeAcumulados != null ? metrics.promedioPorcentajeAcumulados : 0}%
+                  </span>
+                  <span className="stat-label">Promedio Acumulados</span>
+                </div>
+                <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '0.3rem' }}>
+                  <span className="stat-value" style={{ fontSize: '1.15rem', lineHeight: 1.1 }}>
+                    {metrics.promedioPorcentajeRetirados != null ? metrics.promedioPorcentajeRetirados : 0}%
+                  </span>
+                  <span className="stat-label">Promedio Retirados</span>
+                </div>
               </div>
             </div>
           </div>
