@@ -44,6 +44,19 @@ public class JwtTokenProvider {
         return claims.getSubject();
     }
 
+    public Date obtenerFechaEmision(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(getSigningKey())
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            return claims.getIssuedAt();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     public boolean validarToken(String token) {
         try {
             Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);

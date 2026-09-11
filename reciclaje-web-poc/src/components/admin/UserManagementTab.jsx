@@ -92,6 +92,7 @@ export default function UserManagementTab({ onLogout }) {
     try {
       const isEditingSelf = editingUser && isSelfUser(editingUser);
       const isSelfEmailChanged = isEditingSelf && (editingUser.email?.trim().toLowerCase() !== formData.email?.trim().toLowerCase());
+      const isSelfPasswordChanged = isEditingSelf && Boolean(formData.password && formData.password.trim().length > 0);
       const payload = {
         ...formData,
         rol: isEditingSelf ? editingUser.rol : formData.rol,
@@ -105,8 +106,13 @@ export default function UserManagementTab({ onLogout }) {
       }
       setShowModal(false);
 
-      if (isSelfEmailChanged) {
-        alert('Has actualizado tu correo electrónico. Por seguridad, tu sesión ha sido cerrada.\nPor favor, inicia sesión con tu nuevo correo.');
+      if (isSelfEmailChanged || isSelfPasswordChanged) {
+        const item = isSelfEmailChanged && isSelfPasswordChanged
+          ? 'correo electrónico y contraseña'
+          : isSelfPasswordChanged
+            ? 'contraseña'
+            : 'correo electrónico';
+        alert(`Has actualizado tu ${item}. Por seguridad, tu sesión ha sido cerrada.\nPor favor, inicia sesión con tus nuevas credenciales.`);
         authService.logout();
         if (typeof onLogout === 'function') {
           onLogout();

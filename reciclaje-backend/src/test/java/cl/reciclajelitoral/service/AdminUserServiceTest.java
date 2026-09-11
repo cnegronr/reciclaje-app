@@ -515,4 +515,33 @@ class AdminUserServiceTest {
         assertEquals("inspector_nuevo@test.cl", dto.getEmail());
         verify(sessionInvalidationService).registerEmailChange(10L, "inspector_viejo@test.cl", "inspector_nuevo@test.cl");
     }
+
+    @Test
+    void shouldRegisterPasswordChangeWhenPasswordIsUpdated() {
+        Usuario inspector = Usuario.builder()
+                .id(10L)
+                .nombre("Inspector Test")
+                .email("inspector@test.cl")
+                .passwordHash("oldHashed")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .build();
+
+        cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                .nombre("Inspector Test")
+                .email("inspector@test.cl")
+                .password("NewSecretPassword123!")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .build();
+
+        when(usuarioRepository.findById(10L)).thenReturn(java.util.Optional.of(inspector));
+        when(passwordEncoder.encode("NewSecretPassword123!")).thenReturn("newHashed");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+
+        UserAdminDTO dto = adminUserService.updateUser(10L, req);
+
+        assertNotNull(dto);
+        verify(sessionInvalidationService).registerPasswordChange(10L, "inspector@test.cl");
+    }
 }

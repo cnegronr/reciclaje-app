@@ -155,4 +155,20 @@ class AuthServiceTest {
         assertTrue(res.isEmailUpdated());
         assertTrue(res.getMessage().contains("actualizado por un administrador"));
     }
+
+    @Test
+    @DisplayName("checkSessionStatus: Detecta contraseña cambiada por admin después de emitir el token")
+    void checkSessionStatusPasswordCambiadaPorAdmin() {
+        when(tokenProvider.validarToken("valid.token")).thenReturn(true);
+        when(tokenProvider.obtenerEmailDelToken("valid.token")).thenReturn("inspector@reciclajelitoral.cl");
+        when(tokenProvider.obtenerFechaEmision("valid.token")).thenReturn(new java.util.Date(1000L));
+        when(sessionInvalidationService.isPasswordChangedAfter(1L, "inspector@reciclajelitoral.cl", 1000L)).thenReturn(true);
+
+        cl.reciclajelitoral.dto.SessionStatusResponse res = authService.checkSessionStatus("Bearer valid.token", 1L);
+
+        assertNotNull(res);
+        assertFalse(res.isActive());
+        assertTrue(res.isPasswordUpdated());
+        assertTrue(res.getMessage().contains("actualizada por un administrador"));
+    }
 }

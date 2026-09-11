@@ -113,7 +113,8 @@ public class AdminUserService {
         if (req.getActivo() != null) {
             usuario.setActivo(req.getActivo());
         }
-        if (req.getPassword() != null && !req.getPassword().isBlank()) {
+        boolean passwordChanged = req.getPassword() != null && !req.getPassword().isBlank();
+        if (passwordChanged) {
             usuario.setPasswordHash(passwordEncoder.encode(req.getPassword()));
         }
 
@@ -121,6 +122,10 @@ public class AdminUserService {
 
         if (emailChanged) {
             sessionInvalidationService.registerEmailChange(updated.getId(), oldEmail, newEmail);
+        }
+
+        if (passwordChanged) {
+            sessionInvalidationService.registerPasswordChange(updated.getId(), updated.getEmail());
         }
 
         if (req.getComunaIds() != null) {

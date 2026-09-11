@@ -45,7 +45,11 @@ export function App() {
       const status = await authService.checkSessionStatus();
       if (!status.active && !isHandled) {
         isHandled = true;
-        if (status.emailUpdated) {
+        if (status.emailUpdated && status.passwordUpdated) {
+          alert('⚠️ Tu correo electrónico y contraseña han sido actualizados por un administrador.\n\nPor favor, inicia sesión con tus nuevas credenciales.');
+        } else if (status.passwordUpdated) {
+          alert('⚠️ Tu contraseña ha sido actualizada por un administrador.\n\nPor favor, inicia sesión con tu nueva contraseña.');
+        } else if (status.emailUpdated) {
           alert('⚠️ Tu correo electrónico ha sido actualizado por un administrador.\n\nPor favor, inicia sesión con tu nuevo correo electrónico.');
         } else if (status.deactivated) {
           alert('⚠️ Tu cuenta ha sido desactivada por un administrador.');

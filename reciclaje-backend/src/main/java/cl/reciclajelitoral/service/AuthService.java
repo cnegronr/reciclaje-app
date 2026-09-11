@@ -40,8 +40,9 @@ public class AuthService {
 
         String token = tokenProvider.generarToken(usuario.getEmail());
 
-        // Limpiar registro de cambio de email una vez logueado con el nuevo email
+        // Limpiar registro de cambio de email y password una vez logueado con nuevas credenciales
         sessionInvalidationService.clearEmailChange(usuario.getId(), usuario.getEmail());
+        sessionInvalidationService.clearPasswordChange(usuario.getId(), usuario.getEmail());
 
         List<String> comunasAsignadas = asignacionRepository.findByInspectorId(usuario.getId())
                 .stream()
@@ -75,8 +76,19 @@ public class AuthService {
         }
 
         String tokenEmail = tokenProvider.obtenerEmailDelToken(token);
+        java.util.Date tokenIssuedAtDate = tokenProvider.obtenerFechaEmision(token);
+        long tokenIssuedAt = tokenIssuedAtDate != null ? tokenIssuedAtDate.getTime() : 0L;
 
-        // 1. Verificar si fue registrado directamente como email actualizado por admin
+        // 1. Verificar si la contraseña fue actualizada por admin después de emitir este token
+        if (sessionInvalidationService.isPasswordChangedAfter(userId, tokenEmail, tokenIssuedAt)) {
+            return SessionStatusResponse.builder()
+                    .active(false)
+                    .passwordUpdated(true)
+                    .message("Tu contraseña ha sido actualizada por un administrador. Debes iniciar sesión con tu nueva contraseña.")
+                    .build();
+        }
+
+        // 2. Verificar si fue registrado directamente como email actualizado por admin
         if (sessionInvalidationService.isEmailChangedForUser(userId, tokenEmail)) {
             return SessionStatusResponse.builder()
                     .active(false)
