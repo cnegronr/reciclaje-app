@@ -5,13 +5,25 @@ export const MapView = ({ contenedores, selectedContenedorId }) => {
 
   if (!contenedores || contenedores.length === 0) return null;
 
-  // Centro aproximado de los contenedores
-  const avgLat = contenedores.reduce((acc, c) => acc + c.lat, 0) / contenedores.length;
-  const avgLng = contenedores.reduce((acc, c) => acc + c.lng, 0) / contenedores.length;
+  // Filtrar contenedores con coordenadas válidas para centrar el mapa
+  const contenedoresConGeo = contenedores.filter(
+    (c) => c.lat != null && c.lng != null && c.lat !== 0 && c.lng !== 0
+  );
+
+  const avgLat = contenedoresConGeo.length > 0
+    ? contenedoresConGeo.reduce((acc, c) => acc + c.lat, 0) / contenedoresConGeo.length
+    : -33.5;
+  const avgLng = contenedoresConGeo.length > 0
+    ? contenedoresConGeo.reduce((acc, c) => acc + c.lng, 0) / contenedoresConGeo.length
+    : -71.6;
 
   const handleDriveTo = (c) => {
-    const navUrl = `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}&travelmode=driving`;
-    window.open(navUrl, '_blank', 'noopener,noreferrer');
+    const navUrl = (c.lat != null && c.lng != null && c.lat !== 0 && c.lng !== 0)
+      ? `https://www.google.com/maps/dir/?api=1&destination=${c.lat},${c.lng}&travelmode=driving`
+      : (c.urlGoogleMaps || '#');
+    if (navUrl && navUrl !== '#') {
+      window.open(navUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   return (
@@ -48,18 +60,29 @@ export const MapView = ({ contenedores, selectedContenedorId }) => {
           </div>
 
           <div className="quick-pins-list">
-            {contenedores.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => handleDriveTo(c)}
-                className={`pin-chip ${selectedContenedorId === c.id ? 'active' : ''} ${c.categoria.toLowerCase()}`}
-                title="🚘 Manejar hacia ubicación en Google Maps"
-              >
-                <span className="pin-icon">{c.categoria === 'EMPRESA' ? '🏢' : '🏛️'}</span>
-                <span className="pin-name">{c.nombrePunto}</span>
-                <span className="pin-badge">🚘 Manejar hacia ubicación</span>
-              </button>
-            ))}
+            {contenedores.map((c) => {
+              const hasGeo = Boolean(
+                (c.urlGoogleMaps && c.urlGoogleMaps.trim() !== '') ||
+                (c.lat != null && c.lng != null && c.lat !== 0 && c.lng !== 0)
+              );
+
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => hasGeo && handleDriveTo(c)}
+                  disabled={!hasGeo}
+                  className={`pin-chip ${selectedContenedorId === c.id ? 'active' : ''} ${c.categoria.toLowerCase()} ${!hasGeo ? 'disabled' : ''}`}
+                  title={hasGeo ? "🚘 Manejar hacia ubicación en Google Maps" : "Georeferenciación pendiente"}
+                >
+                  <span className="pin-icon">{c.categoria === 'EMPRESA' ? '🏢' : '🏛️'}</span>
+                  <span className="pin-name">{c.nombrePunto}</span>
+                  <span className="pin-badge">
+                    {hasGeo ? '🚘 Manejar hacia ubicación' : '📍 Georeferenciación pendiente'}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

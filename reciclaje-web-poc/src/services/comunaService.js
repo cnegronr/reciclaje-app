@@ -27,10 +27,9 @@ export const comunaService = {
               nombrePunto: cont.nombrePunto,
               ubicacion: cont.ubicacionDescripcion,
               categoria: cont.categoria,
-              maxKilos: Number(cont.kilosMaximos),
-              urlGoogleMaps: cont.urlGoogleMaps,
-              lat: Number(cont.latitud),
-              lng: Number(cont.longitud)
+              urlGoogleMaps: cont.urlGoogleMaps || '',
+              lat: cont.latitud != null ? Number(cont.latitud) : null,
+              lng: cont.longitud != null ? Number(cont.longitud) : null
             }))
           }));
         }

@@ -3,8 +3,16 @@ import React from 'react';
 export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
   const isVisited = detalleInspeccion?.visitado;
 
+  // Verificar si el contenedor cuenta con georeferenciación válida
+  const hasGeoreferenciacion = Boolean(
+    (contenedor.urlGoogleMaps && contenedor.urlGoogleMaps.trim() !== '') ||
+    (contenedor.lat != null && contenedor.lng != null && contenedor.lat !== 0 && contenedor.lng !== 0)
+  );
+
   // Generar Deep Link de navegación GPS directa a Google Maps app
-  const googleMapsNavUrl = `https://www.google.com/maps/dir/?api=1&destination=${contenedor.lat},${contenedor.lng}&travelmode=driving`;
+  const googleMapsNavUrl = (contenedor.lat != null && contenedor.lng != null && contenedor.lat !== 0 && contenedor.lng !== 0)
+    ? `https://www.google.com/maps/dir/?api=1&destination=${contenedor.lat},${contenedor.lng}&travelmode=driving`
+    : (contenedor.urlGoogleMaps || '#');
 
   return (
     <div className={`container-card ${isVisited ? 'visited' : 'pending'}`}>
@@ -91,15 +99,26 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
       </div>
 
       <div className="card-actions">
-        <a
-          href={googleMapsNavUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="nav-btn"
-          title="Navegar hacia el contenedor en Google Maps"
-        >
-          🚘 Manejar hacia ubicación
-        </a>
+        {hasGeoreferenciacion ? (
+          <a
+            href={googleMapsNavUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="nav-btn"
+            title="Navegar hacia el contenedor en Google Maps"
+          >
+            🚘 Manejar hacia ubicación
+          </a>
+        ) : (
+          <button
+            type="button"
+            className="nav-btn disabled"
+            disabled
+            title="Contenedor sin georeferenciación asociada"
+          >
+            📍 Georeferenciación pendiente
+          </button>
+        )}
 
         <button
           onClick={() => onInspect(contenedor)}
