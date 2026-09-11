@@ -814,14 +814,14 @@ public class AdminReportService {
         String[] headers;
         if (incluirId) {
             headers = new String[]{
-                    "ID", "Comuna", "Punto Limpio", "Categoría", "% Llenado",
+                    "ID", "Comuna", "Contenedor / Punto", "Categoría", "% Llenado",
                     isInspector ? "Kilos Acumulados" : "Kilos Retirados",
                     isInspector ? "Inspector" : "Chofer",
                     "Observaciones"
             };
         } else {
             headers = new String[]{
-                    "Comuna", "Punto Limpio", "Categoría", "% Llenado",
+                    "Comuna", "Contenedor / Punto", "Categoría", "% Llenado",
                     isInspector ? "Kilos Acumulados" : "Kilos Retirados",
                     isInspector ? "Inspector" : "Chofer",
                     "Observaciones"
