@@ -8,10 +8,13 @@ import { MapView } from './components/MapView';
 import { ContainerCard } from './components/ContainerCard';
 import { InspectionModal } from './components/InspectionModal';
 import TraspasoVisitasModal from './components/admin/TraspasoVisitasModal';
+import { useToast, useConfirm } from './context/FeedbackContext';
 
 const AdminPanelScreen = React.lazy(() => import('./components/admin/AdminPanelScreen'));
 
 export function App() {
+  const { showSuccess, showError, showWarning } = useToast();
+  const confirm = useConfirm();
   const [currentUser, setCurrentUser] = useState(null);
   const [comunas, setComunas] = useState([]);
   const [selectedComunaId, setSelectedComunaId] = useState('');
@@ -49,22 +52,18 @@ export function App() {
         let bannerText = '';
         if (status.emailUpdated && status.passwordUpdated) {
           bannerText = 'Tu correo electrónico y contraseña han sido actualizados por un administrador. Por favor, inicia sesión con tus nuevas credenciales.';
-          alert(`⚠️ ${bannerText}`);
         } else if (status.passwordUpdated) {
           bannerText = 'Tu contraseña ha sido actualizada por un administrador. Por favor, inicia sesión con tu nueva contraseña.';
-          alert(`⚠️ ${bannerText}`);
         } else if (status.emailUpdated) {
           bannerText = 'Tu correo electrónico ha sido actualizado por un administrador. Por favor, inicia sesión con tu nuevo correo electrónico.';
-          alert(`⚠️ ${bannerText}`);
         } else if (status.deactivated) {
           bannerText = 'Tu cuenta ha sido desactivada por un administrador. Para reactivar tu acceso, contacta a la administración del sistema.';
-          alert('⚠️ Tu cuenta ha sido desactivada por un administrador.');
         } else if (status.message) {
           bannerText = status.message;
-          alert(`⚠️ ${status.message}`);
         }
         if (bannerText) {
           setLogoutMessage(bannerText);
+          showWarning(bannerText);
         }
         handleLogout();
       }
@@ -214,17 +213,25 @@ export function App() {
 
   const handleFinalizarRuta = async () => {
     if (pendientesCount > 0) {
-      if (!confirm(`⚠️ Aún quedan ${pendientesCount} contenedores pendientes en ${selectedComuna.nombre}. ¿Deseas marcar la ruta como completada de todas formas?`)) {
-        return;
-      }
+      const ok = await confirm({
+        title: 'Contenedores Pendientes',
+        message: `Aún quedan ${pendientesCount} contenedores pendientes en ${selectedComuna.nombre}. ¿Deseas marcar la ruta como completada de todas formas?`,
+        confirmText: 'Completar Ruta',
+        type: 'warning'
+      });
+      if (!ok) return;
     }
-    const updatedRecord = await inspectionService.finalizarRutaSemanal(
-      selectedComunaId,
-      currentUser.id,
-      selectedComuna.backendId
-    );
-    setInspeccionSemanal({ ...updatedRecord });
-    alert('✅ ¡Ruta semanal finalizada exitosamente!');
+    try {
+      const updatedRecord = await inspectionService.finalizarRutaSemanal(
+        selectedComunaId,
+        currentUser.id,
+        selectedComuna.backendId
+      );
+      setInspeccionSemanal({ ...updatedRecord });
+      showSuccess('¡Ruta semanal finalizada exitosamente!');
+    } catch (err) {
+      showError(err.message || 'Error al finalizar ruta semanal');
+    }
   };
 
   const handleAbrirTraspasoModal = async () => {
@@ -238,7 +245,7 @@ export function App() {
       setTraspasoPreviewData(preview);
       setIsTraspasoModalOpen(true);
     } catch (err) {
-      alert(err.message || 'Error al obtener resumen de traspaso');
+      showError(err.message || 'Error al obtener resumen de traspaso');
     } finally {
       setLoadingTraspaso(false);
     }
@@ -254,18 +261,23 @@ export function App() {
       );
       await reloadInspeccion();
       setIsTraspasoModalOpen(false);
-      alert('✅ Inspecciones de la semana previa traspasadas exitosamente.');
+      showSuccess('Inspecciones de la semana previa traspasadas exitosamente.');
     } catch (err) {
-      alert(err.message || 'Error al traspasar inspecciones');
+      showError(err.message || 'Error al traspasar inspecciones');
     } finally {
       setLoadingTraspaso(false);
     }
   };
 
   const handleLimpiarSemanaActual = async () => {
-    if (!window.confirm(`⚠️ ¿Estás seguro de que deseas limpiar todas las inspecciones de la semana actual en ${selectedComuna.nombre}?\n\nSe creará un respaldo automático que podrás revertir en cualquier momento.`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Limpiar Semana Actual',
+      message: `¿Estás seguro de que deseas limpiar todas las inspecciones de la semana actual en ${selectedComuna.nombre}?\n\nSe creará un respaldo automático que podrás revertir en cualquier momento.`,
+      confirmText: 'Limpiar Semana',
+      type: 'danger'
+    });
+    if (!ok) return;
+
     try {
       setLoadingLimpieza(true);
       await inspectionService.limpiarSemanaActual(
@@ -274,18 +286,23 @@ export function App() {
         selectedComuna.backendId
       );
       await reloadInspeccion();
-      alert('🧹 Semana actual limpiada exitosamente. Se guardó un respaldo para revertir si lo requieres.');
+      showSuccess('Semana actual limpiada exitosamente. Se guardó un respaldo para revertir si lo requieres.');
     } catch (err) {
-      alert(err.message || 'Error al limpiar la semana actual');
+      showError(err.message || 'Error al limpiar la semana actual');
     } finally {
       setLoadingLimpieza(false);
     }
   };
 
   const handleRevertirLimpieza = async () => {
-    if (!window.confirm(`⏪ ¿Deseas deshacer la última acción (limpieza o traspaso) y restaurar el estado anterior de las inspecciones y fotos?`)) {
-      return;
-    }
+    const ok = await confirm({
+      title: 'Restaurar Estado Anterior',
+      message: '¿Deseas deshacer la última acción (limpieza o traspaso) y restaurar el estado anterior de las inspecciones y fotos?',
+      confirmText: 'Restaurar Respaldo',
+      type: 'warning'
+    });
+    if (!ok) return;
+
     try {
       setLoadingLimpieza(true);
       await inspectionService.revertirLimpieza(
@@ -294,9 +311,9 @@ export function App() {
         selectedComuna.backendId
       );
       await reloadInspeccion();
-      alert('⏪ Estado de la semana restaurado exitosamente desde el respaldo.');
+      showSuccess('Estado de la semana restaurado exitosamente desde el respaldo.');
     } catch (err) {
-      alert(err.message || 'Error al revertir la última acción');
+      showError(err.message || 'Error al revertir la última acción');
     } finally {
       setLoadingLimpieza(false);
     }

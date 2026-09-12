@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { adminService } from '../../services/adminService';
 import { comunaService } from '../../services/comunaService';
+import { useToast, useConfirm } from '../../context/FeedbackContext';
 
 export default function ContainerManagementTab() {
+  const { showSuccess, showError, showWarning } = useToast();
+  const confirm = useConfirm();
   const [containers, setContainers] = useState([]);
   const [comunas, setComunas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +39,7 @@ export default function ContainerManagementTab() {
       setContainers(cData || []);
       setComunas(comData || []);
     } catch (err) {
-      alert(err.message || 'Error al cargar contenedores');
+      showError(err.message || 'Error al cargar contenedores');
     } finally {
       setLoading(false);
     }
@@ -94,11 +97,12 @@ export default function ContainerManagementTab() {
             longitud: lng,
             urlGoogleMaps: `https://maps.google.com/?q=${lat},${lng}`
           }));
+          showSuccess('Coordenadas GPS obtenidas correctamente.');
         },
-        (err) => alert('Error al obtener ubicación GPS: ' + err.message)
+        (err) => showError('Error al obtener ubicación GPS: ' + err.message)
       );
     } else {
-      alert('Geolocalización no soportada en el navegador');
+      showWarning('Geolocalización no soportada en el navegador');
     }
   };
 
@@ -115,23 +119,32 @@ export default function ContainerManagementTab() {
 
       if (editingContainer) {
         await adminService.updateContainer(editingContainer.id, payload);
+        showSuccess('Contenedor actualizado exitosamente.');
       } else {
         await adminService.createContainer(payload);
+        showSuccess('Contenedor creado exitosamente.');
       }
       setShowModal(false);
       loadData();
     } catch (err) {
-      alert(err.message);
+      showError(err.message);
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('¿Desactivar este contenedor?')) {
+    const ok = await confirm({
+      title: '¿Desactivar este contenedor?',
+      message: 'El contenedor quedará inactivo y no aparecerá en las rutas semanales activas.',
+      confirmText: 'Desactivar',
+      type: 'danger'
+    });
+    if (ok) {
       try {
         await adminService.deleteContainer(id);
+        showSuccess('Contenedor desactivado exitosamente.');
         loadData();
       } catch (err) {
-        alert(err.message);
+        showError(err.message);
       }
     }
   };

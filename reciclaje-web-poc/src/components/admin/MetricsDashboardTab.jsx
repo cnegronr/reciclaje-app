@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { adminService } from '../../services/adminService';
 import { comunaService } from '../../services/comunaService';
+import { useToast } from '../../context/FeedbackContext';
 
 export default function MetricsDashboardTab() {
+  const { showError } = useToast();
   const [metrics, setMetrics] = useState(null);
   const [users, setUsers] = useState([]);
   const [comunas, setComunas] = useState([]);
@@ -50,7 +52,7 @@ export default function MetricsDashboardTab() {
       const data = await adminService.getMetrics(cleanParams);
       setMetrics(data);
     } catch (err) {
-      alert(err.message || 'Error al obtener métricas');
+      showError(err.message || 'Error al obtener métricas');
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useToast } from '../context/FeedbackContext';
 
 export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) => {
+  const { showWarning, showError } = useToast();
   const currentUser = JSON.parse(localStorage.getItem('reciclaje_user_data') || '{}');
   const isChofer = currentUser?.rol === 'CHOFER';
   const isEditing = !!detalleActual?.visitado;
@@ -97,12 +99,12 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
       return;
     }
     if (!isEditing && (fotosAntes.length === 0 || fotosDespues.length === 0)) {
-      alert('⚠️ Para registrar la inspección inicial, debe proporcionar al menos 1 imagen del estado ANTES y al menos 1 imagen del estado DESPUÉS.');
+      showWarning('Para registrar la inspección inicial, debe proporcionar al menos 1 imagen del estado ANTES y al menos 1 imagen del estado DESPUÉS.');
       return;
     }
     if (isEditing && newPhotosUploaded) {
       if (fotosAntesActualizacion.length === 0 || fotosDespuesActualizacion.length === 0) {
-        alert('⚠️ Al actualizar imágenes, debe proporcionar al menos 1 imagen del estado ANTES y al menos 1 imagen del estado DESPUÉS.');
+        showWarning('Al actualizar imágenes, debe proporcionar al menos 1 imagen del estado ANTES y al menos 1 imagen del estado DESPUÉS.');
         return;
       }
     }
@@ -152,6 +154,7 @@ export const InspectionModal = ({ contenedor, detalleActual, onClose, onSave }) 
       await onSave(contenedor.id, dataToSave, isEditing);
     } catch (err) {
       console.error('Error al guardar registro de inspección:', err);
+      showError(err.message || 'Error al guardar inspección');
     } finally {
       setIsSaving(false);
     }

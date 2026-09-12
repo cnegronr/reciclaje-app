@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../services/adminService';
 import { comunaService } from '../../services/comunaService';
+import { useToast, useConfirm } from '../../context/FeedbackContext';
 
 // Helper para obtener el número de semana ISO actual
 const getCurrentISOWeek = () => {
@@ -12,6 +13,8 @@ const getCurrentISOWeek = () => {
 };
 
 export default function ReportsTab() {
+  const { showSuccess, showError } = useToast();
+  const confirm = useConfirm();
   const currentWeekNumber = getCurrentISOWeek();
   const currentYearNumber = new Date().getFullYear();
 
@@ -84,9 +87,9 @@ export default function ReportsTab() {
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      showSuccess('Reporte Excel generado y descargado exitosamente.');
     } catch (err) {
-      alert(err.message || 'Error al descargar el reporte Excel (.xlsx).');
+      showError(err.message || 'Error al descargar el reporte Excel (.xlsx).');
     } finally {
       setDownloadingExcel(false);
     }
@@ -121,8 +124,9 @@ export default function ReportsTab() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      showSuccess('Reporte PDF generado y descargado exitosamente.');
     } catch (err) {
-      alert(err.message || 'Error al descargar el archivo PDF.');
+      showError(err.message || 'Error al descargar el archivo PDF.');
     } finally {
       setDownloadingPdf(false);
     }
@@ -141,8 +145,9 @@ export default function ReportsTab() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      showSuccess('Respaldo SQL exportado exitosamente.');
     } catch (err) {
-      alert(err.message || 'Error al exportar el respaldo SQL de la base de datos.');
+      showError(err.message || 'Error al exportar el respaldo SQL de la base de datos.');
     } finally {
       setDownloadingDb(false);
     }
@@ -152,7 +157,14 @@ export default function ReportsTab() {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!window.confirm(`⚠️ ADVERTENCIA: ¿Desea restaurar la base de datos con el archivo "${file.name}"? Esto insertará o actualizará los registros de producción.`)) {
+    const ok = await confirm({
+      title: 'Restaurar Base de Datos',
+      message: `ADVERTENCIA: ¿Desea restaurar la base de datos con el archivo "${file.name}"? Esto insertará o actualizará los registros de producción.`,
+      confirmText: 'Restaurar Base de Datos',
+      type: 'danger'
+    });
+
+    if (!ok) {
       e.target.value = null;
       return;
     }
@@ -162,9 +174,10 @@ export default function ReportsTab() {
       setRestoreMessage('');
       const res = await adminService.restoreDatabaseBackup(file);
       setRestoreMessage(`✅ ${res.message || 'Restauración completada con éxito'}`);
+      showSuccess(res.message || 'Restauración completada con éxito');
       loadOptions();
     } catch (err) {
-      alert(err.message || 'Error al restaurar el respaldo SQL.');
+      showError(err.message || 'Error al restaurar el respaldo SQL.');
     } finally {
       setRestoringDb(false);
       e.target.value = null;

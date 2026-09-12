@@ -3,8 +3,11 @@ import { createPortal } from 'react-dom';
 import { adminService } from '../../services/adminService';
 import { comunaService } from '../../services/comunaService';
 import { authService } from '../../services/authService';
+import { useToast, useConfirm } from '../../context/FeedbackContext';
 
 export default function UserManagementTab({ onLogout }) {
+  const { showSuccess, showError, showWarning } = useToast();
+  const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [comunas, setComunas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -69,11 +72,11 @@ export default function UserManagementTab({ onLogout }) {
 
   const handleOpenModal = (user = null) => {
     if (user && isGeneralAdminUser(user) && !isSelfUser(user)) {
-      alert('No tienes permisos para editar al Administrador General.');
+      showWarning('No tienes permisos para editar al Administrador General.');
       return;
     }
     if (user && !isCurrentAdmin && user.rol !== 'INSPECTOR' && user.rol !== 'CHOFER' && !isSelfUser(user)) {
-      alert('No tienes permisos para editar este usuario.');
+      showWarning('No tienes permisos para editar este usuario.');
       return;
     }
     if (user) {
@@ -118,8 +121,10 @@ export default function UserManagementTab({ onLogout }) {
       };
       if (editingUser) {
         await adminService.updateUser(editingUser.id, payload);
+        showSuccess(`Usuario "${payload.nombre}" actualizado exitosamente.`);
       } else {
         await adminService.createUser(payload);
+        showSuccess(`Usuario "${payload.nombre}" creado exitosamente.`);
       }
       setShowModal(false);
 
@@ -129,7 +134,7 @@ export default function UserManagementTab({ onLogout }) {
           : isSelfPasswordChanged
             ? 'contraseña'
             : 'correo electrónico';
-        alert(`Has actualizado tu ${item}. Por seguridad, tu sesión ha sido cerrada.\nPor favor, inicia sesión con tus nuevas credenciales.`);
+        showSuccess(`Has actualizado tu ${item}. Por seguridad, tu sesión ha sido cerrada.\nPor favor, inicia sesión con tus nuevas credenciales.`);
         authService.logout();
         if (typeof onLogout === 'function') {
           onLogout();
@@ -140,30 +145,37 @@ export default function UserManagementTab({ onLogout }) {
 
       loadData();
     } catch (err) {
-      alert(err.message);
+      showError(err.message);
     }
   };
 
   const handleDelete = async (id) => {
     const target = users.find(u => u.id === id);
     if (isSelfUser(target)) {
-      alert('No puedes desactivar tu propio usuario.');
+      showWarning('No puedes desactivar tu propio usuario.');
       return;
     }
     if (isGeneralAdminUser(target)) {
-      alert('No tienes permisos para desactivar al Administrador General.');
+      showWarning('No tienes permisos para desactivar al Administrador General.');
       return;
     }
     if (!isCurrentAdmin && target && target.rol !== 'INSPECTOR' && target.rol !== 'CHOFER') {
-      alert('No tienes permisos para desactivar este usuario.');
+      showWarning('No tienes permisos para desactivar este usuario.');
       return;
     }
-    if (window.confirm('¿Desactivar este usuario?')) {
+    const ok = await confirm({
+      title: '¿Desactivar este usuario?',
+      message: `¿Estás seguro de que deseas desactivar al usuario "${target?.nombre || ''}"? Sus asignaciones de comuna se desvincularán y su sesión se cerrará de inmediato.`,
+      confirmText: 'Desactivar',
+      type: 'danger'
+    });
+    if (ok) {
       try {
         await adminService.deleteUser(id);
+        showSuccess(`Usuario "${target?.nombre || ''}" desactivado exitosamente.`);
         loadData();
       } catch (err) {
-        alert(err.message);
+        showError(err.message);
       }
     }
   };
@@ -171,32 +183,39 @@ export default function UserManagementTab({ onLogout }) {
   const handleHardDelete = async (id, nombre) => {
     const target = users.find(u => u.id === id);
     if (isSelfUser(target)) {
-      alert('No puedes eliminar tu propio usuario.');
+      showWarning('No puedes eliminar tu propio usuario.');
       return;
     }
     if (isGeneralAdminUser(target)) {
-      alert('No tienes permisos para eliminar al Administrador General.');
+      showWarning('No tienes permisos para eliminar al Administrador General.');
       return;
     }
     if (!isCurrentAdmin && target && target.rol !== 'INSPECTOR' && target.rol !== 'CHOFER') {
-      alert('No tienes permisos para eliminar este usuario.');
+      showWarning('No tienes permisos para eliminar este usuario.');
       return;
     }
     if (target?.tieneInspecciones) {
-      alert(`⚠️ No es posible eliminar definitivamente al usuario "${nombre}" porque cuenta con registros históricos de inspección en el sistema.\n\nPor integridad de datos y trazabilidad, este usuario solamente puede permanecer desactivado.`);
+      showWarning(`No es posible eliminar definitivamente al usuario "${nombre}" porque cuenta con registros históricos de inspección en el sistema.\n\nPor integridad de datos y trazabilidad, este usuario solamente puede permanecer desactivado.`);
       return;
     }
-    if (window.confirm(`⚠️ ¿Deseas eliminar DEFINITIVAMENTE al usuario "${nombre}" de la base de datos?\n\nEste usuario no posee registros de inspección asociados. Esta acción no se puede deshacer.`)) {
+    const ok = await confirm({
+      title: 'Eliminación Definitiva',
+      message: `¿Deseas eliminar DEFINITIVAMENTE al usuario "${nombre}" de la base de datos?\n\nEste usuario no posee registros de inspección asociados. Esta acción es irreversible.`,
+      confirmText: 'Eliminar Definitivamente',
+      type: 'danger'
+    });
+    if (ok) {
       try {
         await adminService.hardDeleteUser(id);
+        showSuccess(`Usuario "${nombre}" eliminado definitivamente.`);
         loadData();
       } catch (err) {
-        alert(err.message);
+        showError(err.message);
       }
     }
   };
 
-  const toggleComuna = (cId) => {
+  const toggleComuna = async (cId) => {
     const isAdding = !formData.comunaIds.includes(cId);
 
     if (isAdding) {
@@ -210,11 +229,12 @@ export default function UserManagementTab({ onLogout }) {
       if (assignedUser) {
         const comunaObj = comunas.find(c => (c.backendId || c.id) === cId);
         const comunaNombre = comunaObj ? comunaObj.nombre : 'esta comuna';
-        const confirmReassign = window.confirm(
-          `⚠️ La comuna "${comunaNombre}" actualmente está asignada a ${assignedUser.nombre}.\n\n` +
-          `Al asignarla a este usuario, ${assignedUser.nombre} perderá la asignación de dicha comuna.\n\n` +
-          `¿Deseas continuar con la reasignación?`
-        );
+        const confirmReassign = await confirm({
+          title: 'Reasignación de Comuna',
+          message: `La comuna "${comunaNombre}" actualmente está asignada a ${assignedUser.nombre}.\n\nAl asignarla a este usuario, ${assignedUser.nombre} perderá la asignación de dicha comuna.\n\n¿Deseas continuar con la reasignación?`,
+          confirmText: 'Reasignar Comuna',
+          type: 'warning'
+        });
 
         if (!confirmReassign) {
           return;
@@ -314,7 +334,7 @@ export default function UserManagementTab({ onLogout }) {
                                   cursor: 'not-allowed'
                                 }}
                                 title="Este usuario posee registros de inspección históricos. Solo puede permanecer desactivado."
-                                onClick={() => alert(`⚠️ No es posible eliminar definitivamente al usuario "${u.nombre}" porque cuenta con registros históricos de inspección en el sistema.\n\nPor integridad de datos y trazabilidad, este usuario solamente puede permanecer desactivado.`)}
+                                onClick={() => showWarning(`No es posible eliminar definitivamente al usuario "${u.nombre}" porque cuenta con registros históricos de inspección en el sistema.\n\nPor integridad de datos y trazabilidad, este usuario solamente puede permanecer desactivado.`)}
                               >
                                 🔒 No eliminable (Con historial)
                               </button>
