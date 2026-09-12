@@ -8,6 +8,7 @@ export const LoginScreen = ({ onLoginSuccess, logoutMessage, onClearLogoutMessag
 
   const [email, setEmail] = useState(showTestCredentials ? defaultAdminEmail : '');
   const [password, setPassword] = useState(showTestCredentials ? defaultAdminPassword : '');
+  const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -96,14 +97,40 @@ export const LoginScreen = ({ onLoginSuccess, logoutMessage, onClearLogoutMessag
 
           <div className="form-group">
             <label className="field-label">Contraseña:</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="text-input"
-              placeholder="••••••••"
-            />
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="text-input"
+                placeholder="••••••••"
+                style={{ paddingRight: '2.5rem', width: '100%' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                style={{
+                  position: 'absolute',
+                  right: '0.6rem',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1.1rem',
+                  lineHeight: 1,
+                  padding: '0.2rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#94a3b8',
+                  userSelect: 'none'
+                }}
+              >
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
 
           <button type="submit" disabled={loading} className="login-btn">

@@ -14,6 +14,12 @@ export default function UserManagementTab({ onLogout }) {
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const handleCloseModal = () => {
+    setShowModal(false);
+    setShowPassword(false);
+  };
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -100,6 +106,7 @@ export default function UserManagementTab({ onLogout }) {
         comunaIds: []
       });
     }
+    setShowPassword(false);
     setShowModal(true);
   };
 
@@ -126,7 +133,7 @@ export default function UserManagementTab({ onLogout }) {
         await adminService.createUser(payload);
         showSuccess(`Usuario "${payload.nombre}" creado exitosamente.`);
       }
-      setShowModal(false);
+      handleCloseModal();
 
       if (isSelfEmailChanged || isSelfPasswordChanged) {
         const item = isSelfEmailChanged && isSelfPasswordChanged
@@ -376,7 +383,7 @@ export default function UserManagementTab({ onLogout }) {
                     : 'Ingrese los datos del perfil de usuario (acceso a todas las comunas)'}
                 </p>
               </div>
-              <button className="close-modal-btn" onClick={() => setShowModal(false)}>✕</button>
+              <button className="close-modal-btn" onClick={handleCloseModal}>✕</button>
             </div>
 
             <form onSubmit={handleSubmit} className="modal-form">
@@ -404,14 +411,40 @@ export default function UserManagementTab({ onLogout }) {
 
               <div>
                 <label className="field-label">Contraseña {editingUser && '(Dejar vacío para mantener actual)'}:</label>
-                <input
-                  type="password"
-                  className="input-control"
-                  required={!editingUser}
-                  placeholder="••••••••"
-                  value={formData.password}
-                  onChange={e => setFormData({ ...formData, password: e.target.value })}
-                />
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    className="input-control"
+                    required={!editingUser}
+                    placeholder="••••••••"
+                    value={formData.password}
+                    onChange={e => setFormData({ ...formData, password: e.target.value })}
+                    style={{ paddingRight: '2.5rem', width: '100%' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                    title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                    style={{
+                      position: 'absolute',
+                      right: '0.6rem',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontSize: '1.1rem',
+                      lineHeight: 1,
+                      padding: '0.2rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#94a3b8',
+                      userSelect: 'none'
+                    }}
+                  >
+                    {showPassword ? '🙈' : '👁️'}
+                  </button>
+                </div>
               </div>
 
               <div>
@@ -534,7 +567,7 @@ export default function UserManagementTab({ onLogout }) {
               )}
 
               <div className="modal-footer">
-                <button type="button" className="cancel-btn" onClick={() => setShowModal(false)}>Cancelar</button>
+                <button type="button" className="cancel-btn" onClick={handleCloseModal}>Cancelar</button>
                 <button type="submit" className="confirm-btn">Guardar Usuario</button>
               </div>
             </form>
