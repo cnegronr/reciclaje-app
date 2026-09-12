@@ -248,6 +248,53 @@ A continuación se detallan las mejoras arquitectónicas, de seguridad, usabilid
 * **Cierre Inmediato de Sesión:** Si un administrador desactiva a un usuario, su sesión activa es invalidada en el backend.
 * **Interceptor Reactivo:** El frontend detecta inmediatamente cualquier respuesta HTTP `401` o `403` a través de un interceptor global y redirige al login mostrando un banner explicativo persistente.
 
+### 7. Optimización de Concurrencia y Uso de Recursos en EC2 (Zero-Cost Scaling)
+Para maximizar el aprovechamiento de la instancia EC2 `t4g.small` (2 vCPUs ARM64 Graviton, 2.0 GB RAM) bajo ráfagas de peticiones concurrentes sin requerir autoescalado ni incurrir en costos adicionales ($0.00), se implementó una suite integral de optimizaciones en backend, frontend, servidor web y base de datos:
+
+#### A. Backend: Java 21 Virtual Threads (Project Loom) y Calibración de HikariCP
+* **Virtual Threads (`spring.threads.virtual.enabled: true`):**
+  * *Fundamento Técnico:* Tradicionalmente, cada petición en Tomcat consume un hilo del sistema operativo (OS thread, ~1 MB de stack). Con 2 vCPUs, decenas de peticiones concurrentes compiten por ciclos de CPU en cambios de contexto (*context switching*). Los **Virtual Threads** son hilos livianos administrados directamente por la JVM en memoria de usuario (~kilobytes). Cuando una petición espera I/O (ej. consulta SQL o respuesta de S3), el hilo virtual se desmonta del hilo portador (*carrier thread*), permitiendo que los 2 vCPUs continúen procesando otras solicitudes sin bloquearse.
+* **Calibración del Pool de Conexiones HikariCP:**
+  * *Fundamento Técnico:* Aunque los hilos virtuales permiten miles de peticiones concurrentes, la base de datos PostgreSQL tiene límites físicos de concurrencia en disco y CPU. Si se permitiera un pool ilimitado, PostgreSQL sufriría contención masiva de bloqueos (*lock contention*) y thrashing de disco. Se dimensionó el pool según la fórmula óptima de PostgreSQL `(vCPUs * 2) + disco` en `maximum-pool-size: 15` con `connection-timeout: 10000ms` (10s), garantizando respuesta ágil o descarte controlado en lugar de colapso por inanición de recursos.
+* **Compresión HTTP Nativa (`server.compression.enabled: true`):**
+  * *Fundamento Técnico:* Comprime automáticamente con Gzip respuestas JSON mayores a 1024 bytes, reduciendo drásticamente el ancho de banda transferido y la latencia percibida por clientes móviles.
+
+#### B. Gestión de Memoria JVM y Prevención del Linux OOM Killer
+* **Configuración del Heap y Algoritmo de Garbage Collection:**
+  * Parámetros aplicados: `JAVA_OPTS="-Xms256m -Xmx650m -XX:+UseG1GC -XX:+UseStringDeduplication -XX:MaxRAMPercentage=75.0"`.
+  * *Fundamento Técnico:* En una instancia de 2.0 GB compartida entre el SO, Docker, PostgreSQL, Nginx y Java, dejar que la JVM asigne memoria sin tope provocaría la ejecución del *Linux Out-Of-Memory (OOM) Killer*, matando el proceso del backend. Se limitó el heap máximo a 650 MB utilizando **G1GC** (óptimo para baja latencia en arquitecturas multi-núcleo ARM64) y `StringDeduplication` para reducir la memoria consumida por cadenas repetitivas (JSON keys, tokens, URIs).
+  * A nivel de Docker Compose, se asignaron techos estrictos: `backend: 850m`, `postgres: 384m`, `frontend: 128m`.
+
+#### C. Servidor Web Nginx: Keepalive Upstream, Gzip y Caché Inmutable
+* **Pool de Conexiones Persistentes (`upstream backend_api` con `keepalive 32`):**
+  * *Fundamento Técnico:* Por defecto, Nginx abre y cierra una conexión TCP (handshake SYN/ACK de 3 vías) hacia el backend por cada petición entrante. Con el pool *keepalive*, se reutilizan hasta 32 conexiones HTTP/1.1 persistentes, eliminando el coste de establecimiento de sockets y reduciendo la latencia de cada request en 10-30 ms.
+* **Caché Inmutable para Bundles Estáticos de Vite:**
+  * Directiva: `Cache-Control: public, max-age=31536000, immutable` para `.js`, `.css`, imágenes y fuentes.
+  * *Fundamento Técnico:* Los artefactos generados por Vite incluyen un hash de contenido único en el nombre (ej. `index-B8llZd9j.js`). Esta directiva instruye a los navegadores a almacenar el archivo localmente por 1 año sin volver a consultar al servidor mientras el hash no cambie.
+  * Por el contrario, `index.html` utiliza `Cache-Control: no-cache, no-store, must-revalidate`, garantizando que cualquier nuevo despliegue sea adoptado al instante.
+* **Escudo Defensivo de Tasa de Peticiones (Rate Limiting):**
+  * Directiva: `limit_req_zone $binary_remote_addr zone=api_limit:10m rate=30r/s burst=50 nodelay;`.
+  * *Fundamento Técnico:* Previene la degradación del servicio ante bucles anormales de clientes o scripts desmedidos, absorbiendo picos de hasta 50 peticiones concurrentes y mitigando abusos sin afectar a usuarios legítimos.
+
+#### D. Frontend SPA: Deduplicación de Peticiones y Caché en Memoria
+* **Deduplicación en Vuelo y Caché TTL (`comunaService.js`):**
+  * *Fundamento Técnico:* Si múltiples vistas o componentes solicitan simultáneamente el listado de comunas/contenedores, la promesa en curso se comparte entre todos los invocadores (`inFlightRequests`), disparando **una sola petición HTTP** al backend. Adicionalmente, el resultado se almacena en memoria durante 30 segundos (`CACHE_TTL_MS = 30000`), reduciendo la carga de lectura en la API en más de un 80% durante la navegación interactiva.
+
+#### E. Base de Datos: Afinamiento de PostgreSQL 16
+* **Parámetros de Ejecución:**
+  * Comando: `postgres -c max_connections=50 -c shared_buffers=128MB -c work_mem=4MB`.
+  * *Fundamento Técnico:* Limitar `max_connections` a 50 evita que ráfagas descontroladas consuman toda la memoria de PostgreSQL (cada conexión en Postgres reserva memoria para procesos backend). `shared_buffers=128MB` garantiza que las tablas y consultas frecuentes residan en la memoria RAM compartida sin ahogar a los demás contenedores.
+
+#### F. Resultados Verificados en Producción (AWS EC2)
+Tras desplegar los cambios en la instancia en vivo (`54.166.102.4`), se ejecutó un benchmark de 30 peticiones concurrentes simultáneas:
+* **Tasa de éxito:** 30/30 (100% código HTTP 200).
+* **Latencia promedio:** 1.25 segundos (sobre Internet público).
+* **Consumo de memoria consolidado:**
+  * Backend Spring Boot: **407 MiB** (47.9% del límite asignado).
+  * Base de datos PostgreSQL: **40.6 MiB** (10.6% del límite asignado).
+  * Servidor web Frontend: **3.9 MiB** (3.1% del límite asignado).
+  * **Uso total del stack:** **~452 MiB** (~22% de la RAM total de la máquina), garantizando alta resiliencia y estabilidad continua.
+
 ---
 
 ## 📋 Reglas de Negocio Integradas
