@@ -89,8 +89,9 @@ public class InspeccionSemanalService {
 
             InspeccionSemanal guardada = inspeccionRepository.save(nuevaInspeccion);
 
-            // Inicializar detalles de inspección para cada contenedor de la comuna
+            // Inicializar detalles de inspección para cada contenedor de la comuna en lote (batch)
             List<Contenedor> contenedores = contenedorRepository.findByComunaId(comunaId);
+            List<DetalleInspeccion> nuevosDetalles = new ArrayList<>();
             for (Contenedor cont : contenedores) {
                 DetalleInspeccion detalle = DetalleInspeccion.builder()
                         .inspeccionSemanal(guardada)
@@ -99,8 +100,10 @@ public class InspeccionSemanalService {
                         .kilosCalculados(BigDecimal.ZERO)
                         .visitado(false)
                         .build();
-                detalleRepository.save(detalle);
+                nuevosDetalles.add(detalle);
             }
+            List<DetalleInspeccion> guardados = detalleRepository.saveAll(nuevosDetalles);
+            guardada.setDetalles(guardados);
 
             inspeccion = guardada;
         }

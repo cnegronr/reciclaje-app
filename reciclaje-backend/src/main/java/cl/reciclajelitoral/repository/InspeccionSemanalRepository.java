@@ -2,12 +2,18 @@ package cl.reciclajelitoral.repository;
 
 import cl.reciclajelitoral.entity.InspeccionSemanal;
 import cl.reciclajelitoral.entity.TipoRuta;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import java.util.List;
 import java.util.Optional;
 
 public interface InspeccionSemanalRepository extends JpaRepository<InspeccionSemanal, Long> {
+    @Override
+    @EntityGraph(attributePaths = {"detalles", "detalles.contenedor"})
+    Optional<InspeccionSemanal> findById(Long id);
+
+    @EntityGraph(attributePaths = {"detalles", "detalles.contenedor"})
     Optional<InspeccionSemanal> findFirstByComunaIdAndTipoRutaAndSemanaNumeroAndAnioOrderByIdDesc(
             Long comunaId, TipoRuta tipoRuta, Integer semanaNumero, Integer anio
     );
@@ -18,6 +24,7 @@ public interface InspeccionSemanalRepository extends JpaRepository<InspeccionSem
         return findFirstByComunaIdAndTipoRutaAndSemanaNumeroAndAnioOrderByIdDesc(comunaId, tipoRuta, semanaNumero, anio);
     }
 
+    @EntityGraph(attributePaths = {"detalles", "detalles.contenedor"})
     Optional<InspeccionSemanal> findFirstByComunaIdAndInspectorIdAndSemanaNumeroAndAnioOrderByIdDesc(
             Long comunaId, Long inspectorId, Integer semanaNumero, Integer anio
     );

@@ -210,7 +210,7 @@ class InspeccionSemanalServiceTest {
         InspeccionSemanalDTO dto = inspeccionService.obtenerOCrearInspeccionSemanal(1L, 1L);
 
         assertNotNull(dto);
-        verify(detalleRepository).save(any(DetalleInspeccion.class));
+        verify(detalleRepository).saveAll(anyList());
     }
 
     @Test
