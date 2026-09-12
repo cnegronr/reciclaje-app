@@ -4,6 +4,9 @@ services:
     image: postgres:16-alpine
     container_name: reciclaje_postgres
     restart: always
+    command: postgres -c max_connections=50 -c shared_buffers=128MB -c work_mem=4MB
+    mem_limit: 384m
+    mem_reservation: 128m
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -26,6 +29,8 @@ services:
       dockerfile: Dockerfile
     container_name: reciclaje_backend
     restart: always
+    mem_limit: 850m
+    mem_reservation: 300m
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,9 +48,10 @@ services:
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
       AWS_REGION: ${AWS_REGION:-us-east-1}
+      JAVA_OPTS: "-Xms256m -Xmx650m -XX:+UseG1GC -XX:+UseStringDeduplication"
     volumes:
-      # Montar perfil local ~/.aws para reutilizar las credenciales de aws configure en el contenedor
-      - ~/.aws:/root/.aws:ro
+      # Montar perfil local ~/.aws solo si existe para evitar advertencias en entornos sin HOME
+      - ${HOME:-/root}/.aws:/root/.aws:ro
     ports:
       - "8080:8080"
 
@@ -60,6 +66,7 @@ services:
         VITE_ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD}
     container_name: reciclaje_frontend
     restart: always
+    mem_limit: 128m
     depends_on:
       - backend
     ports:
