@@ -147,11 +147,13 @@ npm run preview
 Desde la carpeta `/reciclaje-app/reciclaje-cdk`:
 
 #### 1. Gestión de Variables de Entorno y Secretos en AWS SSM Parameter Store (Costo $0.00)
-* **Sincronizar parámetros hacia AWS con cifrado KMS:**
-  Sube o actualiza todas las variables del servidor en AWS Systems Manager Parameter Store bajo `/reciclaje-app/prod/`, aplicando cifrado KMS (`SecureString`) a contraseñas y claves JWT:
+* **Sincronizar parámetros hacia AWS con cifrado KMS (Lee tu `.env` local):**
+  Lee automáticamente tu archivo `.env` local de la raíz del proyecto (o cualquier archivo especificado con `-- --file=ruta/.env`), toma los valores definidos y los sube a AWS Systems Manager Parameter Store bajo `/reciclaje-app/prod/`, aplicando cifrado KMS (`SecureString`) a contraseñas y claves JWT:
   ```bash
   cd reciclaje-cdk
   npm run ssm:push
+  # Opcional: especificar un archivo .env personalizado
+  npm run ssm:push -- --file=../.env.production
   ```
 * **Listar y auditar parámetros actuales en AWS SSM:**
   Muestra una tabla con los nombres, tipos de parámetro (`[🔒 SecureString/KMS]` o `[📄 String]`), versiones y fechas de modificación:

@@ -38,11 +38,33 @@ let envName = 'prod';
 let region = process.env.AWS_REGION || process.env.CDK_DEFAULT_REGION || 'us-east-1';
 let stackName = 'ReciclajeLitoralStack';
 
+let envFile = path.resolve(__dirname, '../../.env');
+
 for (const arg of args) {
   if (arg.startsWith('--action=')) action = arg.split('=')[1].toLowerCase();
   else if (arg.startsWith('--env=')) envName = arg.split('=')[1].toLowerCase();
   else if (arg.startsWith('--region=')) region = arg.split('=')[1];
   else if (arg.startsWith('--stack=')) stackName = arg.split('=')[1];
+  else if (arg.startsWith('--file=')) envFile = path.resolve(process.cwd(), arg.split('=')[1]);
+}
+
+function parseEnvFile(filePath) {
+  if (!fs.existsSync(filePath)) return {};
+  const content = fs.readFileSync(filePath, 'utf8');
+  const env = {};
+  for (const line of content.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.slice(0, eqIdx).trim();
+    let val = trimmed.slice(eqIdx + 1).trim();
+    if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
+    }
+    env[key] = val;
+  }
+  return env;
 }
 
 const prefix = `/reciclaje-app/${envName}`;
@@ -93,21 +115,39 @@ if (action === 'list') {
     process.exit(1);
   }
 } else if (action === 'push') {
-  const paramsToSync = [
-    { name: 'POSTGRES_DB', value: 'reciclaje_db', type: 'String', desc: 'Nombre de base de datos PostgreSQL' },
-    { name: 'POSTGRES_USER', value: 'reciclaje_user', type: 'String', desc: 'Usuario de base de datos PostgreSQL' },
-    { name: 'POSTGRES_PASSWORD', value: 'reciclaje_pass_2026_prod_secure!', type: 'SecureString', desc: 'Contraseña de base de datos (Cifrado KMS)' },
-    { name: 'JWT_SECRET', value: 'ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!', type: 'SecureString', desc: 'Clave HMAC-SHA256 para tokens JWT' },
-    { name: 'JWT_EXPIRATION_MS', value: '604800000', type: 'String', desc: 'Tiempo de expiración JWT (7 días)' },
-    { name: 'ADMIN_INITIAL_EMAIL', value: 'admin@reciclajelitoral.cl', type: 'String', desc: 'Email del Administrador General inicial' },
-    { name: 'ADMIN_INITIAL_NAME', value: 'Administrador General', type: 'String', desc: 'Nombre del Administrador General' },
-    { name: 'ADMIN_INITIAL_PASSWORD', value: 'JetPack1977!', type: 'SecureString', desc: 'Contraseña del Administrador General inicial (Cifrado KMS)' },
-    { name: 'AWS_REGION', value: region, type: 'String', desc: 'Región de AWS' },
-    { name: 'AWS_S3_BUCKET', value: bucketName, type: 'String', desc: 'Nombre del Bucket S3 para fotos' },
-    { name: 'SPRING_PROFILES_ACTIVE', value: 'prod', type: 'String', desc: 'Perfil activo de Spring Boot' },
-    { name: 'VITE_SHOW_TEST_CREDENTIALS', value: 'false', type: 'String', desc: 'Ocultar credenciales de prueba en frontend' },
-    { name: 'SERVER_PORT', value: '8080', type: 'String', desc: 'Puerto de la aplicación backend' },
+  const localEnv = parseEnvFile(envFile);
+  if (fs.existsSync(envFile)) {
+    log(`📄 Leyendo variables desde archivo local: ${colors.cyan}${envFile}${colors.reset}\n`, colors.yellow);
+  } else {
+    log(`ℹ️ Archivo local no encontrado en: ${envFile}. Usando valores por defecto seguros.\n`, colors.dim);
+  }
+
+  const paramsTemplate = [
+    { name: 'POSTGRES_DB', defaultVal: 'reciclaje_db', type: 'String', desc: 'Nombre de base de datos PostgreSQL' },
+    { name: 'POSTGRES_USER', defaultVal: 'reciclaje_user', type: 'String', desc: 'Usuario de base de datos PostgreSQL' },
+    { name: 'POSTGRES_PASSWORD', defaultVal: 'reciclaje_pass_2026_prod_secure!', type: 'SecureString', desc: 'Contraseña de base de datos (Cifrado KMS)' },
+    { name: 'JWT_SECRET', defaultVal: 'ReciclajeLitoralSuperSecretKey2026WithEnoughBitLengthForHMACSHA256Signature!', type: 'SecureString', desc: 'Clave HMAC-SHA256 para tokens JWT' },
+    { name: 'JWT_EXPIRATION_MS', defaultVal: '604800000', type: 'String', desc: 'Tiempo de expiración JWT (7 días)' },
+    { name: 'ADMIN_INITIAL_EMAIL', defaultVal: 'admin@reciclajelitoral.cl', type: 'String', desc: 'Email del Administrador General inicial' },
+    { name: 'ADMIN_INITIAL_NAME', defaultVal: 'Administrador General', type: 'String', desc: 'Nombre del Administrador General' },
+    { name: 'ADMIN_INITIAL_PASSWORD', defaultVal: 'JetPack1977!', type: 'SecureString', desc: 'Contraseña del Administrador General inicial (Cifrado KMS)' },
+    { name: 'AWS_REGION', defaultVal: region, type: 'String', desc: 'Región de AWS' },
+    { name: 'AWS_S3_BUCKET', defaultVal: bucketName, type: 'String', desc: 'Nombre del Bucket S3 para fotos' },
+    { name: 'SPRING_PROFILES_ACTIVE', defaultVal: 'prod', type: 'String', desc: 'Perfil activo de Spring Boot' },
+    { name: 'VITE_SHOW_TEST_CREDENTIALS', defaultVal: 'false', type: 'String', desc: 'Ocultar credenciales de prueba en frontend' },
+    { name: 'SERVER_PORT', defaultVal: '8080', type: 'String', desc: 'Puerto de la aplicación backend' },
   ];
+
+  const paramsToSync = paramsTemplate.map(p => {
+    const hasLocal = localEnv[p.name] !== undefined && localEnv[p.name] !== '';
+    return {
+      name: p.name,
+      value: hasLocal ? localEnv[p.name] : p.defaultVal,
+      type: p.type,
+      desc: p.desc,
+      source: hasLocal ? 'archivo .env' : 'predeterminado',
+    };
+  });
 
   log(`Sincronizando ${paramsToSync.length} parámetros hacia AWS SSM Parameter Store...`, colors.dim);
 
@@ -129,7 +169,8 @@ if (action === 'list') {
         { stdio: ['pipe', 'pipe', 'pipe'] }
       );
       const badge = p.type === 'SecureString' ? `${colors.green}[🔒 SecureString/KMS]${colors.reset}` : `${colors.cyan}[📄 String]${colors.reset}`;
-      console.log(`  ✅ Guardado: ${colors.bright}${fullName}${colors.reset} ${badge}`);
+      const srcBadge = p.source === 'archivo .env' ? `${colors.yellow}(desde .env)${colors.reset}` : `${colors.dim}(por defecto)${colors.reset}`;
+      console.log(`  ✅ Guardado: ${colors.bright}${fullName}${colors.reset} ${badge} ${srcBadge}`);
       count++;
     } catch (e) {
       log(`  ❌ Error guardando ${fullName}: ${e.message}`, colors.red);
