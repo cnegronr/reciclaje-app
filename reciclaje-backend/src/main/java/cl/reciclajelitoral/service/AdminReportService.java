@@ -133,12 +133,23 @@ public class AdminReportService {
         Set<Integer> yearsSet = new TreeSet<>(Comparator.reverseOrder());
         yearsSet.add(currentYear);
 
-        List<DetalleInspeccion> detalles = detalleRepository.findAll();
-        for (DetalleInspeccion d : detalles) {
-            if (Boolean.TRUE.equals(d.getVisitado())) {
-                int yr = getEffectiveYear(d);
-                if (yr > 2000) {
+        List<Integer> dbYears = detalleRepository.findDistinctAniosVisitados();
+        if (dbYears != null && !dbYears.isEmpty()) {
+            for (Integer yr : dbYears) {
+                if (yr != null && yr > 2000) {
                     yearsSet.add(yr);
+                }
+            }
+        } else {
+            List<DetalleInspeccion> detalles = detalleRepository.findAll();
+            if (detalles != null) {
+                for (DetalleInspeccion d : detalles) {
+                    if (Boolean.TRUE.equals(d.getVisitado())) {
+                        int yr = getEffectiveYear(d);
+                        if (yr > 2000) {
+                            yearsSet.add(yr);
+                        }
+                    }
                 }
             }
         }
@@ -158,8 +169,12 @@ public class AdminReportService {
 
     @Transactional(readOnly = true)
     public byte[] generateExcelReport(Long comunaId, Long usuarioId, String role, Integer semanaNumero, Integer anio, boolean incluirId) throws IOException {
-        List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
-                .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
+        List<DetalleInspeccion> visitadosOpt = detalleRepository.findAllVisitadosWithRelaciones();
+        List<DetalleInspeccion> baseDetalles = (visitadosOpt != null && !visitadosOpt.isEmpty())
+                ? visitadosOpt
+                : detalleRepository.findAll().stream().filter(d -> Boolean.TRUE.equals(d.getVisitado())).toList();
+
+        List<DetalleInspeccion> detalles = baseDetalles.stream()
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
                 .filter(d -> {
                     if (usuarioId != null) {
@@ -645,7 +660,12 @@ public class AdminReportService {
 
     @Transactional(readOnly = true)
     public byte[] generatePdfReport(Long comunaId, Long usuarioId, String role, Integer semanaNumero, Integer anio, boolean incluirId) throws Exception {
-        List<DetalleInspeccion> detalles = detalleRepository.findAll().stream()
+        List<DetalleInspeccion> visitadosOpt = detalleRepository.findAllVisitadosWithRelaciones();
+        List<DetalleInspeccion> baseDetalles = (visitadosOpt != null && !visitadosOpt.isEmpty())
+                ? visitadosOpt
+                : detalleRepository.findAll().stream().filter(d -> Boolean.TRUE.equals(d.getVisitado())).toList();
+
+        List<DetalleInspeccion> detalles = baseDetalles.stream()
                 .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
                 .filter(d -> comunaId == null || (d.getContenedor() != null && d.getContenedor().getComuna() != null && d.getContenedor().getComuna().getId().equals(comunaId)))
                 .filter(d -> {

@@ -99,8 +99,12 @@ public class AdminDashboardService {
         int currentWeek = WeekDateUtils.getCurrentWeekNumber();
         int currentYear = WeekDateUtils.getCurrentYear();
 
-        List<DetalleInspeccion> detallesVisitados = detalleRepository.findAll().stream()
-                .filter(d -> Boolean.TRUE.equals(d.getVisitado()))
+        List<DetalleInspeccion> visitadosOpt = detalleRepository.findAllVisitadosWithRelaciones();
+        List<DetalleInspeccion> baseVisitados = (visitadosOpt != null && !visitadosOpt.isEmpty())
+                ? visitadosOpt
+                : detalleRepository.findAll().stream().filter(d -> Boolean.TRUE.equals(d.getVisitado())).toList();
+
+        List<DetalleInspeccion> detallesVisitados = baseVisitados.stream()
                 .filter(d -> {
                     if (period == null || "HISTORIC".equalsIgnoreCase(period) || "ALL".equalsIgnoreCase(period)) {
                         return true;
