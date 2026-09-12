@@ -32,18 +32,20 @@ public class AdminUserInitializer implements ApplicationRunner {
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        if (!usuarioRepository.existsByEmail(adminEmail)) {
-            log.info("Inicializando usuario Administrador por defecto ({})", adminEmail);
-            Usuario admin = Usuario.builder()
-                    .nombre(adminName)
-                    .email(adminEmail)
-                    .passwordHash(passwordEncoder.encode(adminPassword))
-                    .rol(Rol.ADMIN)
-                    .activo(true)
-                    .esAdministradorGeneral(true)
-                    .build();
-            usuarioRepository.save(admin);
-            log.info("Usuario Administrador inicial creado exitosamente.");
+        if (!usuarioRepository.existsByEsAdministradorGeneralTrue()) {
+            if (!usuarioRepository.existsByEmail(adminEmail)) {
+                log.info("Inicializando usuario Administrador General por defecto ({})", adminEmail);
+                Usuario admin = Usuario.builder()
+                        .nombre(adminName)
+                        .email(adminEmail)
+                        .passwordHash(passwordEncoder.encode(adminPassword))
+                        .rol(Rol.ADMIN)
+                        .activo(true)
+                        .esAdministradorGeneral(true)
+                        .build();
+                usuarioRepository.save(admin);
+                log.info("Usuario Administrador General inicial creado exitosamente.");
+            }
         }
     }
 }

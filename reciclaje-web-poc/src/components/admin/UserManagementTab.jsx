@@ -108,11 +108,13 @@ export default function UserManagementTab({ onLogout }) {
       const isEditingSelf = editingUser && isSelfUser(editingUser);
       const isSelfEmailChanged = isEditingSelf && (editingUser.email?.trim().toLowerCase() !== formData.email?.trim().toLowerCase());
       const isSelfPasswordChanged = isEditingSelf && Boolean(formData.password && formData.password.trim().length > 0);
+      const isActivo = isEditingSelf ? true : formData.activo;
+      const targetRol = isEditingSelf ? editingUser.rol : formData.rol;
       const payload = {
         ...formData,
-        rol: isEditingSelf ? editingUser.rol : formData.rol,
-        activo: isEditingSelf ? true : formData.activo,
-        comunaIds: (isEditingSelf ? editingUser.rol : formData.rol) === 'INSPECTOR' ? formData.comunaIds : []
+        rol: targetRol,
+        activo: isActivo,
+        comunaIds: (isActivo && targetRol === 'INSPECTOR') ? formData.comunaIds : []
       };
       if (editingUser) {
         await adminService.updateUser(editingUser.id, payload);
@@ -431,40 +433,56 @@ export default function UserManagementTab({ onLogout }) {
                       </span>
                     )}
                   </label>
+                  {!formData.activo && !isEditingSelf && (
+                    <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: '#f87171' }}>
+                      ⚠️ Al desactivar este usuario, se eliminarán automáticamente todas sus asignaciones de comuna.
+                    </div>
+                  )}
+                  {editingUser && !editingUser.activo && formData.activo && (
+                    <div style={{ marginTop: '0.35rem', fontSize: '0.75rem', color: '#38bdf8' }}>
+                      ℹ️ Al reactivar este inspector, sus asignaciones previas no se recuperan automáticamente. Debes seleccionar manualmente las comunas que se le asignarán.
+                    </div>
+                  )}
                 </div>
               )}
 
               {formData.rol === 'INSPECTOR' ? (
-                <div>
-                  <label className="field-label">Comunas Asignadas:</label>
-                  <div style={{ maxHeight: '140px', overflowY: 'auto', background: '#0f172a', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    {comunas.length === 0 ? (
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cargando comunas...</span>
-                    ) : (
-                      comunas.map(c => {
-                        const cId = c.backendId || c.id;
-                        const assignedUser = users.find(u => u.id !== editingUser?.id && u.comunaIds && u.comunaIds.includes(cId));
-                        return (
-                          <label key={c.id} style={{ fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                              <input
-                                type="checkbox"
-                                checked={formData.comunaIds.includes(cId)}
-                                onChange={() => toggleComuna(cId)}
-                              />
-                              📍 {c.nombre}
-                            </span>
-                            {assignedUser && (
-                              <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>
-                                (Asignada a: {assignedUser.nombre})
-                              </span>
-                            )}
-                          </label>
-                        );
-                      })
-                    )}
+                !formData.activo ? (
+                  <div style={{ padding: '0.75rem', background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: '#fca5a5' }}>
+                    ⚠️ Este inspector se encuentra inactivo. Los inspectores inactivos no poseen comunas asignadas. Activa la cuenta para poder asignarle comunas.
                   </div>
-                </div>
+                ) : (
+                  <div>
+                    <label className="field-label">Comunas Asignadas:</label>
+                    <div style={{ maxHeight: '140px', overflowY: 'auto', background: '#0f172a', border: '1px solid var(--border-color)', padding: '0.75rem', borderRadius: 'var(--radius-md)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                      {comunas.length === 0 ? (
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Cargando comunas...</span>
+                      ) : (
+                        comunas.map(c => {
+                          const cId = c.backendId || c.id;
+                          const assignedUser = users.find(u => u.id !== editingUser?.id && u.comunaIds && u.comunaIds.includes(cId));
+                          return (
+                            <label key={c.id} style={{ fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={formData.comunaIds.includes(cId)}
+                                  onChange={() => toggleComuna(cId)}
+                                />
+                                📍 {c.nombre}
+                              </span>
+                              {assignedUser && (
+                                <span style={{ fontSize: '0.75rem', color: '#f59e0b', fontWeight: 600 }}>
+                                  (Asignada a: {assignedUser.nombre})
+                                </span>
+                              )}
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                )
               ) : (
                 <div style={{ padding: '0.75rem 0.85rem', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.25)', borderRadius: 'var(--radius-md)', fontSize: '0.82rem', color: '#93c5fd', lineHeight: '1.4' }}>
                   ℹ️ <strong>Acceso a Todas las Comunas:</strong> Por regla de negocio, los usuarios con perfil <strong>{formData.rol}</strong> tienen asignadas todas las comunas. La asignación individual de comunas aplica exclusivamente para el perfil <strong>INSPECTOR</strong>.

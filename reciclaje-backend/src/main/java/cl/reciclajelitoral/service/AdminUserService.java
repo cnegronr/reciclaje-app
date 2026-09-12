@@ -121,6 +121,9 @@ public class AdminUserService {
         }
         if (req.getActivo() != null) {
             usuario.setActivo(req.getActivo());
+            if (!req.getActivo()) {
+                asignacionRepository.deleteByInspectorId(usuario.getId());
+            }
         }
         boolean passwordChanged = req.getPassword() != null && !req.getPassword().isBlank();
         if (passwordChanged) {
@@ -137,7 +140,7 @@ public class AdminUserService {
             sessionInvalidationService.registerPasswordChange(updated.getId(), updated.getEmail());
         }
 
-        if (req.getComunaIds() != null) {
+        if (Boolean.TRUE.equals(updated.getActivo()) && req.getComunaIds() != null) {
             syncComunaAssignments(updated, req.getComunaIds());
         }
 
@@ -204,6 +207,7 @@ public class AdminUserService {
             }
         }
         usuario.setActivo(false);
+        asignacionRepository.deleteByInspectorId(usuario.getId());
         usuarioRepository.save(usuario);
     }
 

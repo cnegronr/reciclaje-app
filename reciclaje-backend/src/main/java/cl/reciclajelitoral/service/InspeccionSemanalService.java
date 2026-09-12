@@ -52,12 +52,12 @@ public class InspeccionSemanalService {
         Usuario usuarioActivo = usuarioRepository.findById(inspectorId).orElse(null);
         TipoRuta tipoRuta = (usuarioActivo != null && usuarioActivo.getRol() == Rol.CHOFER) ? TipoRuta.CHOFER : TipoRuta.INSPECTOR;
 
-        // Buscar el Inspector primario asignado a la comuna
+        // Buscar el Inspector primario activo asignado a la comuna
         Usuario inspectorAsociado = asignacionRepository.findByComunaId(comunaId).stream()
                 .map(AsignacionInspector::getInspector)
-                .filter(u -> u != null && u.getRol() == Rol.INSPECTOR)
+                .filter(u -> u != null && u.getRol() == Rol.INSPECTOR && Boolean.TRUE.equals(u.getActivo()))
                 .findFirst()
-                .orElse(usuarioActivo);
+                .orElse(usuarioActivo != null && Boolean.TRUE.equals(usuarioActivo.getActivo()) && usuarioActivo.getRol() == Rol.INSPECTOR ? usuarioActivo : null);
 
         InspeccionSemanal inspeccion = (tipoRuta == TipoRuta.CHOFER)
                 ? inspeccionRepository.findByComunaIdAndTipoRutaAndSemanaNumeroAndAnio(comunaId, TipoRuta.CHOFER, semanaNumero, anio).orElse(null)
@@ -306,9 +306,9 @@ public class InspeccionSemanalService {
         if (i.getComuna() != null) {
             inspectorAsignado = asignacionRepository.findByComunaId(i.getComuna().getId()).stream()
                     .map(AsignacionInspector::getInspector)
-                    .filter(u -> u != null && u.getRol() == Rol.INSPECTOR)
+                    .filter(u -> u != null && u.getRol() == Rol.INSPECTOR && Boolean.TRUE.equals(u.getActivo()))
                     .findFirst()
-                    .orElse(i.getInspectorAsociado());
+                    .orElse(null);
             if (i.getTipoRuta() == TipoRuta.CHOFER) {
                 List<DetalleInspeccion> visitadas = detalleRepository.findVisitadasInspectorByComunaId(i.getComuna().getId());
                 if (visitadas != null) {
@@ -411,14 +411,21 @@ public class InspeccionSemanalService {
                 })
                 .collect(Collectors.toList());
 
-        Usuario inspectorAsociado = i.getInspectorAsociado() != null ? i.getInspectorAsociado() : i.getInspector();
+        Usuario inspectorAsociado = inspectorAsignado != null
+                ? inspectorAsignado
+                : (i.getInspectorAsociado() != null && Boolean.TRUE.equals(i.getInspectorAsociado().getActivo())
+                        ? i.getInspectorAsociado()
+                        : (i.getInspector() != null && Boolean.TRUE.equals(i.getInspector().getActivo()) ? i.getInspector() : null));
+
+        Long inspectorAsociadoId = inspectorAsociado != null ? inspectorAsociado.getId() : null;
+        String inspectorAsociadoNombre = inspectorAsociado != null ? inspectorAsociado.getNombre() : "Sin Asignar";
 
         return InspeccionSemanalDTO.builder()
                 .id(i.getId())
                 .comunaId(i.getComuna().getId())
                 .inspectorId(i.getInspector().getId())
-                .inspectorAsociadoId(inspectorAsociado.getId())
-                .inspectorAsociadoNombre(inspectorAsociado.getNombre())
+                .inspectorAsociadoId(inspectorAsociadoId)
+                .inspectorAsociadoNombre(inspectorAsociadoNombre)
                 .rolUsuario(i.getInspector().getRol().name())
                 .semanaNumero(i.getSemanaNumero())
                 .anio(i.getAnio())

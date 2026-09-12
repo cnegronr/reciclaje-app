@@ -710,4 +710,92 @@ class AdminUserServiceTest {
             org.springframework.security.core.context.SecurityContextHolder.clearContext();
         }
     }
+
+    @Test
+    void shouldDeleteUserAndRemoveComunaAssignments() {
+        Usuario inspector = Usuario.builder()
+                .id(3L)
+                .nombre("Inspector Test")
+                .email("inspector@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .esAdministradorGeneral(false)
+                .build();
+
+        when(usuarioRepository.findById(3L)).thenReturn(java.util.Optional.of(inspector));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+
+        adminUserService.deleteUser(3L);
+
+        assertFalse(inspector.getActivo());
+        verify(asignacionRepository).deleteByInspectorId(3L);
+        verify(usuarioRepository).save(inspector);
+    }
+
+    @Test
+    void shouldUpdateUserWithActivoFalseAndRemoveComunaAssignments() {
+        Usuario inspector = Usuario.builder()
+                .id(3L)
+                .nombre("Inspector Test")
+                .email("inspector@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .esAdministradorGeneral(false)
+                .build();
+
+        cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                .nombre("Inspector Inactivo")
+                .email("inspector@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(false)
+                .comunaIds(List.of(1L, 2L))
+                .build();
+
+        when(usuarioRepository.findById(3L)).thenReturn(java.util.Optional.of(inspector));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+        when(asignacionRepository.findByInspectorId(3L)).thenReturn(List.of());
+
+        UserAdminDTO dto = adminUserService.updateUser(3L, req);
+
+        assertNotNull(dto);
+        assertFalse(dto.getActivo());
+        verify(asignacionRepository).deleteByInspectorId(3L);
+        // Verify comuna assignments were NOT synced because user is inactive
+        verify(comunaRepository, never()).findAllById(any());
+    }
+
+    @Test
+    void shouldReactivateUserAndAssignOnlyExplicitComunas() {
+        Usuario inspectorInactivo = Usuario.builder()
+                .id(3L)
+                .nombre("Inspector Inactivo")
+                .email("inspector@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(false)
+                .esAdministradorGeneral(false)
+                .build();
+
+        Comuna comuna4 = Comuna.builder().id(4L).nombre("San Antonio").build();
+
+        cl.reciclajelitoral.dto.UpdateUserRequest req = cl.reciclajelitoral.dto.UpdateUserRequest.builder()
+                .nombre("Inspector Reactivado")
+                .email("inspector@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .comunaIds(List.of(4L))
+                .build();
+
+        when(usuarioRepository.findById(3L)).thenReturn(java.util.Optional.of(inspectorInactivo));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+        when(asignacionRepository.findByInspectorId(3L)).thenReturn(List.of());
+        when(comunaRepository.findAllById(List.of(4L))).thenReturn(List.of(comuna4));
+        when(asignacionRepository.findByComunaId(4L)).thenReturn(List.of());
+
+        UserAdminDTO dto = adminUserService.updateUser(3L, req);
+
+        assertNotNull(dto);
+        assertTrue(dto.getActivo());
+        verify(asignacionRepository, never()).deleteByInspectorId(3L);
+        verify(asignacionRepository).save(argThat(a -> a.getInspector().getId().equals(3L) && a.getComuna().getId().equals(4L)));
+    }
 }

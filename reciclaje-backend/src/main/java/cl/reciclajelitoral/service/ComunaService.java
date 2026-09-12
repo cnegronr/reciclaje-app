@@ -72,7 +72,7 @@ public class ComunaService {
 
         cl.reciclajelitoral.entity.Usuario inspectorAsociado = asignacionRepository.findByComunaId(c.getId()).stream()
                 .map(cl.reciclajelitoral.entity.AsignacionInspector::getInspector)
-                .filter(u -> u != null && u.getRol() == cl.reciclajelitoral.entity.Rol.INSPECTOR)
+                .filter(u -> u != null && u.getRol() == cl.reciclajelitoral.entity.Rol.INSPECTOR && Boolean.TRUE.equals(u.getActivo()))
                 .findFirst()
                 .orElse(null);
 

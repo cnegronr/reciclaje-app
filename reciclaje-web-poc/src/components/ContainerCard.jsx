@@ -40,29 +40,36 @@ export const ContainerCard = ({ contenedor, detalleInspeccion, onInspect }) => {
           const isAdmin = currentUser?.rol === 'ADMIN';
           const isChofer = currentUser?.rol === 'CHOFER';
           const inspectorAsignado = detalleInspeccion?.inspectorAsignadoNombre || contenedor.inspectorAsociadoNombre || 'Sin Asignar';
-          const creador = detalleInspeccion?.creadoPorUsuarioNombre || inspectorAsignado;
+          const creador = detalleInspeccion?.creadoPorUsuarioNombre;
           const actualizador = detalleInspeccion?.actualizadoPorUsuarioNombre;
           const actRol = detalleInspeccion?.actualizadoPorRol;
 
-          let inspectorLabel = `👤 Inspector: ${creador}`;
+          let inspectorLabel = `👤 Inspector: ${inspectorAsignado}`;
           if (isChofer) {
             inspectorLabel = `👤 Inspector Asignado: ${inspectorAsignado}`;
-          } else if (isVisited && actualizador && actualizador !== creador) {
-            if (actRol === 'ADMIN') {
-              if (isAdmin) {
-                inspectorLabel = `👤 Creado por: ${creador} | Actualizado por: ${actualizador} (Admin)`;
+          } else if (isVisited && creador && inspectorAsignado !== 'Sin Asignar') {
+            if (actualizador && actualizador !== creador) {
+              if (actRol === 'ADMIN') {
+                inspectorLabel = isAdmin
+                  ? `👤 Creado por: ${creador} | Actualizado por: ${actualizador} (Admin)`
+                  : `👤 Inspector: ${inspectorAsignado}`;
               } else {
-                inspectorLabel = `👤 Inspector: ${creador}`;
+                inspectorLabel = `👤 Creado por: ${creador} | Actualizado por: ${actualizador}`;
               }
             } else {
-              inspectorLabel = `👤 Creado por: ${creador} | Actualizado por: ${actualizador}`;
+              inspectorLabel = `👤 Inspector: ${inspectorAsignado}`;
             }
           }
 
           return (
             <>
-              <div style={{ marginTop: '0.35rem', marginBottom: '0.5rem', fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>
+              <div style={{ marginTop: '0.35rem', marginBottom: '0.5rem', fontSize: '0.78rem', color: inspectorAsignado === 'Sin Asignar' ? '#f59e0b' : '#94a3b8', fontWeight: 600 }}>
                 {inspectorLabel}
+                {!isChofer && isVisited && creador && inspectorAsignado === 'Sin Asignar' && (
+                  <span style={{ display: 'block', fontSize: '0.72rem', color: '#94a3b8', marginTop: '0.15rem', fontWeight: 500 }}>
+                    ℹ️ Inspección previa registrada por: {creador}
+                  </span>
+                )}
               </div>
 
               {isChofer && (
