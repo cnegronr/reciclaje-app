@@ -63,16 +63,36 @@ export class ReciclajeStack extends cdk.Stack {
     fotosBucket.grantReadWrite(ec2Role);
     ec2Role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
 
-    // 5. Script de Inicialización (UserData): Instala Docker, Docker Compose y prepara el directorio
+    // 5. Script de Inicialización (UserData): Instala Docker, Docker Compose y prepara el despliegue automático
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       'sudo dnf update -y',
       'sudo dnf install -y docker git docker-compose-plugin',
       'sudo systemctl enable --now docker',
       'sudo usermod -aG docker ec2-user',
-      'mkdir -p /home/ec2-user/app',
-      'cd /home/ec2-user/app',
-      'echo "Servidor de Reciclaje Litoral listo para desplegar con docker compose up -d --build"'
+      'git config --system --add safe.directory /home/ec2-user/reciclaje-app',
+      'mkdir -p /home/ec2-user',
+      'cd /home/ec2-user',
+      'if [ ! -d "reciclaje-app" ]; then',
+      '  git clone https://github.com/cnegronr/reciclaje-app reciclaje-app',
+      'fi',
+      'cd /home/ec2-user/reciclaje-app',
+      'if [ ! -f ".env" ]; then',
+      `  cat << 'EOF' > .env`,
+      'POSTGRES_DB=reciclaje_db',
+      'POSTGRES_USER=reciclaje_user',
+      'POSTGRES_PASSWORD=SuperSecretProdPostgresPass2026!',
+      'JWT_SECRET=SuperSecretKeyForJWTAuth2026WithEnoughBitLengthForHMACSHA256Signature!',
+      `AWS_S3_BUCKET=${fotosBucket.bucketName}`,
+      `AWS_REGION=${this.region}`,
+      'ADMIN_INITIAL_EMAIL=admin@reciclajelitoral.cl',
+      'ADMIN_INITIAL_NAME=Administrador General',
+      'ADMIN_INITIAL_PASSWORD=AdminReciclaje2026!',
+      'SPRING_PROFILES_ACTIVE=prod',
+      'EOF',
+      'fi',
+      'chown -R ec2-user:ec2-user /home/ec2-user/reciclaje-app',
+      'sudo -u ec2-user -i sh -c "cd /home/ec2-user/reciclaje-app && docker compose up -d --build"'
     );
 
     // Detectar e inyectar automáticamente la clave pública local (~/.ssh/id_ed25519.pub o ~/.ssh/id_rsa.pub)
@@ -126,6 +146,11 @@ export class ReciclajeStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'BucketNameOutput', {
       value: fotosBucket.bucketName,
       description: 'Nombre del Bucket S3 para Fotos de Inspección',
+    });
+
+    new cdk.CfnOutput(this, 'InstanceIdOutput', {
+      value: ec2Instance.instanceId,
+      description: 'ID de la Instancia EC2 Graviton (para AWS SSM)',
     });
 
     new cdk.CfnOutput(this, 'PublicIpOutput', {

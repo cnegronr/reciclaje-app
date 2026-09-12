@@ -8,7 +8,10 @@
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
-    "cdk": "cdk"
+    "cdk": "cdk",
+    "deploy:clean": "node scripts/deploy.js --mode=clean",
+    "deploy:update": "node scripts/deploy.js --mode=update",
+    "deploy": "node scripts/deploy.js --mode=update"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

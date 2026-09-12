@@ -6,6 +6,7 @@ cdk.context.json
 !jest.config.js
 !bin/*.js
 !lib/*.js
+!scripts/*.js
 *.d.ts
 .vscode/
 .idea/
