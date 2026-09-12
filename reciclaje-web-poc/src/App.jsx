@@ -19,6 +19,7 @@ export function App() {
   const [activeModalContenedor, setActiveModalContenedor] = useState(null);
   const [loadingComunas, setLoadingComunas] = useState(true);
   const [activeView, setActiveView] = useState('inspection'); // 'inspection' | 'admin'
+  const [logoutMessage, setLogoutMessage] = useState('');
 
   const handleLogout = () => {
     authService.logout();
@@ -34,7 +35,7 @@ export function App() {
     return () => window.removeEventListener('reciclaje:force-logout', handleForceLogout);
   }, []);
 
-  // Monitoreo proactivo del estado de la sesión (para invalidar inmediatamente si un administrador actualizó el email)
+  // Monitoreo proactivo del estado de la sesión (para invalidar inmediatamente si un administrador actualizó el email, contraseña o desactivó el usuario)
   useEffect(() => {
     if (!currentUser) return;
 
@@ -45,25 +46,40 @@ export function App() {
       const status = await authService.checkSessionStatus();
       if (!status.active && !isHandled) {
         isHandled = true;
+        let bannerText = '';
         if (status.emailUpdated && status.passwordUpdated) {
-          alert('⚠️ Tu correo electrónico y contraseña han sido actualizados por un administrador.\n\nPor favor, inicia sesión con tus nuevas credenciales.');
+          bannerText = 'Tu correo electrónico y contraseña han sido actualizados por un administrador. Por favor, inicia sesión con tus nuevas credenciales.';
+          alert(`⚠️ ${bannerText}`);
         } else if (status.passwordUpdated) {
-          alert('⚠️ Tu contraseña ha sido actualizada por un administrador.\n\nPor favor, inicia sesión con tu nueva contraseña.');
+          bannerText = 'Tu contraseña ha sido actualizada por un administrador. Por favor, inicia sesión con tu nueva contraseña.';
+          alert(`⚠️ ${bannerText}`);
         } else if (status.emailUpdated) {
-          alert('⚠️ Tu correo electrónico ha sido actualizado por un administrador.\n\nPor favor, inicia sesión con tu nuevo correo electrónico.');
+          bannerText = 'Tu correo electrónico ha sido actualizado por un administrador. Por favor, inicia sesión con tu nuevo correo electrónico.';
+          alert(`⚠️ ${bannerText}`);
         } else if (status.deactivated) {
+          bannerText = 'Tu cuenta ha sido desactivada por un administrador. Para reactivar tu acceso, contacta a la administración del sistema.';
           alert('⚠️ Tu cuenta ha sido desactivada por un administrador.');
         } else if (status.message) {
+          bannerText = status.message;
           alert(`⚠️ ${status.message}`);
+        }
+        if (bannerText) {
+          setLogoutMessage(bannerText);
         }
         handleLogout();
       }
     };
 
-    // Verificar periódicamente cada 3 segundos
+    // 1. Verificar inmediatamente ante errores de autorización (401 / 403) en cualquier llamada HTTP
+    const handleAuthError = () => {
+      verifySession();
+    };
+    window.addEventListener('reciclaje:auth-error', handleAuthError);
+
+    // 2. Verificar periódicamente cada 3 segundos
     const intervalId = setInterval(verifySession, 3000);
 
-    // Verificar inmediatamente al cambiar de pestaña o volver a enfocar la ventana
+    // 3. Verificar inmediatamente al cambiar de pestaña o volver a enfocar la ventana
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === 'visible') {
         verifySession();
@@ -74,6 +90,7 @@ export function App() {
 
     return () => {
       clearInterval(intervalId);
+      window.removeEventListener('reciclaje:auth-error', handleAuthError);
       window.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
     };
@@ -128,7 +145,16 @@ export function App() {
   }, [selectedComunaId, currentUser, comunas]);
 
   if (!currentUser) {
-    return <LoginScreen onLoginSuccess={(user) => setCurrentUser(user)} />;
+    return (
+      <LoginScreen
+        onLoginSuccess={(user) => {
+          setLogoutMessage('');
+          setCurrentUser(user);
+        }}
+        logoutMessage={logoutMessage}
+        onClearLogoutMessage={() => setLogoutMessage('')}
+      />
+    );
   }
 
   const selectedComuna = comunas.find((c) => c.id === selectedComunaId) || comunas[0] || null;

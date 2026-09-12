@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { authService } from '../services/authService';
 
-export const LoginScreen = ({ onLoginSuccess }) => {
+export const LoginScreen = ({ onLoginSuccess, logoutMessage, onClearLogoutMessage }) => {
   const showTestCredentials = import.meta.env.VITE_SHOW_TEST_CREDENTIALS === 'true';
   const defaultAdminEmail = import.meta.env.VITE_ADMIN_INITIAL_EMAIL || 'admin@reciclajelitoral.cl';
   const defaultAdminPassword = import.meta.env.VITE_ADMIN_INITIAL_PASSWORD || '';
@@ -39,6 +39,45 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           <h2>Reciclaje Litoral</h2>
           <p className="login-subtitle">Sistema de Monitoreo & Inspección Semanal</p>
         </div>
+
+        {logoutMessage && (
+          <div
+            style={{
+              padding: '0.85rem 1rem',
+              marginBottom: '1.25rem',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#fca5a5',
+              fontSize: '0.875rem',
+              lineHeight: 1.45,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: '0.6rem'
+            }}
+          >
+            <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>🚫</span>
+            <div style={{ flex: 1, fontWeight: 500 }}>{logoutMessage}</div>
+            {onClearLogoutMessage && (
+              <button
+                type="button"
+                onClick={onClearLogoutMessage}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#fca5a5',
+                  cursor: 'pointer',
+                  fontSize: '1rem',
+                  lineHeight: 1,
+                  padding: '0 0.2rem'
+                }}
+                title="Cerrar aviso"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="login-form">
           {errorMsg && <div className="error-box">⚠️ {errorMsg}</div>}
