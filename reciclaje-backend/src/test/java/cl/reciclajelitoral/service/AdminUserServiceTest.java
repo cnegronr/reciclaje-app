@@ -553,6 +553,7 @@ class AdminUserServiceTest {
                 .email("admin@reciclajelitoral.cl")
                 .rol(Rol.ADMIN)
                 .activo(true)
+                .esAdministradorGeneral(true)
                 .build();
 
         when(usuarioRepository.findAll()).thenReturn(List.of(generalAdmin, adminUser));
@@ -580,6 +581,7 @@ class AdminUserServiceTest {
                 .email("admin@reciclajelitoral.cl")
                 .rol(Rol.ADMIN)
                 .activo(true)
+                .esAdministradorGeneral(true)
                 .build();
 
         try {
@@ -610,6 +612,7 @@ class AdminUserServiceTest {
                 .email("admin@reciclajelitoral.cl")
                 .rol(Rol.ADMIN)
                 .activo(true)
+                .esAdministradorGeneral(true)
                 .build();
 
         try {
@@ -643,6 +646,7 @@ class AdminUserServiceTest {
                 .email("admin@reciclajelitoral.cl")
                 .rol(Rol.ADMIN)
                 .activo(true)
+                .esAdministradorGeneral(true)
                 .build();
 
         try {
@@ -668,6 +672,7 @@ class AdminUserServiceTest {
                 .email("admin@reciclajelitoral.cl")
                 .rol(Rol.ADMIN)
                 .activo(true)
+                .esAdministradorGeneral(true)
                 .build();
 
         try {

@@ -40,6 +40,7 @@ public class AdminUserInitializer implements ApplicationRunner {
                     .passwordHash(passwordEncoder.encode(adminPassword))
                     .rol(Rol.ADMIN)
                     .activo(true)
+                    .esAdministradorGeneral(true)
                     .build();
             usuarioRepository.save(admin);
             log.info("Usuario Administrador inicial creado exitosamente.");

@@ -56,11 +56,7 @@ export default function UserManagementTab({ onLogout }) {
     return false;
   };
 
-  const isGeneralAdminUser = (u) => Boolean(
-    u?.administradorGeneral ||
-    u?.id === 1 ||
-    (u?.email && u.email.trim().toLowerCase() === 'admin@reciclajelitoral.cl')
-  );
+  const isGeneralAdminUser = (u) => Boolean(u?.administradorGeneral);
 
   const canManageUser = (u) => {
     if (isSelfUser(u)) return true;

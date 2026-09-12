@@ -34,6 +34,10 @@ public class Usuario {
     @Builder.Default
     private Boolean activo = true;
 
+    @Column(name = "es_administrador_general", nullable = false)
+    @Builder.Default
+    private Boolean esAdministradorGeneral = false;
+
     @Column(name = "creado_en")
     private LocalDateTime creadoEn = LocalDateTime.now();
 
@@ -49,6 +53,8 @@ public class Usuario {
     public void setRol(Rol rol) { this.rol = rol; }
     public Boolean getActivo() { return activo; }
     public void setActivo(Boolean activo) { this.activo = activo; }
+    public Boolean getEsAdministradorGeneral() { return esAdministradorGeneral; }
+    public void setEsAdministradorGeneral(Boolean esAdministradorGeneral) { this.esAdministradorGeneral = esAdministradorGeneral; }
     public LocalDateTime getCreadoEn() { return creadoEn; }
     public void setCreadoEn(LocalDateTime creadoEn) { this.creadoEn = creadoEn; }
 }
