@@ -6,14 +6,17 @@ import cl.reciclajelitoral.dto.UserAdminDTO;
 import cl.reciclajelitoral.entity.AsignacionInspector;
 import cl.reciclajelitoral.entity.Comuna;
 import cl.reciclajelitoral.entity.Usuario;
+import cl.reciclajelitoral.entity.HistorialAsignacionComuna;
 import cl.reciclajelitoral.repository.AsignacionInspectorRepository;
 import cl.reciclajelitoral.repository.ComunaRepository;
+import cl.reciclajelitoral.repository.HistorialAsignacionComunaRepository;
 import cl.reciclajelitoral.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +29,7 @@ public class AdminUserService {
     private final UsuarioRepository usuarioRepository;
     private final ComunaRepository comunaRepository;
     private final AsignacionInspectorRepository asignacionRepository;
+    private final HistorialAsignacionComunaRepository historialAsignacionRepository;
     private final PasswordEncoder passwordEncoder;
     private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
     private final SessionInvalidationService sessionInvalidationService;
@@ -33,6 +37,34 @@ public class AdminUserService {
     public boolean isAdministradorGeneral(Usuario u) {
         if (u == null) return false;
         return Boolean.TRUE.equals(u.getEsAdministradorGeneral());
+    }
+
+    public boolean hasAssociatedInspections(Long userId) {
+        if (userId == null) return false;
+        String sql = "SELECT (" +
+                "(SELECT COUNT(*) FROM detalle_inspecciones WHERE creado_por_usuario_id = ? OR actualizado_por_usuario_id = ?) + " +
+                "(SELECT COUNT(*) FROM inspecciones_semanales WHERE inspector_id = ? OR inspector_asociado_id = ?) + " +
+                "(SELECT COUNT(*) FROM actualizaciones_detalle WHERE usuario_id = ?) + " +
+                "(SELECT COUNT(*) FROM fotos_inspeccion WHERE usuario_id = ?)" +
+                ")";
+        Long count = jdbcTemplate.queryForObject(sql, Long.class, userId, userId, userId, userId, userId, userId);
+        return count != null && count > 0;
+    }
+
+    private void registrarAuditoriaAsignacion(Usuario usuario, Comuna comuna, String accion, String motivo) {
+        if (usuario == null || comuna == null) return;
+        HistorialAsignacionComuna historial = HistorialAsignacionComuna.builder()
+                .inspector(usuario)
+                .inspectorNombre(usuario.getNombre())
+                .inspectorEmail(usuario.getEmail())
+                .comuna(comuna)
+                .comunaNombre(comuna.getNombre())
+                .accion(accion)
+                .motivo(motivo)
+                .ejecutadoPorEmail(getCurrentUserEmail())
+                .fechaHora(LocalDateTime.now())
+                .build();
+        historialAsignacionRepository.save(historial);
     }
 
     @Transactional(readOnly = true)
@@ -122,6 +154,14 @@ public class AdminUserService {
         if (req.getActivo() != null) {
             usuario.setActivo(req.getActivo());
             if (!req.getActivo()) {
+                List<AsignacionInspector> actuales = asignacionRepository.findByInspectorId(usuario.getId());
+                if (actuales != null) {
+                    for (AsignacionInspector a : actuales) {
+                        if (a.getComuna() != null) {
+                            registrarAuditoriaAsignacion(usuario, a.getComuna(), "DESACTIVACION_USUARIO", "Desactivación del usuario en edición de perfil");
+                        }
+                    }
+                }
                 asignacionRepository.deleteByInspectorId(usuario.getId());
             }
         }
@@ -159,6 +199,9 @@ public class AdminUserService {
                     .filter(a -> a.getComuna() != null && !comunaIds.contains(a.getComuna().getId()))
                     .collect(Collectors.toList());
             if (!toRemove.isEmpty()) {
+                for (AsignacionInspector a : toRemove) {
+                    registrarAuditoriaAsignacion(usuario, a.getComuna(), "DESASIGNACION", "Remoción de comuna en sincronización");
+                }
                 asignacionRepository.deleteAll(toRemove);
             }
         }
@@ -174,8 +217,12 @@ public class AdminUserService {
             if (existingOpt.isPresent()) {
                 AsignacionInspector existing = existingOpt.get();
                 if (existing.getInspector() == null || !existing.getInspector().getId().equals(usuario.getId())) {
+                    if (existing.getInspector() != null) {
+                        registrarAuditoriaAsignacion(existing.getInspector(), c, "DESASIGNACION", "Reasignada a " + usuario.getNombre());
+                    }
                     existing.setInspector(usuario);
                     asignacionRepository.save(existing);
+                    registrarAuditoriaAsignacion(usuario, c, "ASIGNACION", "Asignada por reasignación");
                 }
             } else {
                 AsignacionInspector asignacion = AsignacionInspector.builder()
@@ -183,6 +230,7 @@ public class AdminUserService {
                         .comuna(c)
                         .build();
                 asignacionRepository.save(asignacion);
+                registrarAuditoriaAsignacion(usuario, c, "ASIGNACION", "Nueva asignación");
             }
         }
     }
@@ -207,6 +255,14 @@ public class AdminUserService {
             }
         }
         usuario.setActivo(false);
+        List<AsignacionInspector> actuales = asignacionRepository.findByInspectorId(usuario.getId());
+        if (actuales != null) {
+            for (AsignacionInspector a : actuales) {
+                if (a.getComuna() != null) {
+                    registrarAuditoriaAsignacion(usuario, a.getComuna(), "DESACTIVACION_USUARIO", "Desactivación del usuario en el sistema");
+                }
+            }
+        }
         asignacionRepository.deleteByInspectorId(usuario.getId());
         usuarioRepository.save(usuario);
     }
@@ -231,18 +287,22 @@ public class AdminUserService {
             }
         }
 
-        // 1. Eliminar asignaciones de inspector asociadas
+        // VALIDAR SI EL USUARIO POSEE REGISTROS DE INSPECCIÓN ASOCIADOS
+        if (hasAssociatedInspections(id)) {
+            throw new IllegalArgumentException("No se puede eliminar definitivamente al usuario '" + usuario.getNombre() + 
+                    "' porque cuenta con registros históricos de inspección. Por integridad de datos y auditoría, este usuario solamente puede ser desactivado.");
+        }
+
+        // Si no tiene registros de inspección, eliminar asignaciones residuales y eliminar usuario físicamente
+        List<AsignacionInspector> actuales = asignacionRepository.findByInspectorId(id);
+        if (actuales != null) {
+            for (AsignacionInspector a : actuales) {
+                if (a.getComuna() != null) {
+                    registrarAuditoriaAsignacion(usuario, a.getComuna(), "ELIMINACION_USUARIO", "Eliminación definitiva de usuario sin inspecciones");
+                }
+            }
+        }
         asignacionRepository.deleteByInspectorId(id);
-
-        // 2. Desvincular claves foráneas en tablas relacionadas desvinculando el FK sin eliminar registros de inspección históricos
-        jdbcTemplate.update("UPDATE detalle_inspecciones SET creado_por_usuario_id = NULL WHERE creado_por_usuario_id = ?", id);
-        jdbcTemplate.update("UPDATE detalle_inspecciones SET actualizado_por_usuario_id = NULL WHERE actualizado_por_usuario_id = ?", id);
-        jdbcTemplate.update("UPDATE inspecciones_semanales SET inspector_id = NULL WHERE inspector_id = ?", id);
-        jdbcTemplate.update("UPDATE inspecciones_semanales SET inspector_asociado_id = NULL WHERE inspector_asociado_id = ?", id);
-        jdbcTemplate.update("UPDATE actualizaciones_detalle SET usuario_id = NULL WHERE usuario_id = ?", id);
-        jdbcTemplate.update("UPDATE fotos_inspeccion SET usuario_id = NULL WHERE usuario_id = ?", id);
-
-        // 3. Eliminar usuario de la base de datos
         usuarioRepository.delete(usuario);
     }
 
@@ -268,6 +328,7 @@ public class AdminUserService {
                 .comunaIds(comunaIds)
                 .comunaNombres(comunaNombres)
                 .administradorGeneral(isAdministradorGeneral(u))
+                .tieneInspecciones(hasAssociatedInspections(u.getId()))
                 .build();
     }
 

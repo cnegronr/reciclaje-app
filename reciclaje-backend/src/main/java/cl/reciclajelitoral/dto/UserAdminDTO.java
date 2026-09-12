@@ -21,6 +21,7 @@ public class UserAdminDTO {
     private List<Long> comunaIds;
     private List<String> comunaNombres;
     private Boolean administradorGeneral;
+    private Boolean tieneInspecciones;
 
     public Long getId() { return id; }
     public String getNombre() { return nombre; }
@@ -30,4 +31,5 @@ public class UserAdminDTO {
     public List<Long> getComunaIds() { return comunaIds; }
     public List<String> getComunaNombres() { return comunaNombres; }
     public Boolean getAdministradorGeneral() { return administradorGeneral; }
+    public Boolean getTieneInspecciones() { return tieneInspecciones; }
 }

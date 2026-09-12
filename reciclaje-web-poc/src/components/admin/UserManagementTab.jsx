@@ -182,7 +182,11 @@ export default function UserManagementTab({ onLogout }) {
       alert('No tienes permisos para eliminar este usuario.');
       return;
     }
-    if (window.confirm(`⚠️ ¿Deseas eliminar DEFINITIVAMENTE al usuario "${nombre}" de la base de datos?\n\nLos registros históricos de inspección se mantendrán intactos. Esta acción no se puede deshacer.`)) {
+    if (target?.tieneInspecciones) {
+      alert(`⚠️ No es posible eliminar definitivamente al usuario "${nombre}" porque cuenta con registros históricos de inspección en el sistema.\n\nPor integridad de datos y trazabilidad, este usuario solamente puede permanecer desactivado.`);
+      return;
+    }
+    if (window.confirm(`⚠️ ¿Deseas eliminar DEFINITIVAMENTE al usuario "${nombre}" de la base de datos?\n\nEste usuario no posee registros de inspección asociados. Esta acción no se puede deshacer.`)) {
       try {
         await adminService.hardDeleteUser(id);
         loadData();
@@ -300,9 +304,29 @@ export default function UserManagementTab({ onLogout }) {
                               🚫 Desactivar
                             </button>
                           ) : (
-                            <button className="action-btn action-btn-delete" style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)' }} onClick={() => handleHardDelete(u.id, u.nombre)}>
-                              🗑️ Eliminar Definitivamente
-                            </button>
+                            u.tieneInspecciones ? (
+                              <button
+                                className="action-btn action-btn-delete"
+                                style={{
+                                  background: 'rgba(100, 116, 139, 0.15)',
+                                  color: '#94a3b8',
+                                  border: '1px solid rgba(100, 116, 139, 0.3)',
+                                  cursor: 'not-allowed'
+                                }}
+                                title="Este usuario posee registros de inspección históricos. Solo puede permanecer desactivado."
+                                onClick={() => alert(`⚠️ No es posible eliminar definitivamente al usuario "${u.nombre}" porque cuenta con registros históricos de inspección en el sistema.\n\nPor integridad de datos y trazabilidad, este usuario solamente puede permanecer desactivado.`)}
+                              >
+                                🔒 No eliminable (Con historial)
+                              </button>
+                            ) : (
+                              <button
+                                className="action-btn action-btn-delete"
+                                style={{ background: 'rgba(239, 68, 68, 0.25)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.4)' }}
+                                onClick={() => handleHardDelete(u.id, u.nombre)}
+                              >
+                                🗑️ Eliminar Definitivamente
+                              </button>
+                            )
                           )
                         )}
                         {isSelfUser(u) && (

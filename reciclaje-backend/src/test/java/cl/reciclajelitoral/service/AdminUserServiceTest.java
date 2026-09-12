@@ -36,6 +36,9 @@ class AdminUserServiceTest {
     private AsignacionInspectorRepository asignacionRepository;
 
     @Mock
+    private cl.reciclajelitoral.repository.HistorialAsignacionComunaRepository historialAsignacionRepository;
+
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     @Mock
@@ -204,12 +207,22 @@ class AdminUserServiceTest {
     @Test
     void shouldHardDeleteUserSuccessfully() {
         when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(), any(), any(), any(), any(), any())).thenReturn(0L);
 
         adminUserService.hardDeleteUser(2L);
 
         verify(asignacionRepository).deleteByInspectorId(2L);
-        verify(jdbcTemplate, times(6)).update(anyString(), eq(2L));
         verify(usuarioRepository).delete(adminUser);
+    }
+
+    @Test
+    void shouldThrowWhenHardDeleteUserHasAssociatedInspections() {
+        when(usuarioRepository.findById(2L)).thenReturn(java.util.Optional.of(adminUser));
+        when(jdbcTemplate.queryForObject(anyString(), eq(Long.class), any(), any(), any(), any(), any(), any())).thenReturn(3L);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> adminUserService.hardDeleteUser(2L));
+        assertTrue(ex.getMessage().contains("cuenta con registros históricos de inspección"));
+        verify(usuarioRepository, never()).delete(any());
     }
 
     @Test
@@ -797,5 +810,32 @@ class AdminUserServiceTest {
         assertTrue(dto.getActivo());
         verify(asignacionRepository, never()).deleteByInspectorId(3L);
         verify(asignacionRepository).save(argThat(a -> a.getInspector().getId().equals(3L) && a.getComuna().getId().equals(4L)));
+    }
+
+    @Test
+    void shouldRegisterAuditWhenDeactivatingUserWithAssignments() {
+        Usuario inspector = Usuario.builder()
+                .id(3L)
+                .nombre("Inspector Con Comuna")
+                .email("inspector3@test.cl")
+                .rol(Rol.INSPECTOR)
+                .activo(true)
+                .esAdministradorGeneral(false)
+                .build();
+        Comuna comuna = Comuna.builder().id(1L).nombre("El Quisco").build();
+        AsignacionInspector asignacion = AsignacionInspector.builder().id(10L).inspector(inspector).comuna(comuna).build();
+
+        when(usuarioRepository.findById(3L)).thenReturn(java.util.Optional.of(inspector));
+        when(asignacionRepository.findByInspectorId(3L)).thenReturn(List.of(asignacion));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(i -> i.getArgument(0));
+
+        adminUserService.deleteUser(3L);
+
+        verify(historialAsignacionRepository).save(argThat(h -> 
+            h.getInspectorNombre().equals("Inspector Con Comuna") &&
+            h.getComunaNombre().equals("El Quisco") &&
+            h.getAccion().equals("DESACTIVACION_USUARIO")
+        ));
+        verify(asignacionRepository).deleteByInspectorId(3L);
     }
 }
