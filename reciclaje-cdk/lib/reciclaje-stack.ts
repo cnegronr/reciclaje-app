@@ -63,11 +63,30 @@ export class ReciclajeStack extends cdk.Stack {
     fotosBucket.grantReadWrite(ec2Role);
     ec2Role.addManagedPolicy(iam.ManagedPolicy.fromAwsManagedPolicyName('AmazonSSMManagedInstanceCore'));
 
+    // Permisos para leer y descifrar parámetros de configuración desde AWS SSM Parameter Store
+    ec2Role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: [
+          'ssm:GetParameters',
+          'ssm:GetParameter',
+          'ssm:GetParametersByPath',
+          'kms:Decrypt',
+        ],
+        resources: [
+          `arn:aws:ssm:${this.region}:${this.account}:parameter/reciclaje-app/*`,
+        ],
+      })
+    );
+
     // 5. Script de Inicialización (UserData): Instala Docker, Docker Compose y prepara el despliegue automático
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       'sudo dnf update -y',
-      'sudo dnf install -y docker git docker-compose-plugin',
+      'sudo dnf install -y git docker',
+      'sudo mkdir -p /usr/local/lib/docker/cli-plugins',
+      'sudo curl -SL https://github.com/docker/compose/releases/download/v2.24.5/docker-compose-linux-aarch64 -o /usr/local/lib/docker/cli-plugins/docker-compose',
+      'sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose',
+      'sudo ln -sf /usr/local/lib/docker/cli-plugins/docker-compose /usr/local/bin/docker-compose',
       'sudo systemctl enable --now docker',
       'sudo usermod -aG docker ec2-user',
       'git config --system --add safe.directory /home/ec2-user/reciclaje-app',
@@ -77,20 +96,9 @@ export class ReciclajeStack extends cdk.Stack {
       '  git clone https://github.com/cnegronr/reciclaje-app reciclaje-app',
       'fi',
       'cd /home/ec2-user/reciclaje-app',
-      'if [ ! -f ".env" ]; then',
-      `  cat << 'EOF' > .env`,
-      'POSTGRES_DB=reciclaje_db',
-      'POSTGRES_USER=reciclaje_user',
-      'POSTGRES_PASSWORD=SuperSecretProdPostgresPass2026!',
-      'JWT_SECRET=SuperSecretKeyForJWTAuth2026WithEnoughBitLengthForHMACSHA256Signature!',
-      `AWS_S3_BUCKET=${fotosBucket.bucketName}`,
-      `AWS_REGION=${this.region}`,
-      'ADMIN_INITIAL_EMAIL=admin@reciclajelitoral.cl',
-      'ADMIN_INITIAL_NAME=Administrador General',
-      'ADMIN_INITIAL_PASSWORD=AdminReciclaje2026!',
-      'SPRING_PROFILES_ACTIVE=prod',
-      'EOF',
-      'fi',
+      'echo "Obteniendo variables de entorno desde AWS SSM Parameter Store..."',
+      `aws ssm get-parameters-by-path --region ${this.region} --path "/reciclaje-app/prod/" --with-decryption --query "Parameters[*].[Name,Value]" --output text | while IFS="$(printf '\\t')" read -r name val; do echo "\${name##*/}=\$val"; done > /home/ec2-user/reciclaje-app/.env`,
+      'chmod 600 /home/ec2-user/reciclaje-app/.env',
       'chown -R ec2-user:ec2-user /home/ec2-user/reciclaje-app',
       'sudo -u ec2-user -i sh -c "cd /home/ec2-user/reciclaje-app && docker compose up -d --build"'
     );

@@ -146,29 +146,43 @@ npm run preview
 
 Desde la carpeta `/reciclaje-app/reciclaje-cdk`:
 
-#### 1. Despliegue de Actualizaciones (Modo Recomendado)
-Descarga el código actualizado de GitHub (`main`), recompila los contenedores y ejecuta migraciones de Flyway sin tocar las fotos en S3 ni la base de datos PostgreSQL:
+#### 1. Gestión de Variables de Entorno y Secretos en AWS SSM Parameter Store (Costo $0.00)
+* **Sincronizar parámetros hacia AWS con cifrado KMS:**
+  Sube o actualiza todas las variables del servidor en AWS Systems Manager Parameter Store bajo `/reciclaje-app/prod/`, aplicando cifrado KMS (`SecureString`) a contraseñas y claves JWT:
+  ```bash
+  cd reciclaje-cdk
+  npm run ssm:push
+  ```
+* **Listar y auditar parámetros actuales en AWS SSM:**
+  Muestra una tabla con los nombres, tipos de parámetro (`[🔒 SecureString/KMS]` o `[📄 String]`), versiones y fechas de modificación:
+  ```bash
+  cd reciclaje-cdk
+  npm run ssm:list
+  ```
+
+#### 2. Despliegue de Actualizaciones (Modo Recomendado)
+Descarga el código actualizado de GitHub (`main`), sincroniza el `.env` dinámicamente desde AWS SSM, recompila los contenedores y ejecuta migraciones de Flyway sin tocar las fotos en S3 ni la base de datos PostgreSQL:
 ```bash
 cd reciclaje-cdk
 npm run deploy:update
 ```
 
-#### 2. Instalación Limpia con Respaldo Preventivo de S3 (Reset Total)
-Descarga automáticamente todas las fotos de S3 en `docs/s3/backup_<timestamp>`, vacía el bucket S3 en AWS, elimina los volúmenes de PostgreSQL y reconstruye todo limpio desde cero:
+#### 3. Instalación Limpia con Respaldo Preventivo de S3 (Reset Total)
+Descarga automáticamente todas las fotos de S3 en `docs/s3/backup_<timestamp>`, vacía el bucket S3 en AWS, descarga el `.env` actualizado desde AWS SSM, elimina los volúmenes de PostgreSQL y reconstruye todo limpio desde cero:
 ```bash
 cd reciclaje-cdk
 npm run deploy:clean
 ```
 
-#### 3. Aprovisionamiento Inicial de Infraestructura con CDK
-Si la infraestructura no existe, crea la VPC, Bucket S3, Security Groups e instancia EC2 Graviton:
+#### 4. Aprovisionamiento Inicial de Infraestructura con CDK
+Si la infraestructura no existe, crea la VPC, Bucket S3, Security Groups, Rol IAM con permisos SSM/KMS e instancia EC2 Graviton:
 ```bash
 cd reciclaje-cdk
 npm install
 cdk deploy -c keyName=mi-llave-ssh
 ```
 
-#### 4. Destrucción de Infraestructura (Eliminar Costos)
+#### 5. Destrucción de Infraestructura (Eliminar Costos)
 Elimina todos los recursos aprovisionados en AWS:
 ```bash
 cd reciclaje-cdk
@@ -198,7 +212,11 @@ A continuación se detallan las mejoras arquitectónicas, de seguridad, usabilid
 * **Dos Modos de Operación Explicitos:**
   * **`deploy:update`:** Ideal para el día a día. Preserva todas las fotos en S3 y todos los registros en PostgreSQL. Ejecuta `git pull`, reconstruye imágenes de backend y frontend, y permite que Flyway aplique automáticamente migraciones pendientes (ej. `V7`).
   * **`deploy:clean`:** Ideal para reinicios completos. Antes de cualquier borrado, **ejecuta un respaldo preventivo descargando todas las fotos del bucket S3** en `docs/s3/backup_<timestamp>/`. Tras verificar el respaldo, vacía el bucket en AWS, elimina los volúmenes de Docker (`down -v`) y levanta todo limpio.
-* **Seguridad de Credenciales (`.env`):** El archivo `.env` está estrictamente ignorado por `.gitignore` y **nunca se sube a GitHub**. CDK y el script de despliegue aprovisionan el `.env` directamente en la instancia EC2 (`/home/ec2-user/reciclaje-app/.env`) con el nombre dinámico del bucket S3 y las credenciales de producción.
+* **Gestión Segura de Secretos con AWS SSM Parameter Store (Costo $0.00):**
+  * **Ningún secreto en Git:** El archivo `.env` está en `.gitignore` y **nunca se sube a GitHub**.
+  * **Cifrado KMS Nativo:** Variables altamente confidenciales (`POSTGRES_PASSWORD`, `JWT_SECRET`, `ADMIN_INITIAL_PASSWORD`) se almacenan como tipo `SecureString` cifradas automáticamente con AWS KMS.
+  * **Aprovisionamiento Dinámico en EC2:** En el arranque de la instancia (`UserData`) y en cada despliegue (`deploy:update` / `deploy:clean`), la instancia EC2 consulta directamente a AWS SSM mediante su rol IAM, genera `/home/ec2-user/reciclaje-app/.env` y restringe sus permisos a `chmod 600` (lectura exclusiva de root/ec2-user).
+  * **Comandos CLI Dedicados:** Scripts `npm run ssm:push` y `npm run ssm:list` para actualizar y auditar parámetros sin necesidad de iniciar sesión en la consola web de AWS ni tocar archivos en el servidor.
 
 ### 2. Alternador de Visibilidad de Contraseña (Ver / Ocultar)
 * **Botón Interactivo:** Incorporación de toggle interactivo con iconos `👁️` (mostrar) y `🙈` (ocultar) en:

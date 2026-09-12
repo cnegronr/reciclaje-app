@@ -12,7 +12,7 @@
  *   --stack=<nombre>  : Nombre del stack de CloudFormation (por defecto: ReciclajeLitoralStack)
  */
 
-const { execSync, spawnSync } = require('child_process');
+const { execSync, spawnSync, execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -156,7 +156,12 @@ if (mode === 'clean') {
   // PASO 3: Instalación Limpia en EC2 (Docker down -v + build)
   logStep(3, totalSteps, `Ejecutando instalación limpia en EC2 vía AWS SSM`);
   const cleanCmd = [
+    'export HOME=/root',
     'git config --system --add safe.directory /home/ec2-user/reciclaje-app',
+    'echo "Descargando variables de entorno desde AWS SSM Parameter Store..."',
+    `aws ssm get-parameters-by-path --region "${region}" --path "/reciclaje-app/prod/" --with-decryption --query "Parameters[*].[Name,Value]" --output text | while IFS="$(printf '\\t')" read -r name val; do echo "\${name##*/}=\$val"; done > /home/ec2-user/reciclaje-app/.env`,
+    'chmod 600 /home/ec2-user/reciclaje-app/.env',
+    'chown -R ec2-user:ec2-user /home/ec2-user/reciclaje-app',
     'sudo -u ec2-user -i sh -c "cd /home/ec2-user/reciclaje-app && git fetch origin main && git reset --hard origin/main && docker compose down -v && docker compose up -d --build"',
   ];
 
@@ -174,7 +179,12 @@ if (mode === 'clean') {
 
   logStep(2, totalSteps, `Descargando código y actualizando contenedores en EC2 vía AWS SSM`);
   const updateCmd = [
+    'export HOME=/root',
     'git config --system --add safe.directory /home/ec2-user/reciclaje-app',
+    'echo "Actualizando variables de entorno desde AWS SSM Parameter Store..."',
+    `aws ssm get-parameters-by-path --region "${region}" --path "/reciclaje-app/prod/" --with-decryption --query "Parameters[*].[Name,Value]" --output text | while IFS="$(printf '\\t')" read -r name val; do echo "\${name##*/}=\$val"; done > /home/ec2-user/reciclaje-app/.env`,
+    'chmod 600 /home/ec2-user/reciclaje-app/.env',
+    'chown -R ec2-user:ec2-user /home/ec2-user/reciclaje-app',
     'sudo -u ec2-user -i sh -c "cd /home/ec2-user/reciclaje-app && git fetch origin main && git reset --hard origin/main && docker compose up -d --build --no-deps backend frontend"',
   ];
 
@@ -190,12 +200,20 @@ if (mode === 'clean') {
 function executeSsmCommand(instId, reg, commands, description) {
   log(`Iniciando ejecución remota en ${instId}...`, colors.dim);
 
-  const paramsJson = JSON.stringify({ commands });
   let sendResult;
 
   try {
-    const raw = execSync(
-      `aws ssm send-command --region "${reg}" --instance-ids "${instId}" --document-name "AWS-RunShellScript" --parameters '${paramsJson}' --comment "${description}" --output json`,
+    const raw = execFileSync(
+      'aws',
+      [
+        'ssm', 'send-command',
+        '--region', reg,
+        '--instance-ids', instId,
+        '--document-name', 'AWS-RunShellScript',
+        '--parameters', JSON.stringify({ commands }),
+        '--comment', description,
+        '--output', 'json'
+      ],
       { encoding: 'utf8' }
     );
     sendResult = JSON.parse(raw);
@@ -220,8 +238,15 @@ function executeSsmCommand(instId, reg, commands, description) {
     process.stdout.write(`\r⏳ En progreso (${elapsed}s)... `);
 
     try {
-      const invRaw = execSync(
-        `aws ssm get-command-invocation --region "${reg}" --command-id "${commandId}" --instance-id "${instId}" --output json`,
+      const invRaw = execFileSync(
+        'aws',
+        [
+          'ssm', 'get-command-invocation',
+          '--region', reg,
+          '--command-id', commandId,
+          '--instance-id', instId,
+          '--output', 'json'
+        ],
         { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }
       );
       invocationData = JSON.parse(invRaw);
