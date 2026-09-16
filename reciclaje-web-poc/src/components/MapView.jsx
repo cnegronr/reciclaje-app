@@ -34,9 +34,9 @@ export const MapView = ({ contenedores, selectedContenedorId }) => {
         style={{ cursor: 'pointer', userSelect: 'none' }}
         title="Haz clic para desplegar o plegar el mapa"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="map-card-title-group">
           <h3 className="map-card-title">🗺️ Mapa de Georreferenciación</h3>
-          <span className="toggle-icon" style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+          <span className="toggle-icon">
             {isOpen ? '▲ Plegar' : '▼ Desplegar'}
           </span>
         </div>

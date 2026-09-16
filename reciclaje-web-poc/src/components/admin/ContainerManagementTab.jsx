@@ -153,10 +153,10 @@ export default function ContainerManagementTab() {
 
   return (
     <div className="container-management">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+      <div className="admin-tab-header">
         <div>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>📦 Gestión de Contenedores y Puntos Limpios</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Configuración de capacidades, categorías (MUNICIPAL / EMPRESA) y geolocalización.</p>
+          <h3 className="admin-tab-title">📦 Gestión de Contenedores y Puntos Limpios</h3>
+          <p className="admin-tab-subtitle">Configuración de capacidades, categorías (MUNICIPAL / EMPRESA) y geolocalización.</p>
         </div>
         <button className="action-btn action-btn-primary" onClick={() => handleOpenModal()}>
           + Nuevo Contenedor
@@ -187,29 +187,29 @@ export default function ContainerManagementTab() {
             ) : (
               containers.map(c => (
                 <tr key={c.id}>
-                  <td>{c.id}</td>
-                  <td style={{ fontWeight: 'bold' }}>{c.comunaNombre || 'N/A'}</td>
-                  <td>{c.nombrePunto}</td>
-                  <td>
+                  <td data-label="ID">{c.id}</td>
+                  <td data-label="Comuna" style={{ fontWeight: 'bold' }}>{c.comunaNombre || 'N/A'}</td>
+                  <td data-label="Nombre Punto">{c.nombrePunto}</td>
+                  <td data-label="Categoría">
                     <span className={`category-badge ${c.categoria ? c.categoria.toLowerCase() : 'municipal'}`}>
                       {c.categoria}
                     </span>
                   </td>
-                  <td>{c.kilosMaximos} kg</td>
-                  <td>
+                  <td data-label="Capacidad">{c.kilosMaximos} kg</td>
+                  <td data-label="Mapa / GPS">
                     {c.urlGoogleMaps ? (
                       <a href={c.urlGoogleMaps} target="_blank" rel="noreferrer" className="nav-btn" style={{ display: 'inline-block', padding: '0.3rem 0.6rem' }}>
                         📍 Mapa
                       </a>
                     ) : 'Sin Mapa'}
                   </td>
-                  <td>
+                  <td data-label="Estado">
                     <span className={`badge-role ${c.activo ? 'badge-active' : 'badge-inactive'}`}>
                       {c.activo ? '🟢 Activo' : '🔴 Inactivo'}
                     </span>
                   </td>
-                  <td>
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <td data-label="Acciones">
+                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
                       <button className="action-btn action-btn-edit" onClick={() => handleOpenModal(c)}>
                         ✏️ Editar
                       </button>

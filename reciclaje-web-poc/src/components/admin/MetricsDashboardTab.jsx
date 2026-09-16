@@ -277,15 +277,15 @@ export default function MetricsDashboardTab() {
                     ) : (
                       metrics.inspectorComunaMetrics.map(im => (
                         <tr key={im.comunaId}>
-                          <td style={{ fontWeight: 'bold' }}>{im.comunaNombre}</td>
-                          <td>Región {im.codigoRegion}</td>
-                          <td>
+                          <td data-label="Comuna" style={{ fontWeight: 'bold' }}>{im.comunaNombre}</td>
+                          <td data-label="Región">Región {im.codigoRegion}</td>
+                          <td data-label="Inspector">
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontWeight: 600 }}>
                               👤 {im.inspectorNombre || 'Sin Asignar'}
                             </span>
                           </td>
-                          <td style={{ textAlign: 'center' }}>{im.totalContenedores}</td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td data-label="Contenedores" style={{ textAlign: 'center' }}>{im.totalContenedores}</td>
+                          <td data-label="Inspecciones" style={{ textAlign: 'center' }}>
                             {im.inspeccionesCompletadas > 0 ? (
                               <button
                                 type="button"
@@ -321,7 +321,7 @@ export default function MetricsDashboardTab() {
                               <span style={{ color: 'var(--text-muted)' }}>0</span>
                             )}
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#34d399' }}>
+                          <td data-label="Kilos Acumulados" style={{ textAlign: 'right', fontWeight: 'bold', color: '#34d399' }}>
                             {im.kilosCalculados} kg
                           </td>
                         </tr>
@@ -365,10 +365,10 @@ export default function MetricsDashboardTab() {
                     ) : (
                       metrics.choferComunaMetrics.map(cm => (
                         <tr key={cm.comunaId}>
-                          <td style={{ fontWeight: 'bold' }}>{cm.comunaNombre}</td>
-                          <td>Región {cm.codigoRegion}</td>
-                          <td style={{ textAlign: 'center' }}>{cm.totalContenedores}</td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td data-label="Comuna" style={{ fontWeight: 'bold' }}>{cm.comunaNombre}</td>
+                          <td data-label="Región">Región {cm.codigoRegion}</td>
+                          <td data-label="Contenedores" style={{ textAlign: 'center' }}>{cm.totalContenedores}</td>
+                          <td data-label="Inspecciones" style={{ textAlign: 'center' }}>
                             {cm.inspeccionesCompletadas > 0 ? (
                               <button
                                 type="button"
@@ -403,7 +403,7 @@ export default function MetricsDashboardTab() {
                               <span style={{ color: 'var(--text-muted)' }}>0</span>
                             )}
                           </td>
-                          <td style={{ textAlign: 'right', fontWeight: 'bold', color: '#fbbf24' }}>
+                          <td data-label="Kilos Retirados" style={{ textAlign: 'right', fontWeight: 'bold', color: '#fbbf24' }}>
                             {cm.kilosRetirados} kg
                           </td>
                         </tr>
@@ -513,18 +513,18 @@ export default function MetricsDashboardTab() {
                   ) : (
                     inspectionsModal.contenedores.map((c, idx) => (
                       <tr key={c.contenedorId || idx}>
-                        <td>{idx + 1}</td>
-                        <td style={{ fontWeight: 'bold' }}>{c.nombrePunto}</td>
-                        <td>{c.sector || '-'}</td>
-                        <td>
+                        <td data-label="#">{idx + 1}</td>
+                        <td data-label="Punto Limpio" style={{ fontWeight: 'bold' }}>{c.nombrePunto}</td>
+                        <td data-label="Sector">{c.sector || '-'}</td>
+                        <td data-label="Categoría">
                           <span className={`category-badge ${c.categoria ? c.categoria.toLowerCase() : ''}`}>
                             {c.categoria || 'EMPRESA'}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#38bdf8' }}>
+                        <td data-label="% Llenado" style={{ textAlign: 'center', fontWeight: 'bold', color: '#38bdf8' }}>
                           {c.porcentaje != null ? `${c.porcentaje}%` : '-'}
                         </td>
-                        <td style={{
+                        <td data-label={inspectionsModal.type === 'CHOFER' ? 'Kilos Retirados' : 'Kilos Calculados'} style={{
                           textAlign: 'right',
                           fontWeight: 'bold',
                           color: inspectionsModal.type === 'CHOFER' ? '#fbbf24' : '#34d399'
@@ -534,13 +534,13 @@ export default function MetricsDashboardTab() {
                             : `${c.kilos} kg`}
                         </td>
                         {inspectionsModal.type === 'CHOFER' && (
-                          <td>
+                          <td data-label="Chofer">
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontWeight: 600 }}>
                               🚚 {c.choferNombre || 'No registrado'}
                             </span>
                           </td>
                         )}
-                        <td style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        <td data-label="Fecha" style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           {c.fechaInspeccion
                             ? new Date(c.fechaInspeccion).toLocaleString('es-CL')
                             : '-'}

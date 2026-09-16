@@ -333,7 +333,9 @@ export function App() {
 
       {activeView === 'admin' && (currentUser?.rol === 'ADMIN' || currentUser?.rol === 'REPORTERIA') ? (
         <React.Suspense fallback={<div className="p-4 text-center">Cargando Panel Admin...</div>}>
-          <AdminPanelScreen onLogout={handleLogout} />
+          <main className="main-content-container">
+            <AdminPanelScreen onLogout={handleLogout} />
+          </main>
         </React.Suspense>
       ) : (
         <main className="main-content-container">

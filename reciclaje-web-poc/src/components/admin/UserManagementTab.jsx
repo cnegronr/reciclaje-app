@@ -262,10 +262,10 @@ export default function UserManagementTab({ onLogout }) {
 
   return (
     <div className="user-management">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
+      <div className="admin-tab-header">
         <div>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>👥 Gestión de Usuarios</h3>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Administración de permisos, roles (INSPECTOR, ADMIN, CHOFER, REPORTERIA) y comunas asignadas.</p>
+          <h3 className="admin-tab-title">👥 Gestión de Usuarios</h3>
+          <p className="admin-tab-subtitle">Administración de permisos, roles (INSPECTOR, ADMIN, CHOFER, REPORTERIA) y comunas asignadas.</p>
         </div>
         <button className="action-btn action-btn-primary" onClick={() => handleOpenModal(null)}>
           + Nuevo Usuario
@@ -297,31 +297,31 @@ export default function UserManagementTab({ onLogout }) {
             ) : (
               users.map(u => (
                 <tr key={u.id}>
-                  <td>{u.id}</td>
-                  <td style={{ fontWeight: 'bold' }}>{u.nombre}</td>
-                  <td style={{ color: 'var(--text-muted)' }}>{u.email}</td>
-                  <td>
+                  <td data-label="ID">{u.id}</td>
+                  <td data-label="Nombre" style={{ fontWeight: 'bold' }}>{u.nombre}</td>
+                  <td data-label="Email" style={{ color: 'var(--text-muted)' }}>{u.email}</td>
+                  <td data-label="Rol">
                     <span className={`badge-role ${u.rol === 'ADMIN' ? 'badge-admin' : u.rol === 'CHOFER' ? 'badge-chofer' : u.rol === 'REPORTERIA' ? 'badge-reporteria' : 'badge-inspector'}`} style={u.rol === 'ADMIN' && isGeneralAdminUser(u) ? { display: 'inline-flex', alignItems: 'center', gap: '0.25rem' } : {}}>
                       {u.rol === 'ADMIN' && isGeneralAdminUser(u) ? '👑 ADMIN General' : u.rol}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Estado">
                     <span className={`badge-role ${u.activo ? 'badge-active' : 'badge-inactive'}`}>
                       {u.activo ? '🟢 Activo' : '🔴 Inactivo'}
                     </span>
                   </td>
-                  <td>
+                  <td data-label="Comunas Asignadas">
                     {u.rol === 'ADMIN' || u.rol === 'CHOFER' || u.rol === 'REPORTERIA'
                       ? 'Todas'
                       : (u.comunaNombres && u.comunaNombres.length > 0 ? u.comunaNombres.join(', ') : 'Sin asignación')}
                   </td>
-                  <td>
+                  <td data-label="Acciones">
                     {!canManageUser(u) ? (
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontStyle: 'italic', display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
                         🔒 Protegido
                       </span>
                     ) : (
-                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
                         <button className="action-btn action-btn-edit" onClick={() => handleOpenModal(u)}>
                           ✏️ Editar
                         </button>

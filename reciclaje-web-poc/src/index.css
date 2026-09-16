@@ -459,7 +459,16 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.map-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
 }
 
 .map-card-title {
@@ -467,9 +476,24 @@ body {
   font-weight: 700;
 }
 
-.map-subtitle {
+.toggle-icon {
   font-size: 0.8rem;
   color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.map-subtitle {
+  font-size: 0.8rem;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .quick-pins-list {
@@ -612,6 +636,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .category-badge {
@@ -1230,16 +1255,17 @@ body {
 .admin-panel {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  padding: 1.5rem 0;
+  gap: 1.25rem;
+  width: 100%;
 }
 
 .admin-nav-bar {
   display: flex;
   gap: 0.75rem;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 1rem;
+  padding-bottom: 0.85rem;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .admin-tab-btn {
@@ -1255,6 +1281,8 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .admin-tab-btn:hover {
@@ -1267,6 +1295,25 @@ body {
   color: #fff;
   border-color: #60a5fa;
   box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4);
+}
+
+.admin-tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.admin-tab-title {
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.admin-tab-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
 }
 
 .admin-card {
@@ -1462,4 +1509,165 @@ body {
     opacity: 1;
   }
 }
+
+.reports-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.semana-anio-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+/* ==========================================================================
+   Responsive Mobile Adjustments (Admin & Cards)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .admin-panel {
+    gap: 1rem;
+  }
+
+  .admin-nav-bar {
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    scrollbar-width: none;
+  }
+
+  .admin-nav-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-tab-btn {
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  .admin-card {
+    padding: 1rem 0.75rem;
+    border-radius: var(--radius-md);
+  }
+
+  .admin-tab-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .admin-tab-header .action-btn-primary {
+    width: 100%;
+    justify-content: center;
+    padding: 0.7rem 1rem;
+  }
+
+  .reports-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  /* Responsive Table: Transforma filas de tabla en tarjetas individuales para celular */
+  .admin-table-wrapper {
+    border: none;
+    background: transparent;
+    overflow-x: visible;
+  }
+
+  .admin-table,
+  .admin-table tbody,
+  .admin-table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table tr {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.85rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .admin-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.35rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 0.85rem;
+    text-align: right;
+    word-break: break-word;
+  }
+
+  .admin-table td:last-child {
+    border-bottom: none;
+    padding-top: 0.5rem;
+  }
+
+  .admin-table td::before {
+    content: attr(data-label);
+    font-weight: 700;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    text-align: left;
+    margin-right: 0.75rem;
+    flex-shrink: 0;
+  }
+
+  .admin-table td[data-label="Acciones"] {
+    justify-content: flex-end;
+    padding-top: 0.6rem;
+  }
+
+  .admin-table td[data-label="Acciones"]::before {
+    margin-right: auto;
+  }
+
+  .admin-table td[colspan] {
+    display: block;
+    text-align: center;
+    padding: 1.5rem 1rem;
+  }
+
+  .admin-table td[colspan]::before {
+    display: none;
+  }
+}
+
+@media (max-width: 600px) {
+  .map-view-card {
+    padding: 0.85rem 1rem;
+  }
+
+  .map-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .map-card-title-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .map-subtitle {
+    font-size: 0.75rem;
+    align-self: flex-start;
+  }
+
+  .semana-anio-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 

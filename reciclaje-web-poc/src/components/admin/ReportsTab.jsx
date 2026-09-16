@@ -197,7 +197,7 @@ export default function ReportsTab() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+      <div className="reports-grid">
         {/* Card 1: Reportes de Inspección */}
         <div className="calculation-card">
           <h4 style={{ fontSize: '1.05rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -218,7 +218,7 @@ export default function ReportsTab() {
 
             {filterByWeek && (
               <div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div className="semana-anio-grid">
                   <div>
                     <label className="field-label" style={{ marginBottom: '0.4rem', display: 'block' }}>Semana:</label>
                     <select
