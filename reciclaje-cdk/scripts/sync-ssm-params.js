@@ -139,13 +139,19 @@ if (action === 'list') {
   ];
 
   const paramsToSync = paramsTemplate.map(p => {
-    const hasLocal = localEnv[p.name] !== undefined && localEnv[p.name] !== '';
+    let val = localEnv[p.name] !== undefined && localEnv[p.name] !== '' ? localEnv[p.name] : p.defaultVal;
+    let src = localEnv[p.name] !== undefined && localEnv[p.name] !== '' ? 'archivo .env' : 'predeterminado';
+    // En producción nunca permitir que VITE_SHOW_TEST_CREDENTIALS sea true
+    if (envName === 'prod' && p.name === 'VITE_SHOW_TEST_CREDENTIALS') {
+      val = 'false';
+      src = 'política de seguridad prod (forzado false)';
+    }
     return {
       name: p.name,
-      value: hasLocal ? localEnv[p.name] : p.defaultVal,
+      value: val,
       type: p.type,
       desc: p.desc,
-      source: hasLocal ? 'archivo .env' : 'predeterminado',
+      source: src,
     };
   });
 

@@ -2,12 +2,18 @@ import React, { useState } from 'react';
 import { authService } from '../services/authService';
 
 export const LoginScreen = ({ onLoginSuccess, logoutMessage, onClearLogoutMessage }) => {
-  const showTestCredentials = import.meta.env.VITE_SHOW_TEST_CREDENTIALS === 'true';
-  const defaultAdminEmail = import.meta.env.VITE_ADMIN_INITIAL_EMAIL || 'admin@reciclajelitoral.cl';
-  const defaultAdminPassword = import.meta.env.VITE_ADMIN_INITIAL_PASSWORD || '';
+  // Las credenciales de prueba NUNCA se compilan ni muestran en producción (vite build -> import.meta.env.DEV = false).
+  // Solo se habilitan en desarrollo local si import.meta.env.DEV es true y VITE_SHOW_TEST_CREDENTIALS === 'true'.
+  // Al compilar con Vite en producción, el Dead Code Elimination elimina por completo
+  // el contenedor .test-credentials-box y las funciones de auto-llenado del bundle JavaScript final.
+  const showTestCredentials = Boolean(
+    import.meta.env.DEV && import.meta.env.VITE_SHOW_TEST_CREDENTIALS === 'true'
+  );
+  const defaultAdminEmail = showTestCredentials ? (import.meta.env.VITE_ADMIN_INITIAL_EMAIL || 'admin@reciclajelitoral.cl') : '';
+  const defaultAdminPassword = showTestCredentials ? (import.meta.env.VITE_ADMIN_INITIAL_PASSWORD || '') : '';
 
-  const [email, setEmail] = useState(showTestCredentials ? defaultAdminEmail : '');
-  const [password, setPassword] = useState(showTestCredentials ? defaultAdminPassword : '');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [loading, setLoading] = useState(false);
@@ -91,7 +97,7 @@ export const LoginScreen = ({ onLoginSuccess, logoutMessage, onClearLogoutMessag
               onChange={(e) => setEmail(e.target.value)}
               required
               className="text-input"
-              placeholder="admin@reciclajelitoral.cl"
+              placeholder="usuario@ejemplo.cl"
             />
           </div>
 
