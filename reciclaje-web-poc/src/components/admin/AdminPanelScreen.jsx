@@ -7,34 +7,29 @@ import ReportsTab from './ReportsTab';
 export default function AdminPanelScreen({ onLogout }) {
   const [activeTab, setActiveTab] = useState('metrics');
 
+  const tabs = [
+    { id: 'metrics', icon: '📈', label: 'Dashboard & Métricas', shortLabel: 'Métricas' },
+    { id: 'users', icon: '👥', label: 'Gestión de Usuarios', shortLabel: 'Usuarios' },
+    { id: 'containers', icon: '📦', label: 'Contenedores', shortLabel: 'Contenedores' },
+    { id: 'reports', icon: '📁', label: 'Reportes & Excel ZIP', shortLabel: 'Reportes' }
+  ];
+
   return (
     <div className="admin-panel">
-      <div className="admin-nav-bar">
-        <button
-          className={`admin-tab-btn ${activeTab === 'metrics' ? 'active' : ''}`}
-          onClick={() => setActiveTab('metrics')}
-        >
-          📈 Dashboard & Métricas
-        </button>
-        <button
-          className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
-          onClick={() => setActiveTab('users')}
-        >
-          👥 Gestión de Usuarios
-        </button>
-        <button
-          className={`admin-tab-btn ${activeTab === 'containers' ? 'active' : ''}`}
-          onClick={() => setActiveTab('containers')}
-        >
-          📦 Contenedores
-        </button>
-        <button
-          className={`admin-tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
-          onClick={() => setActiveTab('reports')}
-        >
-          📁 Reportes & Excel ZIP
-        </button>
-      </div>
+      <nav className="admin-nav-bar" aria-label="Navegación de pestañas administrativas">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            className={`admin-tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab.id)}
+          >
+            <span className="tab-icon">{tab.icon}</span>
+            <span className="tab-label-full">{tab.label}</span>
+            <span className="tab-label-short">{tab.shortLabel}</span>
+          </button>
+        ))}
+      </nav>
 
       <div className="admin-card">
         {activeTab === 'metrics' && <MetricsDashboardTab />}

@@ -1285,6 +1285,14 @@ body {
   flex-shrink: 0;
 }
 
+.tab-label-short {
+  display: none;
+}
+
+.tab-label-full {
+  display: inline;
+}
+
 .admin-tab-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
@@ -1531,18 +1539,31 @@ body {
   }
 
   .admin-nav-bar {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 0.5rem;
-    padding-bottom: 0.5rem;
-    scrollbar-width: none;
-  }
-
-  .admin-nav-bar::-webkit-scrollbar {
-    display: none;
+    padding-bottom: 0.75rem;
+    overflow-x: visible;
+    width: 100%;
   }
 
   .admin-tab-btn {
-    padding: 0.5rem 0.85rem;
-    font-size: 0.8rem;
+    width: 100%;
+    padding: 0.65rem 0.5rem;
+    font-size: 0.82rem;
+    justify-content: center;
+    text-align: center;
+    border-radius: var(--radius-md);
+    white-space: normal;
+  }
+
+  .tab-label-full {
+    display: none;
+  }
+
+  .tab-label-short {
+    display: inline;
+    font-weight: 700;
   }
 
   .admin-card {
